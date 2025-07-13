@@ -173,143 +173,161 @@ const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
           e.dataTransfer.setData('player/json', JSON.stringify(player));
         }}
       >
-        <Box sx={{ 
-          display: 'flex',
-          flexWrap: 'wrap',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: 0.15,
-          minWidth: 0,
-          overflow: 'hidden',
-          maxWidth: '220px'
-        }}>
-        {isEditing ? (
-          <>
-            <TextField
-              variant="standard"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              autoFocus
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  setIsEditing(false);
-                }
-              }}
-              onBlur={() => setIsEditing(false)}
-              slotProps={{
-                input: {
-                  style: {
-                    fontSize: 'clamp(0.5rem, 0.65vw, 0.65rem)',
-                    fontWeight: 'bold',
-                    padding: 0,
+        <Box
+          sx={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            width: '100%',
+            gap: 0.5,
+          }}
+        >
+          <Box sx={{ 
+            display: 'flex',
+            alignItems: 'center',
+            overflow: 'hidden',
+            gap: 0.25,
+            minWidth: 0,
+          }}>
+          {isEditing ? (
+            <>
+              <TextField
+                variant="standard"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    setIsEditing(false);
+                  }
+                }}
+                onBlur={() => setIsEditing(false)}
+                slotProps={{
+                  input: {
+                    style: {
+                      fontSize: 'clamp(0.5rem, 0.65vw, 0.65rem)',
+                      fontWeight: 'bold',
+                      padding: 0,
+                    },
                   },
-                },
-              }}
+                }}
+                sx={{
+                  '& .MuiInputBase-root': {
+                    lineHeight: 1,
+                    height: '1rem',
+                  },
+                }}
+              />
+            </>
+          ) : (
+            <Box
               sx={{
-                '& .MuiInputBase-root': {
-                  lineHeight: 1,
-                  height: '1rem',
-                },
+                display: 'flex',
+                alignItems: 'center',
+                gap: 0.25,
+                maxWidth: 160,
+                overflow: 'hidden',
               }}
-            />
-          </>
-        ) : (
+            >
+              <Typography
+                variant="body2"
+                sx={{
+                  fontWeight: 'bold',
+                  fontSize: 'clamp(0.5rem, 0.65vw, 0.65rem)', // scalable but consistent
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  maxWidth: 100,
+                }}
+                title={player.name}
+              >
+                {player.name}
+              </Typography>
+              <IconButton
+                size="small"
+                onClick={() => setIsEditing(true)}
+                title="Edit Name"
+                sx={{ fontSize: '0.7rem', padding: '2px' }}
+              >
+                ✏️
+              </IconButton>
+            </Box>
+          )}
+          </Box>
+
           <Box
             sx={{
               display: 'flex',
               alignItems: 'center',
               gap: 0.25,
-              maxWidth: 160,
-              overflow: 'hidden',
+              flexShrink: 0,
             }}
           >
-            <Typography
-              variant="body2"
+            <Typography 
+              variant="body2" 
               sx={{
-                fontWeight: 'bold',
-                fontSize: 'clamp(0.5rem, 0.65vw, 0.65rem)', // scalable but consistent
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                maxWidth: 100,
+                display: 'flex',
+                alignItems: 'center',
+                fontSize: 'clamp(0.5rem, 0.65vw, 0.65rem)',
+                gap: 0.15,
               }}
-              title={player.name}
             >
-              {player.name}
+              <Box component="span" sx={{ fontSize: '0.8em' }}>🎮</Box>
+              {player.gamesPlayed}
             </Typography>
-            <IconButton
-              size="small"
-              onClick={() => setIsEditing(true)}
-              title="Edit Name"
-              sx={{ fontSize: '0.7rem', padding: '2px' }}
+
+            <Typography 
+              variant="body2" 
+              sx={{
+                mx: 1,
+                fontWeight: elapsedSeconds > 900 ? 'bold' : 'normal',
+                color: elapsedSeconds > 900 ? '#8B0000' : textColor,
+                fontSize: 'clamp(0.5rem, 0.65vw, 0.65rem)',
+              }}
             >
-              ✏️
+              {formatElapsedTime(elapsedSeconds)}
+            </Typography>
+
+            {zone === 'rest' && (
+              <IconButton
+                size="small"
+                onClick={handleQuickAdd}
+                disabled={isQuickAddDisabled}
+                title={isQuickAddDisabled ? "No available court or queue" : "Quick Add"}
+                sx={{
+                  padding: '2px',
+                  color: isQuickAddDisabled ? '#aaa' : '#2E7D32',
+                  '&:hover': {
+                    color: isQuickAddDisabled ? '#aaa' : '#1B5E20',
+                  },
+                }}
+              >
+                <BadmintonIcon size={12} playerSeed={player.name} isDisabled={isQuickAddDisabled}/>
+              </IconButton>
+            )}
+
+            {zone !== 'rest' && (
+              <IconButton
+                size="small"
+                onClick={() => dispatch(Action.movePlayer(player.id, zone, 'rest'))}
+                title="Send to Resting Players"
+                sx={{
+                  padding: '2px',
+                  color: '#6D4C41',
+                  '&:hover': {
+                    color: '#3E2723',
+                  },
+                }}
+              >
+                <KeyboardReturnIcon sx={{ fontSize: '0.75rem' }} />
+              </IconButton>
+            )}
+
+            <IconButton size="small" onClick={openPopover} sx={{ padding: '2px' }}>
+              <MoreVertIcon sx={{ fontSize: '0.75rem' }} />
             </IconButton>
           </Box>
-        )}
-      </Box>
-
-        <Typography 
-          variant="body2" 
-          sx={{
-            display: 'flex',
-            alignItems: 'center',
-            fontSize: 'clamp(0.5rem, 0.65vw, 0.65rem)',
-            gap: 0.25,
-          }}
-        >
-          <Box component="span" sx={{ fontSize: '0.85em' }}>🎮</Box>
-          {player.gamesPlayed}
-        </Typography>
-
-        <Typography 
-          variant="body2" 
-          sx={{
-            mx: 1,
-            fontWeight: elapsedSeconds > 900 ? 'bold' : 'normal',
-            color: elapsedSeconds > 900 ? '#8B0000' : textColor,
-            fontSize: 'clamp(0.5rem, 0.65vw, 0.65rem)',
-          }}
-        >
-          {formatElapsedTime(elapsedSeconds)}
-        </Typography>
-
-        {zone === 'rest' && (
-          <IconButton
-            size="small"
-            onClick={handleQuickAdd}
-            disabled={isQuickAddDisabled}
-            title={isQuickAddDisabled ? "No available court or queue" : "Quick Add"}
-            sx={{
-              color: isQuickAddDisabled ? '#aaa' : '#2E7D32',
-              '&:hover': {
-                color: isQuickAddDisabled ? '#aaa' : '#1B5E20',
-              },
-            }}
-          >
-            <BadmintonIcon size={12} playerSeed={player.name} isDisabled={isQuickAddDisabled}/>
-          </IconButton>
-        )}
-
-        {zone !== 'rest' && (
-          <IconButton
-            size="small"
-            onClick={() => dispatch(Action.movePlayer(player.id, zone, 'rest'))}
-            title="Send to Resting Players"
-            sx={{
-              color: '#6D4C41',
-              '&:hover': {
-                color: '#3E2723',
-              },
-            }}
-          >
-            <KeyboardReturnIcon sx={{ fontSize: '0.75rem' }} />
-          </IconButton>
-        )}
-
-        <IconButton size="small" onClick={openPopover}>
-          <MoreVertIcon sx={{ fontSize: '0.75rem' }} />
-        </IconButton>
+        </Box>
       </Card>
 
       <Popover
