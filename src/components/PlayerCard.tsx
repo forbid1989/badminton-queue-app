@@ -12,6 +12,7 @@ import {
   InputLabel,
   TextField,
   useTheme,
+  useMediaQuery,
   
 } from '@mui/material';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
@@ -140,24 +141,25 @@ const textColor =
     ? "#4A3F1C"
     : "#5E473B";
 
+const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+
   return (
     <div className="flipped">
       <Card
         sx={{
           display: 'flex',
+          width: '100%',
+          maxWidth: isMobile ? '90vw' : '200px',
           justifyContent: 'space-between',
           alignItems: 'center',
-          padding: '4px 8px',
+          padding: isMobile ? '0.5px 2px' : '1px 4px',
           backgroundColor,
           borderRadius: '20px',
           boxShadow: '0 2px 6px rgba(0,0,0,0.08)',
           cursor: 'grab',
-          width: '100%',
-          minWidth: 280,
-          minHeight: 40,
-          margin: '0 auto 8px', // optional: center in container
+          margin: '0 auto 4px',
           color: textColor,
-          border: '1px solid rgba(0, 0, 0, 0.06)',  // Soft outline
+          border: '1px solid rgba(0, 0, 0, 0.06)',
           transition: 'transform 0.15s ease-in-out, box-shadow 0.15s ease-in-out',
           '&:hover': {
             transform: 'scale(1.025)',
@@ -172,11 +174,14 @@ const textColor =
         }}
       >
         <Box sx={{ 
-          flexGrow: 1,
-          minWidth: 0,
           display: 'flex',
+          flexWrap: 'wrap',
           alignItems: 'center',
+          justifyContent: 'center',
+          gap: 0.15,
+          minWidth: 0,
           overflow: 'hidden',
+          maxWidth: '220px'
         }}>
         {isEditing ? (
           <>
@@ -194,7 +199,7 @@ const textColor =
               slotProps={{
                 input: {
                   style: {
-                    fontSize: 'clamp(0.75rem, 2.3vw, 0.95rem)',
+                    fontSize: 'clamp(0.5rem, 0.65vw, 0.65rem)',
                     fontWeight: 'bold',
                     padding: 0,
                   },
@@ -203,7 +208,7 @@ const textColor =
               sx={{
                 '& .MuiInputBase-root': {
                   lineHeight: 1,
-                  height: '1.25rem',
+                  height: '1rem',
                 },
               }}
             />
@@ -213,22 +218,20 @@ const textColor =
             sx={{
               display: 'flex',
               alignItems: 'center',
-              gap: 0.5,
+              gap: 0.25,
               maxWidth: 160,
               overflow: 'hidden',
             }}
           >
             <Typography
               variant="body2"
-              sx={{ 
+              sx={{
                 fontWeight: 'bold',
-                fontSize: '1rem',
+                fontSize: 'clamp(0.5rem, 0.65vw, 0.65rem)', // scalable but consistent
                 whiteSpace: 'nowrap',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
-                display: 'inline-block',
-                verticalAlign: 'middle',
-                maxWidth: 100, // Prevent too-wide names
+                maxWidth: 100,
               }}
               title={player.name}
             >
@@ -238,7 +241,7 @@ const textColor =
               size="small"
               onClick={() => setIsEditing(true)}
               title="Edit Name"
-              sx={{ p: 0.5, flexShrink: 0 }}
+              sx={{ fontSize: '0.7rem', padding: '2px' }}
             >
               ✏️
             </IconButton>
@@ -246,8 +249,17 @@ const textColor =
         )}
       </Box>
 
-        <Typography variant="body2" sx={{ mx: 1 }}>
-          🎮 {player.gamesPlayed}
+        <Typography 
+          variant="body2" 
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            fontSize: 'clamp(0.5rem, 0.65vw, 0.65rem)',
+            gap: 0.25,
+          }}
+        >
+          <Box component="span" sx={{ fontSize: '0.85em' }}>🎮</Box>
+          {player.gamesPlayed}
         </Typography>
 
         <Typography 
@@ -256,6 +268,7 @@ const textColor =
             mx: 1,
             fontWeight: elapsedSeconds > 900 ? 'bold' : 'normal',
             color: elapsedSeconds > 900 ? '#8B0000' : textColor,
+            fontSize: 'clamp(0.5rem, 0.65vw, 0.65rem)',
           }}
         >
           {formatElapsedTime(elapsedSeconds)}
@@ -274,7 +287,7 @@ const textColor =
               },
             }}
           >
-            <BadmintonIcon size={20} playerSeed={player.name} isDisabled={isQuickAddDisabled}/>
+            <BadmintonIcon size={12} playerSeed={player.name} isDisabled={isQuickAddDisabled}/>
           </IconButton>
         )}
 
@@ -290,12 +303,12 @@ const textColor =
               },
             }}
           >
-            <KeyboardReturnIcon fontSize="small" />
+            <KeyboardReturnIcon sx={{ fontSize: '0.75rem' }} />
           </IconButton>
         )}
 
         <IconButton size="small" onClick={openPopover}>
-          <MoreVertIcon fontSize="small" />
+          <MoreVertIcon sx={{ fontSize: '0.75rem' }} />
         </IconButton>
       </Card>
 
@@ -305,17 +318,35 @@ const textColor =
         onClose={closePopover}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
       >
-        <Box p={2} display="flex" flexDirection="column" gap={2} minWidth={200}>
+        <Box 
+          p={1} 
+          display="flex" 
+          flexDirection="column" 
+          gap={1.2} 
+          minWidth={140}
+          sx={{ fontSize: '0.65rem' }}
+        >
           <TextField
             label="Games"
             value={gamesPlayed}
             onChange={handleGamesChange}
             onBlur={handleGamesBlur}
             size="small"
+            slotProps={{
+              input: {
+                style: {
+                  fontSize: '0.65rem',
+                  padding: '0 4px',
+                },
+              },
+              inputLabel: {
+                sx: { fontSize: '0.65rem' }
+              }
+            }}
           />
 
           <FormControl size="small" fullWidth>
-            <InputLabel>Court</InputLabel>
+            <InputLabel sx={{ fontSize: '0.65rem' }}>Court</InputLabel>
             <Select
               label="Court"
               value=""
@@ -323,9 +354,11 @@ const textColor =
                 dispatch(Action.movePlayer(player.id, zone, e.target.value));
                 closePopover();
               }}
+              size='small'
+              sx={{ fontSize: '0.65rem' }}
             >
               {Array.from({ length: courtCount }, (_, i) => (
-                <MenuItem key={`court-${i}`} value={`court-${i}`}>
+                <MenuItem key={`court-${i}`} value={`court-${i}`} sx={{ fontSize: '0.65rem' }}>
                   Court {i + 1}
                 </MenuItem>
               ))}
@@ -333,7 +366,7 @@ const textColor =
           </FormControl>
 
           <FormControl size="small" fullWidth>
-            <InputLabel>Queue</InputLabel>
+            <InputLabel sx={{ fontSize: '0.65rem' }}>Queue</InputLabel>
             <Select
               label="Queue"
               value=""
@@ -341,9 +374,11 @@ const textColor =
                 dispatch(Action.movePlayer(player.id, zone, e.target.value));
                 closePopover();
               }}
+              size='small'
+              sx={{ fontSize: '0.65rem' }}
             >
               {Array.from({ length: queueCount }, (_, i) => (
-                <MenuItem key={`queue-${i}`} value={`queue-${i}`}>
+                <MenuItem key={`queue-${i}`} value={`queue-${i}`} sx={{ fontSize: '0.65rem' }}>
                   Queue {i + 1}
                 </MenuItem>
               ))}
@@ -358,7 +393,8 @@ const textColor =
               dispatch(Action.removePlayer(player.id));
               closePopover();
             }}
-            startIcon={<DeleteIcon />}
+            startIcon={<DeleteIcon sx={{ fontSize: '0.75rem' }} />}
+            sx={{ fontSize: '0.65rem', padding: '4px 6px' }}
           >
             Remove
           </Button>
