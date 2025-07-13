@@ -41,7 +41,12 @@ const QueueZone: React.FC<QueueZoneProps> = ({ playersByQueue, courtCount }) => 
               >
                 <Typography
                   variant="h6"
-                  sx={{ fontWeight: 'bold', color: '#333' }}
+                  sx={{
+                    fontSize: 'clamp(0.65rem, 0.9vw, 0.85rem)',
+                    fontWeight: 'bold',
+                    color: '#333',
+                    padding: '2px 4px',
+                  }}
                 >
                   Queue {index + 1}
                 </Typography>
@@ -58,6 +63,8 @@ const QueueZone: React.FC<QueueZoneProps> = ({ playersByQueue, courtCount }) => 
                     }
                     onClick={() => dispatch(Action.transferQueueToCourt(queueId))}
                     sx={{
+                      fontSize: '0.65rem',
+                      padding: '2px 6px',
                       backgroundColor: '#4A3F1C',
                       textTransform: 'none',
                       '&:hover': {
@@ -72,7 +79,7 @@ const QueueZone: React.FC<QueueZoneProps> = ({ playersByQueue, courtCount }) => 
 
               {/* Body content */}
               {queuePlayers.length === 0 ? (
-                <Typography variant="body2" color="text.secondary">
+                <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.7rem', paddingLeft: '4px' }}>
                   No players in queue.
                 </Typography>
               ) : (

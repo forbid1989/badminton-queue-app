@@ -33,7 +33,12 @@ const CourtZone: React.FC<CourtZoneProps> = ({ playersByCourt, courtCount }) => 
               >
                 <Typography
                   variant="h6"
-                  sx={{ fontWeight: 'bold', color: 'white' }}
+                  sx={{
+                    fontSize: 'clamp(0.65rem, 0.9vw, 0.85rem)',  // Smaller font
+                    fontWeight: 'bold',
+                    color: 'white',
+                    padding: '2px 4px'
+                  }}
                 >
                   Court {index + 1}
                 </Typography>
@@ -43,6 +48,8 @@ const CourtZone: React.FC<CourtZoneProps> = ({ playersByCourt, courtCount }) => 
                     size="small"
                     onClick={() => dispatch(Action.endGame(courtId))}
                     sx={{
+                      fontSize: '0.65rem', // Smaller font
+                      padding: '2px 6px', // Smaller button padding
                       backgroundColor: '#365F2C',
                       textTransform: 'none',
                       '&:hover': {
@@ -56,7 +63,7 @@ const CourtZone: React.FC<CourtZoneProps> = ({ playersByCourt, courtCount }) => 
               </Box>
 
               {courtPlayers.length === 0 ? (
-                <Typography variant="body2" color="text.secondary">
+                <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.7rem', paddingLeft: '4px' }}>
                   No players assigned.
                 </Typography>
               ) : (
