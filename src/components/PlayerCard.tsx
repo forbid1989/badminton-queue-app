@@ -296,9 +296,19 @@ const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
                 title={isQuickAddDisabled ? "No available court or queue" : "Quick Add"}
                 sx={{
                   padding: '2px',
+                  borderRadius: '12px',
+                  border: `1px solid ${isQuickAddDisabled ? '#ccc' : '#2E7D32'}`,
+                  backgroundColor: isQuickAddDisabled ? '#f2f2f2' : '#E8F5E9',
                   color: isQuickAddDisabled ? '#aaa' : '#2E7D32',
+                  minWidth: 'auto',
+                  transition: 'all 0.2s ease-in-out',
                   '&:hover': {
+                    backgroundColor: isQuickAddDisabled ? '#f2f2f2' : '#C8E6C9',
                     color: isQuickAddDisabled ? '#aaa' : '#1B5E20',
+                    borderColor: isQuickAddDisabled ? '#ccc' : '#1B5E20',
+                  },
+                  '& .MuiSvgIcon-root': {
+                    fontSize: '16px',
                   },
                 }}
               >
