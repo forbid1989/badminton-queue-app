@@ -37,7 +37,6 @@ const CourtControlPanel: React.FC<CourtControlPanelProps>  = ({ onClose }) => {
         label="Courts"
         size="small"
         type="number"
-        inputProps={{ min: 1 }}
         value={input}
         onChange={(e) => setInput(e.target.value)}
         sx={{

@@ -83,12 +83,14 @@ const Dashboard: React.FC = () => {
             vertical: 'top',
             horizontal: 'right',
           }}
-          PaperProps={{
-            sx: {
-              p: 2,
-              borderRadius: 2,
-              backgroundColor: theme.palette.background.paper,
-              boxShadow: theme.shadows[3],
+          slotProps={{
+            paper: {
+              sx: {
+                p: 2,
+                borderRadius: 2,
+                backgroundColor: theme.palette.background.paper,
+                boxShadow: theme.shadows[3],
+              },
             },
           }}
         >
