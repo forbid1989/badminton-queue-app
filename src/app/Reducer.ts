@@ -115,7 +115,7 @@ export default function reducer(state: any, action: Action) {
       let playerToMove: Player | undefined;
       let updatedFrom: Player[] = [];
 
-      // Determine where the player is coming from
+      // Step 1: Locate and remove player from original zone
       if (from.startsWith("queue-")) {
         updatedFrom = state.queue.playersByQueue[from].filter((p: Player) => {
           if (p.id === id) {
@@ -144,17 +144,19 @@ export default function reducer(state: any, action: Action) {
 
       if (!playerToMove) return state;
 
-      // Prepare updated player
-      playerToMove = {
+      const isToCourt = to.startsWith("court-");
+
+      // Step 2: Create updated player with conditional timeEntered update
+      const updatedPlayer: Player = {
         ...playerToMove,
         status: to as PlayerStatus,
-        timeEntered: Date.now(),
+        timeEntered: isToCourt ? Date.now() : playerToMove.timeEntered,
       };
 
       const newState = { ...state };
 
-      // 🏸 Move TO COURT
-      if (to.startsWith("court-")) {
+      // Step 3: Add to new zone
+      if (isToCourt) {
         const targetCourt = state.courts.playersByCourt[to] || [];
         if (targetCourt.length >= 4) return state;
 
@@ -162,29 +164,25 @@ export default function reducer(state: any, action: Action) {
           ...state.courts,
           playersByCourt: {
             ...state.courts.playersByCourt,
-            [to]: [...targetCourt, playerToMove],
+            [to]: [...targetCourt, updatedPlayer],
             ...(from.startsWith("court-") && { [from]: updatedFrom }),
           },
         };
-      }
-
-      // 🏸 Move TO QUEUE
-      else if (to.startsWith("queue-")) {
+      } else if (to.startsWith("queue-")) {
         const maxPerQueue = 4;
-
-        // Try to use the target queue first
         let targetQueueId = to;
+
         if ((state.queue.playersByQueue[to] || []).length >= maxPerQueue) {
-          // Find an alternate queue with space
           targetQueueId =
             Object.keys(state.queue.playersByQueue).find(
               (key) => state.queue.playersByQueue[key].length < maxPerQueue
             ) || to;
+
           if (
             (state.queue.playersByQueue[targetQueueId] || []).length >=
             maxPerQueue
           ) {
-            return state; // No available space
+            return state;
           }
         }
 
@@ -194,20 +192,17 @@ export default function reducer(state: any, action: Action) {
           ...state.queue,
           playersByQueue: {
             ...state.queue.playersByQueue,
-            [targetQueueId]: [...targetQueue, playerToMove],
+            [targetQueueId]: [...targetQueue, updatedPlayer],
             ...(from.startsWith("queue-") && { [from]: updatedFrom }),
           },
         };
-      }
-
-      // 🏸 Move TO REST (Unqueued)
-      else if (to === "rest") {
+      } else if (to === "rest") {
         newState.unqueued = {
-          players: [...state.unqueued.players, playerToMove],
+          players: [...state.unqueued.players, updatedPlayer],
         };
       }
 
-      // Clear from previous zone
+      // Step 4: Remove from original zone
       if (from.startsWith("court-")) {
         newState.courts = {
           ...newState.courts,
@@ -398,12 +393,27 @@ export default function reducer(state: any, action: Action) {
         state.courts.playersByCourt[courtId] || [];
 
       // Increment gamesPlayed and move them to unqueued
-      const updatedPlayers = playersOnCourt.map((p) => ({
-        ...p,
-        gamesPlayed: p.gamesPlayed + 1,
-        status: "rest" as PlayerStatus,
-        timeEntered: Date.now(),
-      }));
+
+      const timestamp = Date.now();
+
+      const updatedPlayers = playersOnCourt.map((player) => {
+        const opponents = playersOnCourt
+          .filter((p) => p.id !== player.id)
+          .map((p) => p.name); // or use p.id if preferred
+
+        const matchEntry = {
+          opponents,
+          timestamp,
+        };
+
+        return {
+          ...player,
+          gamesPlayed: player.gamesPlayed + 1,
+          status: "rest" as PlayerStatus,
+          timeEntered: timestamp,
+          matchHistory: [...(player.matchHistory || []), matchEntry],
+        };
+      });
 
       return {
         ...state,

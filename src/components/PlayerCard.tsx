@@ -21,8 +21,9 @@ import { Player } from '../types/Player';
 import { AppContext } from '../BadmintonQueueUI';
 import { Action } from '../app/Action';
 import KeyboardReturnIcon from '@mui/icons-material/KeyboardReturn';
-
+import HistoryIcon from '@mui/icons-material/History';
 import BadmintonIcon from './input/BadmintonIcon';
+import { getTimeAgo } from '../utils/getTimeAgo';
 
 const formatElapsedTime = (seconds: number) => {
   const mins = Math.floor(seconds / 60);
@@ -39,7 +40,10 @@ const PlayerCard: React.FC<PlayerCardProps> = ({ player, zone }) => {
   const theme = useTheme();
   const { state, dispatch } = useContext(AppContext);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [historyAnchorEl, setHistoryAnchorEl] = useState<null | HTMLElement>(null);
+  const [elapsedSeconds, setElapsedSeconds] = useState<number>(() => {
+    return Math.floor((Date.now() - player.timeEntered) / 1000);
+  });
   const [isEditing, setIsEditing] = useState(false);
   const [gamesPlayed, setGamesPlayed] = useState(player.gamesPlayed.toString());
 
@@ -65,10 +69,10 @@ const PlayerCard: React.FC<PlayerCardProps> = ({ player, zone }) => {
 
   useEffect(() => {
     const interval = setInterval(() => {
-      setElapsedSeconds((s) => s + 1);
+      setElapsedSeconds(Math.floor((Date.now() - player.timeEntered) / 1000));
     }, 1000);
     return () => clearInterval(interval);
-  }, []);
+  }, [player.timeEntered]);
 
   useEffect(() => {
     setGamesPlayed(player.gamesPlayed.toString());
@@ -123,25 +127,37 @@ const PlayerCard: React.FC<PlayerCardProps> = ({ player, zone }) => {
     setAnchorEl(null);
   };
 
-const backgroundColor =
-  elapsedSeconds > 900
-    ? "#F8D7DA"
-    : zone.startsWith('court')
-    ? "#B5CDA3"
-    : zone.startsWith('queue')
-    ? "#E5D78A"
-    : "#E8D8C4";
 
-const textColor =
-  elapsedSeconds > 900
+const isAlsoOnCourt = Object.values(state.courts.playersByCourt).some(players =>
+  players.some(p => p.id === player.id)
+);
+
+const isConflict = zone.startsWith('queue') && isAlsoOnCourt;
+const isRestTooLong = zone === 'rest' && elapsedSeconds > 900;
+
+const backgroundColor = isConflict
+  ? "#F7C59F" // light orange
+  : isRestTooLong
+    ? "#F8D7DA" // red alert
+    : zone.startsWith('court')
+      ? "#B5CDA3"
+      : zone.startsWith('queue')
+        ? "#E5D78A"
+        : "#E8D8C4";
+
+const textColor = isConflict
+  ? "#5C3D2E" // dark orange
+  : isRestTooLong
     ? "#8B0000"
     : zone.startsWith('court')
-    ? "#2F4023"
-    : zone.startsWith('queue')
-    ? "#4A3F1C"
-    : "#5E473B";
+      ? "#2F4023"
+      : zone.startsWith('queue')
+        ? "#4A3F1C"
+        : "#5E473B";
 
 const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+
+const showQuickAddIcon = zone === 'rest' && !isAlsoOnCourt;
 
   return (
     <div className="flipped">
@@ -288,35 +304,45 @@ const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
               {formatElapsedTime(elapsedSeconds)}
             </Typography>
 
-            {zone === 'rest' && (
+            {showQuickAddIcon && (
               <IconButton
                 size="small"
                 onClick={handleQuickAdd}
                 disabled={isQuickAddDisabled}
-                title={isQuickAddDisabled ? "No available court or queue" : "Quick Add"}
+                title={
+                  isQuickAddDisabled
+                    ? "No available court or queue"
+                    : "Quick Add"
+                }
                 sx={{
                   padding: '2px',
                   borderRadius: '12px',
-                  border: `1px solid ${isQuickAddDisabled ? '#ccc' : '#2E7D32'}`,
-                  backgroundColor: isQuickAddDisabled ? '#f2f2f2' : '#E8F5E9',
-                  color: isQuickAddDisabled ? '#aaa' : '#2E7D32',
+                  border: `1px solid ${
+                    isQuickAddDisabled || isAlsoOnCourt ? '#ccc' : '#2E7D32'
+                  }`,
+                  backgroundColor: isQuickAddDisabled || isAlsoOnCourt ? '#f2f2f2' : '#E8F5E9',
+                  color: isQuickAddDisabled || isAlsoOnCourt ? '#aaa' : '#2E7D32',
                   minWidth: 'auto',
                   transition: 'all 0.2s ease-in-out',
                   '&:hover': {
-                    backgroundColor: isQuickAddDisabled ? '#f2f2f2' : '#C8E6C9',
-                    color: isQuickAddDisabled ? '#aaa' : '#1B5E20',
-                    borderColor: isQuickAddDisabled ? '#ccc' : '#1B5E20',
+                    backgroundColor: isQuickAddDisabled || isAlsoOnCourt ? '#f2f2f2' : '#C8E6C9',
+                    color: isQuickAddDisabled || isAlsoOnCourt ? '#aaa' : '#1B5E20',
+                    borderColor: isQuickAddDisabled || isAlsoOnCourt ? '#ccc' : '#1B5E20',
                   },
                   '& .MuiSvgIcon-root': {
                     fontSize: '16px',
                   },
                 }}
               >
-                <BadmintonIcon size={12} playerSeed={player.name} isDisabled={isQuickAddDisabled}/>
+                <BadmintonIcon
+                  size={12}
+                  playerSeed={player.name}
+                  isDisabled={isQuickAddDisabled}
+                />
               </IconButton>
             )}
 
-            {zone !== 'rest' && (
+            {(zone !== 'rest' || isAlsoOnCourt) && (
               <IconButton
                 size="small"
                 onClick={() => dispatch(Action.movePlayer(player.id, zone, 'rest'))}
@@ -333,12 +359,62 @@ const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
               </IconButton>
             )}
 
+            <IconButton
+              size="small"
+              onClick={(e) => setHistoryAnchorEl(e.currentTarget)}
+              title="View Match History"
+            >
+              <HistoryIcon sx={{ fontSize: '0.75rem' }} />
+            </IconButton>
             <IconButton size="small" onClick={openPopover} sx={{ padding: '2px' }}>
               <MoreVertIcon sx={{ fontSize: '0.75rem' }} />
             </IconButton>
           </Box>
         </Box>
       </Card>
+
+      <Popover
+        open={Boolean(historyAnchorEl)}
+        anchorEl={historyAnchorEl}
+        onClose={() => setHistoryAnchorEl(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+        PaperProps={{
+          sx: {
+            minWidth: 280,
+            p: 2,
+          },
+        }}
+      >
+        <Typography variant="subtitle2" gutterBottom>
+          {player.name}&apos;s Match History
+        </Typography>
+
+        {player.matchHistory?.length ? (
+          player.matchHistory.map((entry, i) => {
+            const timestamp = new Date(entry.timestamp).toLocaleTimeString([], {
+              hour: 'numeric',
+              minute: '2-digit',
+              hour12: true,
+            });
+
+            return (
+              <Typography
+                key={i}
+                variant="body2"
+                fontSize="0.75rem"
+                sx={{ mb: 0.5 }}
+              >
+                <strong>Played with:</strong> {entry.opponents.join(', ')} at {timestamp}
+              </Typography>
+            );
+          })
+        ) : (
+          <Typography variant="body2" fontSize="0.75rem">
+            No match history
+          </Typography>
+        )}
+      </Popover>
+
 
       <Popover
         open={Boolean(anchorEl)}

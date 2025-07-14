@@ -8,7 +8,6 @@ import UnqueuedZone from '../UnqueuedZone';
 import PlayerParserForm from '../input/PlayerParserForm';
 import CourtControlPanel from '../CourtControlPanel';
 import Popover from '@mui/material/Popover';
-import SettingsIcon from '@mui/icons-material/Settings';
 import AddRoadIcon from '@mui/icons-material/AddRoad';
 
 const Dashboard: React.FC = () => {
@@ -74,7 +73,7 @@ const Dashboard: React.FC = () => {
             </IconButton>
           </Box>
         </Box>
-        <UnqueuedZone players={state.unqueued.players} />
+        <UnqueuedZone state={state} />
 
         <Popover
           open={isPopoverOpen}
