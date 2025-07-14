@@ -1,6 +1,6 @@
-import React, { useContext } from 'react';
-import { Typography, Grid, Box, Divider, useTheme  } from '@mui/material';
-
+import React, { useContext, useState  } from 'react';
+import { Typography, IconButton, Box, Divider, useTheme  } from '@mui/material';
+import AddIcon from '@mui/icons-material/GroupAdd'; // new
 import { AppContext } from '../../BadmintonQueueUI';
 import CourtZone from '../CourtZone';
 import QueueZone from '../QueueZone';
@@ -10,6 +10,8 @@ import PlayerParserForm from '../input/PlayerParserForm';
 const Dashboard: React.FC = () => {
   const { state } = useContext(AppContext);
   const theme = useTheme();
+
+  const [openParser, setOpenParser] = useState(false);
 
   return (
     <Box sx={{ 
@@ -35,6 +37,19 @@ const Dashboard: React.FC = () => {
           boxShadow: theme.shadows[2],
         }}
       >
+        <Box
+          sx={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            mb: 2,
+          }}
+        >
+          <Typography variant="h6">Resting Players</Typography>
+          <IconButton onClick={() => setOpenParser(true)} title="Add Players">
+            <AddIcon />
+          </IconButton>
+        </Box>
         <UnqueuedZone players={state.unqueued.players} />
       </Box>
 
@@ -57,7 +72,7 @@ const Dashboard: React.FC = () => {
         <Divider sx={{ my: 3 }} />
 
         {/* Player Parser */}
-        <PlayerParserForm />
+        <PlayerParserForm open={openParser} onClose={() => setOpenParser(false)} />
       </Box>
     </Box>
   );
