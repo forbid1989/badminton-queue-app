@@ -3,7 +3,11 @@ import { Action } from '../app/Action';
 import { AppContext } from '../BadmintonQueueUI';
 import { TextField, Button, Stack, useTheme  } from '@mui/material';
 
-const CourtControlPanel = () => {
+interface CourtControlPanelProps {
+  onClose?: () => void;
+}
+
+const CourtControlPanel: React.FC<CourtControlPanelProps>  = ({ onClose }) => {
   const { state, dispatch } = useContext(AppContext);
   const [input, setInput] = useState(state.courts.count.toString());
   const theme = useTheme();
@@ -12,6 +16,7 @@ const CourtControlPanel = () => {
     const newCount = parseInt(input);
     if (!isNaN(newCount) && newCount > 0) {
       dispatch(Action.setCourtCount(newCount));
+      if (onClose) onClose();
     }
   };
 

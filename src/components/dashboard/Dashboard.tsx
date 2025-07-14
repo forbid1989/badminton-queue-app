@@ -6,12 +6,24 @@ import CourtZone from '../CourtZone';
 import QueueZone from '../QueueZone';
 import UnqueuedZone from '../UnqueuedZone';
 import PlayerParserForm from '../input/PlayerParserForm';
+import CourtControlPanel from '../CourtControlPanel';
+import Popover from '@mui/material/Popover';
+import SettingsIcon from '@mui/icons-material/Settings';
+import AddRoadIcon from '@mui/icons-material/AddRoad';
 
 const Dashboard: React.FC = () => {
   const { state } = useContext(AppContext);
   const theme = useTheme();
 
   const [openParser, setOpenParser] = useState(false);
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const handleOpenPopover = (event: React.MouseEvent<HTMLElement>) => {
+    setAnchorEl(event.currentTarget);
+  };
+  const handleClosePopover = () => {
+    setAnchorEl(null);
+  };
+  const isPopoverOpen = Boolean(anchorEl)
 
   return (
     <Box sx={{ 
@@ -29,7 +41,7 @@ const Dashboard: React.FC = () => {
           width: '35%',
           maxHeight: '100%',
           overflowY: 'auto',
-          p: 2,
+          p: 1,
           flexShrink: 0,
           minWidth: 300,
           bgcolor: theme.palette.background.paper, // ☕ from theme
@@ -42,15 +54,46 @@ const Dashboard: React.FC = () => {
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
-            mb: 2,
+
           }}
         >
-          <Typography variant="h6">Resting Players</Typography>
-          <IconButton onClick={() => setOpenParser(true)} title="Add Players">
-            <AddIcon />
-          </IconButton>
+          <Typography variant="subtitle1" sx={{ fontSize: '0.95rem' }}>
+            Resting Players
+          </Typography>
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <IconButton onClick={() => setOpenParser(true)} title="Add Players">
+              <AddIcon />
+            </IconButton>
+            <IconButton onClick={handleOpenPopover} title="Court Settings">
+              <AddRoadIcon />
+            </IconButton>
+          </Box>
         </Box>
         <UnqueuedZone players={state.unqueued.players} />
+
+        <Popover
+          open={isPopoverOpen}
+          anchorEl={anchorEl}
+          onClose={handleClosePopover}
+          anchorOrigin={{
+            vertical: 'bottom',
+            horizontal: 'right',
+          }}
+          transformOrigin={{
+            vertical: 'top',
+            horizontal: 'right',
+          }}
+          PaperProps={{
+            sx: {
+              p: 2,
+              borderRadius: 2,
+              backgroundColor: theme.palette.background.paper,
+              boxShadow: theme.shadows[3],
+            },
+          }}
+        >
+          <CourtControlPanel onClose={handleClosePopover} />
+        </Popover>
       </Box>
 
       {/* Right Main Area */}

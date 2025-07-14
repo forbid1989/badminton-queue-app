@@ -26,7 +26,6 @@ const BadmintonQueueUI: React.FC = () => {
 				<AppBar position="static" color="primary">
 					<Toolbar sx={{ display: 'flex', justifyContent: 'space-between' }}>
 						<Typography variant="h6" color="inherit">🏸 Badminton Queue</Typography>
-						<CourtControlPanel />
 					</Toolbar>
 				</AppBar>
 				<Box sx={{ 
