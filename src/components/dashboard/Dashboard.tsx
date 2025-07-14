@@ -110,7 +110,7 @@ const Dashboard: React.FC = () => {
           courtCount={state.courts.count}
         />
 
-        <Divider sx={{ my: 3 }} />
+        <Divider sx={{ my: 1 }} />
 
         {/* Queue Section */}
         <QueueZone
@@ -118,7 +118,7 @@ const Dashboard: React.FC = () => {
           courtCount={state.courts.count}
         />
 
-        <Divider sx={{ my: 3 }} />
+        <Divider sx={{ my: 1 }} />
 
         {/* Player Parser */}
         <PlayerParserForm open={openParser} onClose={() => setOpenParser(false)} />
