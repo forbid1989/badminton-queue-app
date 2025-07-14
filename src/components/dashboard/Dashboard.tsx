@@ -25,6 +25,11 @@ const Dashboard: React.FC = () => {
   };
   const isPopoverOpen = Boolean(anchorEl)
 
+  const totalPlayers =
+    state.unqueued.players.length +
+    Object.values(state.queue.playersByQueue).flat().length +
+    Object.values(state.courts.playersByCourt).flat().length;
+
   return (
     <Box sx={{ 
       display: 'flex', 
@@ -58,7 +63,7 @@ const Dashboard: React.FC = () => {
           }}
         >
           <Typography variant="subtitle1" sx={{ fontSize: '0.95rem' }}>
-            Resting Players
+            Total Players: {totalPlayers}
           </Typography>
           <Box sx={{ display: 'flex', gap: 1 }}>
             <IconButton onClick={() => setOpenParser(true)} title="Add Players">
