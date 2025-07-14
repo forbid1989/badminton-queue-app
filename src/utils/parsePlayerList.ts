@@ -4,7 +4,11 @@ import { v4 as uuidv4 } from "uuid";
 export function parsePlayerList(text: string): Player[] {
   const lines = text
     .split("\n")
-    .map((line) => line.trim())
+    .map((line) =>
+      line
+        .replace(/^\s*\d+\.\s*/, "") // Remove leading numbers like "1. "
+        .trim()
+    )
     .filter((line) => line !== "");
 
   const players: Player[] = [];
@@ -27,6 +31,5 @@ export function parsePlayerList(text: string): Player[] {
       }
     }
   }
-
   return players;
 }

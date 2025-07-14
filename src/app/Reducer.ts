@@ -61,10 +61,6 @@ export default function reducer(state: any, action: Action) {
       for (let i = 0; i < newCount; i++) {
         const courtKey = `court-${i}`;
         const queueKey = `queue-${i}`;
-        // newPlayersByCourt[courtKey] =
-        //   state.courts.playersByCourt[courtKey] || [];
-        // newPlayersByQueue[queueKey] =
-        //   state.queue.playersByQueue?.[queueKey] || [];
         if (!newPlayersByCourt[courtKey]) newPlayersByCourt[courtKey] = [];
         if (!newPlayersByQueue[queueKey]) newPlayersByQueue[queueKey] = [];
       }

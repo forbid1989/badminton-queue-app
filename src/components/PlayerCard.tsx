@@ -424,7 +424,7 @@ const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
             startIcon={<DeleteIcon sx={{ fontSize: '0.75rem' }} />}
             sx={{ fontSize: '0.65rem', padding: '4px 6px' }}
           >
-            Remove
+            Delete Player
           </Button>
         </Box>
       </Popover>
