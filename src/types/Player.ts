@@ -1,4 +1,9 @@
-export type PlayerStatus = "court" | "queue" | "rest";
+export type PlayerStatus =
+  | "rest"
+  | "queue"
+  | "court"
+  | `queue-${number}`
+  | `court-${number}`;
 
 export interface MatchHistoryEntry {
   opponents: string[]; // opponent player names or IDs
@@ -9,7 +14,7 @@ export interface Player {
   id: string;
   name: string;
   gamesPlayed: number;
-  status: PlayerStatus;
+  status: [PlayerStatus, ...PlayerStatus[]];
   timeEntered: number;
   waitingSince?: number;
   matchHistory?: MatchHistoryEntry[];

@@ -20,9 +20,7 @@ const DroppableZone: React.FC<DroppableZoneProps> = ({ zone, players, children, 
     if (!json) return;
 
     const player: Player = JSON.parse(json);
-    const from = e.dataTransfer.getData('player/source') as 'court' | 'queue' | 'rest';
-
-    
+    const from = e.dataTransfer.getData('player/source');
 
     if (from === zone) return; // no-op if dropped into same zone
 

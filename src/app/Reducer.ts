@@ -32,11 +32,21 @@ export default function reducer(state: any, action: Action) {
           newPlayersByCourt[courtId] = players;
         } else {
           removedPlayers.push(
-            ...players.map((p) => ({
-              ...p,
-              status: "rest" as Player["status"],
-              timeEntered: Date.now(),
-            }))
+            ...players.map((p) => {
+              const cleanedStatus = p.status.filter(
+                (s) => !/^court-\d+$/.test(s)
+              );
+              const finalStatus: [PlayerStatus, ...PlayerStatus[]] =
+                cleanedStatus.length > 0
+                  ? (cleanedStatus as [PlayerStatus, ...PlayerStatus[]])
+                  : ["rest"];
+
+              return {
+                ...p,
+                status: finalStatus,
+                timeEntered: Date.now(),
+              };
+            })
           );
         }
       });
@@ -49,15 +59,26 @@ export default function reducer(state: any, action: Action) {
           newPlayersByQueue[queueId] = players;
         } else {
           removedPlayers.push(
-            ...players.map((p) => ({
-              ...p,
-              status: "rest" as Player["status"],
-              timeEntered: Date.now(),
-            }))
+            ...players.map((p) => {
+              const cleanedStatus = p.status.filter(
+                (s) => !/^queue-\d+$/.test(s)
+              );
+              const finalStatus: [PlayerStatus, ...PlayerStatus[]] =
+                cleanedStatus.length > 0
+                  ? (cleanedStatus as [PlayerStatus, ...PlayerStatus[]])
+                  : ["rest"];
+
+              return {
+                ...p,
+                status: finalStatus,
+                timeEntered: Date.now(),
+              };
+            })
           );
         }
       });
 
+      // Initialize empty courts/queues up to new count
       for (let i = 0; i < newCount; i++) {
         const courtKey = `court-${i}`;
         const queueKey = `queue-${i}`;
@@ -115,7 +136,7 @@ export default function reducer(state: any, action: Action) {
       let playerToMove: Player | undefined;
       let updatedFrom: Player[] = [];
 
-      // Step 1: Locate and remove player from original zone
+      // 1. Locate the player and remove from source
       if (from.startsWith("queue-")) {
         updatedFrom = state.queue.playersByQueue[from].filter((p: Player) => {
           if (p.id === id) {
@@ -144,18 +165,52 @@ export default function reducer(state: any, action: Action) {
 
       if (!playerToMove) return state;
 
+      // 2. Prevent court-to-court dragging
+      if (to.startsWith("court-")) {
+        const isAlreadyInCourt = Object.entries(
+          state.courts.playersByCourt as Record<string, Player[]>
+        ).some(
+          ([courtId, courtPlayers]) =>
+            courtPlayers.some((p) => p.id === id) && courtId !== from
+        );
+
+        if (isAlreadyInCourt) return state;
+      }
+
       const isToCourt = to.startsWith("court-");
 
-      // Step 2: Create updated player with conditional timeEntered update
+      // 3. Determine new zone status
+      const targetStatus: PlayerStatus =
+        to === "rest" ? "rest" : (to as PlayerStatus);
+
+      // 4. Remove old zone statuses from current status
+      const cleanedStatus = playerToMove!.status.filter(
+        (s) => !/^court-\d+$/.test(s) && !/^queue-\d+$/.test(s) && s !== "rest"
+      );
+
+      // 5. Add new zone status
+      const updatedStatusArray = [...cleanedStatus, targetStatus];
+
+      // 6. Runtime safeguard for TypeScript's tuple constraint
+      if (updatedStatusArray.length === 0) {
+        throw new Error("Player must have at least one status.");
+      }
+
+      const finalStatusArray = updatedStatusArray as [
+        PlayerStatus,
+        ...PlayerStatus[]
+      ];
+
+      // 7. Construct updated player
       const updatedPlayer: Player = {
         ...playerToMove,
-        status: to as PlayerStatus,
+        status: finalStatusArray,
         timeEntered: isToCourt ? Date.now() : playerToMove.timeEntered,
       };
 
       const newState = { ...state };
 
-      // Step 3: Add to new zone
+      // 8. Insert into destination
       if (isToCourt) {
         const targetCourt = state.courts.playersByCourt[to] || [];
         if (targetCourt.length >= 4) return state;
@@ -187,6 +242,7 @@ export default function reducer(state: any, action: Action) {
         }
 
         const targetQueue = state.queue.playersByQueue[targetQueueId] || [];
+        if (targetQueue.some((p: Player) => p.id === id)) return state;
 
         newState.queue = {
           ...state.queue,
@@ -202,7 +258,7 @@ export default function reducer(state: any, action: Action) {
         };
       }
 
-      // Step 4: Remove from original zone
+      // 9. Remove from previous zone
       if (from.startsWith("court-")) {
         newState.courts = {
           ...newState.courts,
@@ -341,11 +397,13 @@ export default function reducer(state: any, action: Action) {
       // 2. Add players to the available court
       const updatedCourtPlayers = [
         ...state.courts.playersByCourt[availableCourtId],
-        ...playersInQueue.map((player) => ({
-          ...player,
-          status: availableCourtId as PlayerStatus,
-          timeEntered: Date.now(),
-        })),
+        ...playersInQueue.map((player) => {
+          return {
+            ...player,
+            status: [availableCourtId as PlayerStatus],
+            timeEntered: Date.now(),
+          };
+        }),
       ];
 
       // 3. Shift all queues above the transferred one
@@ -406,10 +464,18 @@ export default function reducer(state: any, action: Action) {
           timestamp,
         };
 
+        const cleanedStatus = player.status.filter((s) => s !== courtId);
+
+        // If no more statuses remain, default to "rest"
+        const finalStatus: [PlayerStatus, ...PlayerStatus[]] =
+          cleanedStatus.length > 0
+            ? (cleanedStatus as [PlayerStatus, ...PlayerStatus[]])
+            : ["rest"];
+
         return {
           ...player,
           gamesPlayed: player.gamesPlayed + 1,
-          status: "rest" as PlayerStatus,
+          status: finalStatus,
           timeEntered: timestamp,
           matchHistory: [...(player.matchHistory || []), matchEntry],
         };

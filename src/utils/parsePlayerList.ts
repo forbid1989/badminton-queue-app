@@ -24,7 +24,7 @@ export function parsePlayerList(text: string): Player[] {
           id: uuidv4(),
           name: count > 1 ? `${baseName} ${i + 1}` : baseName,
           gamesPlayed: 0,
-          status: "rest",
+          status: ["rest"],
           timeEntered: Date.now(),
           waitingSince: undefined,
         });

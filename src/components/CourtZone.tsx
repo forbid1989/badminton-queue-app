@@ -6,6 +6,7 @@ import DroppableZone from './DroppableZone';
 import PlayerCard from './PlayerCard';
 import { AppContext } from '../BadmintonQueueUI'; // ✅ Context
 import { Action } from '../app/Action'; // ✅ Action creators
+import { PlayerStatus } from '../types/Player';
 
 type CourtZoneProps = {
   playersByCourt: Record<string, Player[]>;
@@ -20,7 +21,10 @@ const CourtZone: React.FC<CourtZoneProps> = ({ playersByCourt, courtCount }) => 
     <Grid container spacing={2}>
       {Array.from({ length: courtCount }, (_, index) => {
         const courtId = `court-${index}`;
-        const courtPlayers = playersByCourt[courtId] || [];
+        const rawPlayers = playersByCourt[courtId] || [];
+        const courtPlayers = rawPlayers.filter(
+          (p) => p.status.includes(courtId as PlayerStatus) || p.status.includes('court')
+        );
 
         return (
           <Grid size={{ xs: 12, sm: 6 }} key={courtId}>

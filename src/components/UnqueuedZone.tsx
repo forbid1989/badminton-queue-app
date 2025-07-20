@@ -3,7 +3,6 @@ import { Typography, Grid, Badge, Box } from '@mui/material';
 import { Player } from '../types/Player';
 import PlayerCard from './PlayerCard';
 import DroppableZone from './DroppableZone';
-import MailIcon from '@mui/icons-material/Mail';
 
 type UnqueuedZoneProps = {
   state: any; // ideally you'd define a proper type
@@ -35,6 +34,14 @@ function getPlayerStatus(player: Player, state: AppState): "court" | "queue" | "
   return "rest";
 }
 
+function getPrimaryStatus(player: Player): "court" | "queue" | "rest" {
+  if (player.status.includes("court")) return "court";
+  if (player.status.includes("queue")) return "queue";
+  return "rest";
+}
+
+ const statusOrder = { rest: 0, queue: 1, court: 2 };
+
 const UnqueuedZone: React.FC<UnqueuedZoneProps> = ({ state  }) => {
 
   const allPlayers: Player[] = [
@@ -45,31 +52,45 @@ const UnqueuedZone: React.FC<UnqueuedZoneProps> = ({ state  }) => {
 
   const uniquePlayers = Array.from(new Map(allPlayers.map(p => [p.id, p])).values());
 
-  const statusOrder = { rest: 0, queue: 1, court: 2 };
+  // const sortedPlayers = [...uniquePlayers].sort((a, b) => {
+  //   const statusA = getPrimaryStatus(a);
+  //   const statusB = getPrimaryStatus(b);
 
-  const sortedPlayers = [...uniquePlayers].sort((a, b) => {
-    const statusA = getPlayerStatus(a, state);
-    const statusB = getPlayerStatus(b, state);
+  //   // First sort by status priority: rest < queue < court
+  //   if (statusOrder[statusA] !== statusOrder[statusB]) {
+  //     return statusOrder[statusA] - statusOrder[statusB];
+  //   }
 
-    // First sort by status priority: rest < queue < court
+  //   // Then by games played (ascending)
+  //   if (a.gamesPlayed !== b.gamesPlayed) {
+  //     return a.gamesPlayed - b.gamesPlayed;
+  //   }
+
+  //   // Finally by time entered (ascending)
+  //   return a.timeEntered - b.timeEntered;
+  // });
+
+  const restingPlayersSorted = uniquePlayers
+  .filter(p => p.status.includes("rest"))
+  .sort((a, b) => {
+    const statusA = getPrimaryStatus(a);
+    const statusB = getPrimaryStatus(b);
+
     if (statusOrder[statusA] !== statusOrder[statusB]) {
       return statusOrder[statusA] - statusOrder[statusB];
     }
 
-    // Then by games played (ascending)
     if (a.gamesPlayed !== b.gamesPlayed) {
       return a.gamesPlayed - b.gamesPlayed;
     }
 
-    // Finally by time entered (ascending)
     return a.timeEntered - b.timeEntered;
   });
-
 
   return (
     <DroppableZone 
       zone="rest" 
-      players={uniquePlayers}
+      players={restingPlayersSorted}
       sx={{ 
         backgroundColor: '#F5EFE6',
         borderRadius: 2,
@@ -79,22 +100,29 @@ const UnqueuedZone: React.FC<UnqueuedZoneProps> = ({ state  }) => {
         borderTop: '2px dashed #d8c9aa',
       }}
     >
-      {uniquePlayers.length === 0 ? (
+      {restingPlayersSorted.length === 0 ? (
         <Typography variant="body2" sx={{ color: '#555555' }}>
           No players currently resting.
         </Typography>
       ) : (
         <Grid container spacing={1}>
-          {sortedPlayers.map((player) => {
-            const status = getPlayerStatus(player, state);
-            const label = status === "court" ? "Court" : status === "queue" ? "Queue" : "";
+
+          {/* {sortedPlayers.map((player) => {
+            const status = getPrimaryStatus(player);
 
             return (
               <Grid size={{ xs: 12, sm: 6, }} key={player.id}>
                 <PlayerCard player={player} zone={status} />
               </Grid>
             );
-          })}
+          })} */}
+          {restingPlayersSorted.map((player) => (
+            <Grid size={{ xs: 12, sm: 6 }} key={player.id}>
+              <PlayerCard player={player} zone={getPrimaryStatus(player)} />
+            </Grid>
+          ))}
+
+
         </Grid>
       )}
     </DroppableZone>

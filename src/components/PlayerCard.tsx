@@ -60,7 +60,7 @@ const PlayerCard: React.FC<PlayerCardProps> = ({ player, zone }) => {
       }
     }, 300);
     return () => clearTimeout(timeout);
-  }, [name]);
+  }, [name, player.name]);
 
   // Keep local name in sync if player.name updates externally
   useEffect(() => {
@@ -68,10 +68,16 @@ const PlayerCard: React.FC<PlayerCardProps> = ({ player, zone }) => {
   }, [player.name]);
 
   useEffect(() => {
+    let isMounted = true;
     const interval = setInterval(() => {
-      setElapsedSeconds(Math.floor((Date.now() - player.timeEntered) / 1000));
+      if (isMounted) {
+        setElapsedSeconds(Math.floor((Date.now() - player.timeEntered) / 1000));
+      }
     }, 1000);
-    return () => clearInterval(interval);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
   }, [player.timeEntered]);
 
   useEffect(() => {
@@ -99,14 +105,14 @@ const PlayerCard: React.FC<PlayerCardProps> = ({ player, zone }) => {
     return null;
   };
 
+  const availableZone = findAvailableZone();
+  const isQuickAddDisabled = !availableZone;
+
   const handleQuickAdd = () => {
-    const targetZone = findAvailableZone();
-    if (targetZone) {
-      dispatch(Action.movePlayer(player.id, 'rest', targetZone));
+    if (availableZone) {
+      dispatch(Action.movePlayer(player.id, 'rest', availableZone));
     }
   };
-
-  const isQuickAddDisabled = !findAvailableZone();
 
   const handleGamesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setGamesPlayed(e.target.value);
@@ -128,12 +134,12 @@ const PlayerCard: React.FC<PlayerCardProps> = ({ player, zone }) => {
   };
 
 
-const isAlsoOnCourt = Object.values(state.courts.playersByCourt).some(players =>
-  players.some(p => p.id === player.id)
-);
+const isOnCourt = player.status.some(s => s.startsWith('court'));
+const isInQueue = player.status.some(s => s.startsWith('queue'));
+const isInRest = player.status.includes('rest');
 
-const isConflict = zone.startsWith('queue') && isAlsoOnCourt;
-const isRestTooLong = zone === 'rest' && elapsedSeconds > 900;
+const isConflict = isInQueue && isOnCourt;
+const isRestTooLong = isInRest && elapsedSeconds > 900;
 
 const backgroundColor = isConflict
   ? "#F7C59F" // light orange
@@ -157,7 +163,7 @@ const textColor = isConflict
 
 const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
-const showQuickAddIcon = zone === 'rest' && !isAlsoOnCourt;
+const showQuickAddIcon = isInRest && !isOnCourt;
 
   return (
     <div className="flipped">
@@ -318,16 +324,16 @@ const showQuickAddIcon = zone === 'rest' && !isAlsoOnCourt;
                   padding: '2px',
                   borderRadius: '12px',
                   border: `1px solid ${
-                    isQuickAddDisabled || isAlsoOnCourt ? '#ccc' : '#2E7D32'
+                    isQuickAddDisabled || isOnCourt ? '#ccc' : '#2E7D32'
                   }`,
-                  backgroundColor: isQuickAddDisabled || isAlsoOnCourt ? '#f2f2f2' : '#E8F5E9',
-                  color: isQuickAddDisabled || isAlsoOnCourt ? '#aaa' : '#2E7D32',
+                  backgroundColor: isQuickAddDisabled || isOnCourt ? '#f2f2f2' : '#E8F5E9',
+                  color: isQuickAddDisabled || isOnCourt ? '#aaa' : '#2E7D32',
                   minWidth: 'auto',
                   transition: 'all 0.2s ease-in-out',
                   '&:hover': {
-                    backgroundColor: isQuickAddDisabled || isAlsoOnCourt ? '#f2f2f2' : '#C8E6C9',
-                    color: isQuickAddDisabled || isAlsoOnCourt ? '#aaa' : '#1B5E20',
-                    borderColor: isQuickAddDisabled || isAlsoOnCourt ? '#ccc' : '#1B5E20',
+                    backgroundColor: isQuickAddDisabled || isOnCourt ? '#f2f2f2' : '#C8E6C9',
+                    color: isQuickAddDisabled || isOnCourt ? '#aaa' : '#1B5E20',
+                    borderColor: isQuickAddDisabled || isOnCourt ? '#ccc' : '#1B5E20',
                   },
                   '& .MuiSvgIcon-root': {
                     fontSize: '16px',
@@ -342,7 +348,7 @@ const showQuickAddIcon = zone === 'rest' && !isAlsoOnCourt;
               </IconButton>
             )}
 
-            {(zone !== 'rest' || isAlsoOnCourt) && (
+            {(zone !== 'rest' || isOnCourt) && (
               <IconButton
                 size="small"
                 onClick={() => dispatch(Action.movePlayer(player.id, zone, 'rest'))}
