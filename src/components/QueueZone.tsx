@@ -70,9 +70,16 @@ const QueueZone: React.FC<QueueZoneProps> = ({courtCount }) => {
                     size="small"
                     disabled={
                       queuePlayers.length === 0 ||
-                      Object.values(state.courts.playersByCourt).every(
-                        (players) => players.length >= MAX_PLAYERS_PER_COURT
-                      )
+                      // 🔴 Any player already on court should disable the button
+                      queuePlayers.some((player) =>
+                        player.status.some((s) => s.startsWith('court-'))
+                      ) ||
+                      // 🔴 All courts are full
+                      Array.from({ length: courtCount }).every((_, i) => {
+                        const courtId = `court-${i}`;
+                        const courtPlayers = state.courts.playersByCourt[courtId] || [];
+                        return courtPlayers.length >= MAX_PLAYERS_PER_COURT;
+                      })
                     }
                     onClick={() => dispatch(Action.transferQueueToCourt(queueId))}
                     sx={{

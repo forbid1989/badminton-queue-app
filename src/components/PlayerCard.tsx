@@ -149,25 +149,31 @@ const isConflict =
 
 const isIdleTooLong = isUnassigned && elapsedSeconds > 900;
 
+const isCourtAndQueue = courtTags.length === 1 && queueTags.length === 1 && player.status.length === 2;
+
 const backgroundColor = isConflict
-  ? "#F7C59F" // light orange
-  : isIdleTooLong
-    ? "#F8D7DA" // red alert
-    : zone.startsWith('court')
-      ? "#B5CDA3"
-      : zone.startsWith('queue')
-        ? "#E5D78A"
-        : "#E8D8C4";
+  ? "#F7C59F" // light orange for invalid state
+  : isCourtAndQueue
+    ? "#4DB6AC" // 🟧 true dual-status orange
+    : isIdleTooLong
+      ? "#F8D7DA" // red alert
+      : zone.startsWith('court')
+        ? "#B5CDA3"
+        : zone.startsWith('queue')
+          ? "#E5D78A"
+          : "#E8D8C4";
 
 const textColor = isConflict
-  ? "#5C3D2E" // dark orange
-  : isIdleTooLong
-    ? "#8B0000"
-    : zone.startsWith('court')
-      ? "#2F4023"
-      : zone.startsWith('queue')
-        ? "#4A3F1C"
-        : "#5E473B";
+  ? "#5C3D2E" 
+  : isCourtAndQueue
+    ? "#263238" 
+    : isIdleTooLong
+      ? "#8B0000"
+      : zone.startsWith('court')
+        ? "#2F4023"
+        : zone.startsWith('queue')
+          ? "#4A3F1C"
+          : "#5E473B";
 
 const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 

@@ -314,9 +314,13 @@ export default function reducer(state: any, action: Action) {
       const { queueId } = action.payload;
 
       // Step 1: Extract players in the queue
-      const playersInQueue = state.players.filter((p: Player) =>
-        p.status.includes(queueId as PlayerStatus)
-      );
+      const playersInQueue = state.players.filter((p: Player) => {
+        const status: PlayerStatus[] = Array.isArray(p.status)
+          ? p.status
+          : JSON.parse(p.status);
+
+        return status.includes(queueId as PlayerStatus);
+      });
       if (playersInQueue.length === 0) return state;
 
       // Step 2: Rebuild current court occupancy
@@ -332,7 +336,11 @@ export default function reducer(state: any, action: Action) {
       }
 
       // Step 3: Find a court that can fit all players from this queue
-      const allCourtIds = Object.keys(state.courts.playersByCourt);
+      const courtCount = Object.keys(state.courts.playersByCourt).length; // or pass from UI if available
+      const allCourtIds = Array.from(
+        { length: courtCount },
+        (_, i) => `court-${i}`
+      );
       const availableCourtId =
         Object.entries(courtMap).find(
           ([, courtPlayers]) => courtPlayers.length + playersInQueue.length <= 4
@@ -355,12 +363,6 @@ export default function reducer(state: any, action: Action) {
 
           // Assign to available court
           newStatus.push(availableCourtId as PlayerStatus);
-
-          // Retain queue if it exists
-          const queue = p.status.find((s: PlayerStatus) =>
-            s.startsWith("queue-")
-          );
-          if (queue) newStatus.push(queue);
 
           return {
             ...p,
