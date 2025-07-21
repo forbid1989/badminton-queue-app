@@ -4,7 +4,7 @@ import AddIcon from '@mui/icons-material/GroupAdd'; // new
 import { AppContext } from '../../BadmintonQueueUI';
 import CourtZone from '../CourtZone';
 import QueueZone from '../QueueZone';
-import UnqueuedZone from '../UnqueuedZone';
+import UnqueuedZone from '../PlayerListZone';
 import PlayerParserForm from '../input/PlayerParserForm';
 import CourtControlPanel from '../CourtControlPanel';
 import Popover from '@mui/material/Popover';
@@ -24,10 +24,7 @@ const Dashboard: React.FC = () => {
   };
   const isPopoverOpen = Boolean(anchorEl)
 
-  const totalPlayers =
-    state.unqueued.players.length +
-    Object.values(state.queue.playersByQueue).flat().length +
-    Object.values(state.courts.playersByCourt).flat().length;
+  const totalPlayers = state.players.length;
 
   return (
     <Box sx={{ 
@@ -73,7 +70,7 @@ const Dashboard: React.FC = () => {
             </IconButton>
           </Box>
         </Box>
-        <UnqueuedZone state={state} />
+        <UnqueuedZone state={state}/>
 
         <Popover
           open={isPopoverOpen}
@@ -105,18 +102,12 @@ const Dashboard: React.FC = () => {
       {/* Right Main Area */}
       <Box sx={{ flexGrow: 1, overflowY: 'auto', pr: 2 }}>
         {/* Courts Section */}
-        <CourtZone
-          playersByCourt={state.courts.playersByCourt}
-          courtCount={state.courts.count}
-        />
+        <CourtZone courtCount={state.courts.count}/>
 
         <Divider sx={{ my: 1 }} />
 
         {/* Queue Section */}
-        <QueueZone
-          playersByQueue={state.queue.playersByQueue}
-          courtCount={state.courts.count}
-        />
+        <QueueZone courtCount={state.courts.count}/>
 
         <Divider sx={{ my: 1 }} />
 

@@ -5,7 +5,7 @@ import { Action } from '../app/Action';
 import { Player } from '../types/Player';
 
 type DroppableZoneProps = {
-  zone: string; // ✅ changed from 'court' | 'queue' | 'rest' to string
+  zone: string; // ✅ changed from 'court' | 'queue' | 'all' to string
   players: Player[];
   children?: React.ReactNode;
   sx?: object
@@ -32,7 +32,7 @@ const DroppableZone: React.FC<DroppableZoneProps> = ({ zone, players, children, 
       ? '#DFF0D8' // very light green (if you want court zones lighter too)
       : zone.startsWith('queue')
       ? '#FFF8DC' // light cream for queues
-      : zone === 'rest'
+      : zone === 'all'
       ? '#F5EFE6' // ✅ light beige for resting zone
       : '#FAFAFA'; // fallback
 

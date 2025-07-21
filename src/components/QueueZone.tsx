@@ -11,23 +11,32 @@ import { PlayerStatus } from '../types/Player';
 
 
 type QueueZoneProps = {
-  playersByQueue: Record<string, Player[]>;
   courtCount: number;
 };
 
 const MAX_PLAYERS_PER_COURT = 4;
 
-const QueueZone: React.FC<QueueZoneProps> = ({ playersByQueue, courtCount }) => {
+const QueueZone: React.FC<QueueZoneProps> = ({courtCount }) => {
   const { state, dispatch } = useContext(AppContext);
+  const players = state.players;
 
   return (
     <Grid container spacing={2}>
       {Array.from({ length: courtCount }, (_, index) => {
         const queueId = `queue-${index}`;
-        const rawPlayers = playersByQueue[queueId] || [];
-       const queuePlayers = rawPlayers.filter(
-          (p) => p.status.includes(queueId as PlayerStatus) || p.status.includes("queue")
-        );
+        const queuePlayers = players.filter((p) => {
+          const hasThisQueue = p.status.includes(queueId as PlayerStatus);
+          const queueCount = p.status.filter((s) => s.startsWith('queue-')).length;
+          const courtCount = p.status.filter((s) => s.startsWith('court-')).length;
+
+          // ✅ Allow status: ['queue-*'] or ['court-*', 'queue-*']
+          const isValid =
+            hasThisQueue &&
+            queueCount <= 1 &&
+            courtCount <= 1 &&
+            !(courtCount > 1 || queueCount > 1);
+          return isValid;
+        });
 
         return (
           <Grid key={queueId} size={{ xs: 12, sm: 6 }}>

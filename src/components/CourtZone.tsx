@@ -9,22 +9,34 @@ import { Action } from '../app/Action'; // ✅ Action creators
 import { PlayerStatus } from '../types/Player';
 
 type CourtZoneProps = {
-  playersByCourt: Record<string, Player[]>;
   courtCount: number;
 };
 
-const CourtZone: React.FC<CourtZoneProps> = ({ playersByCourt, courtCount }) =>  {
+const CourtZone: React.FC<CourtZoneProps> = ({ courtCount }) =>  {
 
-	const { dispatch } = useContext(AppContext); // ✅ Get dispatch from context
+	const { state, dispatch } = useContext(AppContext); // ✅ Get dispatch from context
+  const players = state.players;
 	
 	return (
     <Grid container spacing={2}>
       {Array.from({ length: courtCount }, (_, index) => {
         const courtId = `court-${index}`;
-        const rawPlayers = playersByCourt[courtId] || [];
-        const courtPlayers = rawPlayers.filter(
-          (p) => p.status.includes(courtId as PlayerStatus) || p.status.includes('court')
-        );
+        
+        
+        // ✅ Filter players that are assigned to this court
+        const courtPlayers = players.filter((p) => {
+          const hasThisCourt = p.status.includes(courtId as PlayerStatus);
+
+          const courtAssignments = p.status.filter((s) => s.startsWith('court-')).length;
+          const queueAssignments = p.status.filter((s) => s.startsWith('queue-')).length;
+
+          const isValid =
+            hasThisCourt &&
+            courtAssignments <= 1 &&
+            queueAssignments <= 1;
+
+          return isValid;
+        });
 
         return (
           <Grid size={{ xs: 12, sm: 6 }} key={courtId}>

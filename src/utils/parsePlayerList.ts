@@ -24,12 +24,13 @@ export function parsePlayerList(text: string): Player[] {
           id: uuidv4(),
           name: count > 1 ? `${baseName} ${i + 1}` : baseName,
           gamesPlayed: 0,
-          status: ["rest"],
+          status: [], // ✅ Condition 1: Unqueued
           timeEntered: Date.now(),
           waitingSince: undefined,
         });
       }
     }
   }
+
   return players;
 }

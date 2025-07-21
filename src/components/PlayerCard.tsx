@@ -17,7 +17,7 @@ import {
 } from '@mui/material';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import DeleteIcon from '@mui/icons-material/Delete';
-import { Player } from '../types/Player';
+import { Player, PlayerStatus } from '../types/Player';
 import { AppContext } from '../BadmintonQueueUI';
 import { Action } from '../app/Action';
 import KeyboardReturnIcon from '@mui/icons-material/KeyboardReturn';
@@ -136,14 +136,22 @@ const PlayerCard: React.FC<PlayerCardProps> = ({ player, zone }) => {
 
 const isOnCourt = player.status.some(s => s.startsWith('court'));
 const isInQueue = player.status.some(s => s.startsWith('queue'));
-const isInRest = player.status.includes('rest');
+const isUnassigned = player.status.length === 0;
 
-const isConflict = isInQueue && isOnCourt;
-const isRestTooLong = isInRest && elapsedSeconds > 900;
+const courtTags = player.status.filter(s => s.startsWith('court'));
+const queueTags = player.status.filter(s => s.startsWith('queue'));
+
+const isConflict =
+  courtTags.length > 1 ||
+  queueTags.length > 1 ||
+  player.status.length > 2 ||
+  (player.status.length === 2 && !(courtTags.length === 1 && queueTags.length === 1));
+
+const isIdleTooLong = isUnassigned && elapsedSeconds > 900;
 
 const backgroundColor = isConflict
   ? "#F7C59F" // light orange
-  : isRestTooLong
+  : isIdleTooLong
     ? "#F8D7DA" // red alert
     : zone.startsWith('court')
       ? "#B5CDA3"
@@ -153,7 +161,7 @@ const backgroundColor = isConflict
 
 const textColor = isConflict
   ? "#5C3D2E" // dark orange
-  : isRestTooLong
+  : isIdleTooLong
     ? "#8B0000"
     : zone.startsWith('court')
       ? "#2F4023"
@@ -163,7 +171,7 @@ const textColor = isConflict
 
 const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
-const showQuickAddIcon = isInRest && !isOnCourt;
+const showQuickAddIcon = isUnassigned && !isOnCourt;
 
   return (
     <div className="flipped">
@@ -461,17 +469,40 @@ const showQuickAddIcon = isInRest && !isOnCourt;
               label="Court"
               value=""
               onChange={(e) => {
-                dispatch(Action.movePlayer(player.id, zone, e.target.value));
+                const to = e.target.value;
+                const alreadyInCourt = courtTags.length > 0;
+                const existingQueue = queueTags[0]; // if it exists
+
+                if (alreadyInCourt) {
+                  alert("Player is already assigned to a court. Cannot assign to another.");
+                  return;
+                }
+
+                const newStatus: PlayerStatus[] = [to as PlayerStatus];
+                if (existingQueue) newStatus.push(existingQueue); // Condition #6
+
+                dispatch(Action.movePlayer(player.id, zone, to));
                 closePopover();
               }}
               size='small'
               sx={{ fontSize: '0.65rem' }}
             >
-              {Array.from({ length: courtCount }, (_, i) => (
-                <MenuItem key={`court-${i}`} value={`court-${i}`} sx={{ fontSize: '0.65rem' }}>
-                  Court {i + 1}
-                </MenuItem>
-              ))}
+              {Array.from({ length: courtCount }, (_, i) => {
+                const courtKey = `court-${i}`;
+                const courtPlayers = state.courts.playersByCourt[courtKey] || [];
+                const isCourtFull = courtPlayers.length >= 4;
+
+                return (
+                  <MenuItem
+                    key={courtKey}
+                    value={courtKey}
+                    sx={{ fontSize: '0.65rem' }}
+                    disabled={isCourtFull}
+                  >
+                    Court {i + 1}
+                  </MenuItem>
+                );
+              })}
             </Select>
           </FormControl>
 
@@ -481,10 +512,22 @@ const showQuickAddIcon = isInRest && !isOnCourt;
               label="Queue"
               value=""
               onChange={(e) => {
-                dispatch(Action.movePlayer(player.id, zone, e.target.value));
+                const to = e.target.value;
+                const alreadyInQueue = queueTags.length > 0;
+                const existingCourt = courtTags[0]; // if it exists
+
+                if (alreadyInQueue) {
+                  alert("Player is already assigned to a queue. Cannot assign to another.");
+                  return;
+                }
+
+                const newStatus = existingCourt ? [existingCourt] : [];
+                newStatus.push(to as PlayerStatus); // Condition #6
+
+                dispatch(Action.movePlayer(player.id, zone, to));
                 closePopover();
               }}
-              size='small'
+              size="small"
               sx={{ fontSize: '0.65rem' }}
             >
               {Array.from({ length: queueCount }, (_, i) => (

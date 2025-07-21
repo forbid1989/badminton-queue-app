@@ -1,12 +1,14 @@
 import { Player } from "../types/Player";
 
-export type PlayerStatus = string;
+// ✅ Only valid formats are allowed; no "rest", "queue", or "court" alone
+export type PlayerStatus = `queue-${number}` | `court-${number}`;
 
+// ✅ Root state structure
 export type RootState = {
   // 🏸 Court state
   courts: {
     count: number;
-    playersByCourt: Record<string, Player[]>; // NEW
+    playersByCourt: Record<string, Player[]>;
   };
 
   // ⏳ Players in queue
@@ -15,20 +17,18 @@ export type RootState = {
     playersByQueue: Record<string, Player[]>;
   };
 
-  // 😌 Unqueued/resting players
-  unqueued: {
-    players: Player[];
-  };
+  // ✅ Flat registry of all players (source of truth)
+  players: Player[];
 
   // 📝 Raw textarea input
   playerTextInput: string;
 
-  // ⏱ Toggle
+  // ⏱ Toggle timers
   showTimers: boolean;
 
-  // ⚙️ Settings
+  // ⚙️ App settings
   settings: {
-    priorityMode: string;
+    priorityMode: string; // "FIFO" | "LongestWaiting"
     colorCodedTimers: boolean;
   };
 };
