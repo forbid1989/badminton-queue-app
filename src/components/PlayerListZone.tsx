@@ -67,8 +67,9 @@ const PlayerListZone: React.FC<PlayerListZoneProps> = ({ state }) => {
       ) : (
         <Grid container spacing={1}>
           {sortedPlayers.map((player) => (
-            <Grid size={{ xs: 12, sm: 6, }}>
-              <PlayerCard player={player} zone={determineVisualZone(player)} />
+            <Grid key={player.id} size={{ xs: 12, sm: 6 }}>
+              {/* IMPORTANT: Always pass "all" as the zone for cards in PlayerListZone */}
+              <PlayerCard player={player} zone="all" />
             </Grid>
           ))}
         </Grid>

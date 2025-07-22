@@ -235,29 +235,49 @@ const PlayerCard: React.FC<PlayerCardProps> = ({ player, zone }) => {
 
   const isCourtAndQueue = courtTags.length === 1 && queueTags.length === 1 && player.status.length === 2;
 
-  const backgroundColor = isConflict
-    ? "#F7C59F"
-    : isCourtAndQueue
-      ? "#4DB6AC"
-      : isIdleTooLong
-        ? "#F8D7DA"
-        : zone.startsWith('court')
-          ? "#B5CDA3"
-          : zone.startsWith('queue')
-            ? "#E5D78A"
-            : "#E8D8C4";
+  // Enhanced color logic for the "all" zone (left sidebar)
+  const getBackgroundColor = () => {
+    // If this is NOT the "all" zone, use the original logic
+    if (zone !== "all") {
+      if (isConflict) return "#F7C59F";
+      if (isCourtAndQueue) return "#4DB6AC";
+      if (isIdleTooLong) return "#F8D7DA";
+      if (zone.startsWith('court')) return "#B5CDA3";
+      if (zone.startsWith('queue')) return "#E5D78A";
+      return "#E8D8C4";
+    }
 
-  const textColor = isConflict
-    ? "#5C3D2E" 
-    : isCourtAndQueue
-      ? "#263238" 
-      : isIdleTooLong
-        ? "#8B0000"
-        : zone.startsWith('court')
-          ? "#2F4023"
-          : zone.startsWith('queue')
-            ? "#4A3F1C"
-            : "#5E473B";
+    // Special logic for the "all" zone (left sidebar) to show status colors
+    if (isConflict) return "#F7C59F"; // Orange for conflicts
+    if (isCourtAndQueue) return "#4DB6AC"; // Teal for court + queue
+    if (isOnCourt && !isInQueue) return "#B5CDA3"; // Green for court only
+    if (isInQueue && !isOnCourt) return "#E5D78A"; // Yellow for queue only
+    if (isIdleTooLong) return "#F8D7DA"; // Light red for idle too long
+    return "#E8D8C4"; // Default beige for unassigned
+  };
+
+  const getTextColor = () => {
+    // If this is NOT the "all" zone, use the original logic
+    if (zone !== "all") {
+      if (isConflict) return "#5C3D2E";
+      if (isCourtAndQueue) return "#263238";
+      if (isIdleTooLong) return "#8B0000";
+      if (zone.startsWith('court')) return "#2F4023";
+      if (zone.startsWith('queue')) return "#4A3F1C";
+      return "#5E473B";
+    }
+
+    // Special logic for the "all" zone text colors
+    if (isConflict) return "#5C3D2E";
+    if (isCourtAndQueue) return "#263238";
+    if (isOnCourt && !isInQueue) return "#2F4023"; // Dark green text
+    if (isInQueue && !isOnCourt) return "#4A3F1C"; // Dark yellow/brown text
+    if (isIdleTooLong) return "#8B0000";
+    return "#5E473B"; // Default brown text
+  };
+
+  const backgroundColor = getBackgroundColor();
+  const textColor = getTextColor();
 
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
@@ -486,10 +506,12 @@ const PlayerCard: React.FC<PlayerCardProps> = ({ player, zone }) => {
         anchorEl={historyAnchorEl}
         onClose={() => setHistoryAnchorEl(null)}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
-        PaperProps={{
-          sx: {
-            minWidth: 280,
-            p: 2,
+        slotProps={{
+          paper: {
+            sx: {
+              minWidth: 280,
+              p: 2,
+            },
           },
         }}
       >
