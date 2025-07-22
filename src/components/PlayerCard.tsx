@@ -1,4 +1,4 @@
-import React, { useContext, useState, useEffect } from 'react';
+import React, { useContext, useState, useEffect, useRef } from 'react';
 import {
   Card,
   Box,
@@ -36,6 +36,10 @@ type PlayerCardProps = {
   zone: string;
 };
 
+// Global variable to store the dragged element
+let draggedElement: HTMLElement | null = null;
+let draggedData: { player: Player; zone: string } | null = null;
+
 const PlayerCard: React.FC<PlayerCardProps> = ({ player, zone }) => {
   const theme = useTheme();
   const { state, dispatch } = useContext(AppContext);
@@ -46,11 +50,92 @@ const PlayerCard: React.FC<PlayerCardProps> = ({ player, zone }) => {
   });
   const [isEditing, setIsEditing] = useState(false);
   const [gamesPlayed, setGamesPlayed] = useState(player.gamesPlayed.toString());
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const cardRef = useRef<HTMLDivElement>(null);
 
   const courtCount = state.courts.count;
   const queueCount = state.queue.count;
 
   const [name, setName] = useState(player.name); 
+
+  // Touch event handlers for mobile
+  const handleTouchStart = (e: React.TouchEvent) => {
+    const touch = e.touches[0];
+    const rect = cardRef.current?.getBoundingClientRect();
+    if (rect) {
+      setDragOffset({
+        x: touch.clientX - rect.left,
+        y: touch.clientY - rect.top
+      });
+    }
+    
+    setIsDragging(true);
+    draggedElement = cardRef.current;
+    draggedData = { player, zone };
+    
+    // Create a clone for visual feedback
+    if (cardRef.current) {
+      const clone = cardRef.current.cloneNode(true) as HTMLElement;
+      clone.id = 'dragging-clone';
+      clone.style.position = 'fixed';
+      clone.style.pointerEvents = 'none';
+      clone.style.zIndex = '9999';
+      clone.style.opacity = '0.8';
+      clone.style.transform = 'rotate(3deg) scale(1.05)';
+      clone.style.left = `${touch.clientX - dragOffset.x}px`;
+      clone.style.top = `${touch.clientY - dragOffset.y}px`;
+      document.body.appendChild(clone);
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!isDragging) return;
+    
+    const touch = e.touches[0];
+    const clone = document.getElementById('dragging-clone');
+    if (clone) {
+      clone.style.left = `${touch.clientX - dragOffset.x}px`;
+      clone.style.top = `${touch.clientY - dragOffset.y}px`;
+    }
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (!isDragging) return;
+    
+    const touch = e.changedTouches[0];
+    const clone = document.getElementById('dragging-clone');
+    if (clone) {
+      clone.remove();
+    }
+    
+    // Find the element under the touch point
+    const elementBelow = document.elementFromPoint(touch.clientX, touch.clientY);
+    const droppableZone = elementBelow?.closest('[data-droppable-zone]');
+    
+    if (droppableZone && draggedData) {
+      const targetZone = droppableZone.getAttribute('data-droppable-zone');
+      if (targetZone && targetZone !== zone) {
+        dispatch(Action.movePlayer(player.id, zone, targetZone));
+      }
+    }
+    
+    setIsDragging(false);
+    draggedElement = null;
+    draggedData = null;
+  };
+
+  // Desktop drag handlers
+  const handleDragStart = (e: React.DragEvent) => {
+    e.dataTransfer.setData('player/id', player.id.toString());
+    e.dataTransfer.setData('player/source', zone);
+    e.dataTransfer.setData('player/json', JSON.stringify(player));
+    setIsDragging(true);
+  };
+
+  const handleDragEnd = () => {
+    setIsDragging(false);
+  };
 
   // Debounce logic
   useEffect(() => {
@@ -133,55 +218,55 @@ const PlayerCard: React.FC<PlayerCardProps> = ({ player, zone }) => {
     setAnchorEl(null);
   };
 
+  const isOnCourt = player.status.some(s => s.startsWith('court'));
+  const isInQueue = player.status.some(s => s.startsWith('queue'));
+  const isUnassigned = player.status.length === 0;
 
-const isOnCourt = player.status.some(s => s.startsWith('court'));
-const isInQueue = player.status.some(s => s.startsWith('queue'));
-const isUnassigned = player.status.length === 0;
+  const courtTags = player.status.filter(s => s.startsWith('court'));
+  const queueTags = player.status.filter(s => s.startsWith('queue'));
 
-const courtTags = player.status.filter(s => s.startsWith('court'));
-const queueTags = player.status.filter(s => s.startsWith('queue'));
+  const isConflict =
+    courtTags.length > 1 ||
+    queueTags.length > 1 ||
+    player.status.length > 2 ||
+    (player.status.length === 2 && !(courtTags.length === 1 && queueTags.length === 1));
 
-const isConflict =
-  courtTags.length > 1 ||
-  queueTags.length > 1 ||
-  player.status.length > 2 ||
-  (player.status.length === 2 && !(courtTags.length === 1 && queueTags.length === 1));
+  const isIdleTooLong = isUnassigned && elapsedSeconds > 900;
 
-const isIdleTooLong = isUnassigned && elapsedSeconds > 900;
+  const isCourtAndQueue = courtTags.length === 1 && queueTags.length === 1 && player.status.length === 2;
 
-const isCourtAndQueue = courtTags.length === 1 && queueTags.length === 1 && player.status.length === 2;
+  const backgroundColor = isConflict
+    ? "#F7C59F"
+    : isCourtAndQueue
+      ? "#4DB6AC"
+      : isIdleTooLong
+        ? "#F8D7DA"
+        : zone.startsWith('court')
+          ? "#B5CDA3"
+          : zone.startsWith('queue')
+            ? "#E5D78A"
+            : "#E8D8C4";
 
-const backgroundColor = isConflict
-  ? "#F7C59F" // light orange for invalid state
-  : isCourtAndQueue
-    ? "#4DB6AC" // 🟧 true dual-status orange
-    : isIdleTooLong
-      ? "#F8D7DA" // red alert
-      : zone.startsWith('court')
-        ? "#B5CDA3"
-        : zone.startsWith('queue')
-          ? "#E5D78A"
-          : "#E8D8C4";
+  const textColor = isConflict
+    ? "#5C3D2E" 
+    : isCourtAndQueue
+      ? "#263238" 
+      : isIdleTooLong
+        ? "#8B0000"
+        : zone.startsWith('court')
+          ? "#2F4023"
+          : zone.startsWith('queue')
+            ? "#4A3F1C"
+            : "#5E473B";
 
-const textColor = isConflict
-  ? "#5C3D2E" 
-  : isCourtAndQueue
-    ? "#263238" 
-    : isIdleTooLong
-      ? "#8B0000"
-      : zone.startsWith('court')
-        ? "#2F4023"
-        : zone.startsWith('queue')
-          ? "#4A3F1C"
-          : "#5E473B";
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
-const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-
-const showQuickAddIcon = isUnassigned && !isOnCourt;
+  const showQuickAddIcon = isUnassigned && !isOnCourt;
 
   return (
     <div className="flipped">
       <Card
+        ref={cardRef}
         sx={{
           display: 'flex',
           width: '100%',
@@ -196,18 +281,20 @@ const showQuickAddIcon = isUnassigned && !isOnCourt;
           margin: '0 auto 4px',
           color: textColor,
           border: '1px solid rgba(0, 0, 0, 0.06)',
-          transition: 'transform 0.15s ease-in-out, box-shadow 0.15s ease-in-out',
-          '&:hover': {
-            transform: 'scale(1.025)',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+          opacity: isDragging ? 0.5 : 1,
+          touchAction: 'none', // Prevents scrolling while touching
+          userSelect: 'none', // Prevents text selection
+          WebkitUserSelect: 'none',
+          '&:active': {
+            cursor: 'grabbing',
           },
         }}
         draggable
-        onDragStart={(e) => {
-          e.dataTransfer.setData('player/id', player.id.toString());
-          e.dataTransfer.setData('player/source', zone);
-          e.dataTransfer.setData('player/json', JSON.stringify(player));
-        }}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
       >
         <Box
           sx={{
@@ -216,6 +303,7 @@ const showQuickAddIcon = isUnassigned && !isOnCourt;
             alignItems: 'center',
             width: '100%',
             gap: 0.5,
+            pointerEvents: isDragging ? 'none' : 'auto', // Disable interactions while dragging
           }}
         >
           <Box sx={{ 
@@ -269,7 +357,7 @@ const showQuickAddIcon = isUnassigned && !isOnCourt;
                 variant="body2"
                 sx={{
                   fontWeight: 'bold',
-                  fontSize: 'clamp(0.5rem, 0.65vw, 0.65rem)', // scalable but consistent
+                  fontSize: 'clamp(0.5rem, 0.65vw, 0.65rem)',
                   whiteSpace: 'nowrap',
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
@@ -343,7 +431,6 @@ const showQuickAddIcon = isUnassigned && !isOnCourt;
                   backgroundColor: isQuickAddDisabled || isOnCourt ? '#f2f2f2' : '#E8F5E9',
                   color: isQuickAddDisabled || isOnCourt ? '#aaa' : '#2E7D32',
                   minWidth: 'auto',
-                  transition: 'all 0.2s ease-in-out',
                   '&:hover': {
                     backgroundColor: isQuickAddDisabled || isOnCourt ? '#f2f2f2' : '#C8E6C9',
                     color: isQuickAddDisabled || isOnCourt ? '#aaa' : '#1B5E20',
@@ -393,6 +480,7 @@ const showQuickAddIcon = isUnassigned && !isOnCourt;
         </Box>
       </Card>
 
+      {/* Popovers remain unchanged */}
       <Popover
         open={Boolean(historyAnchorEl)}
         anchorEl={historyAnchorEl}
@@ -435,7 +523,6 @@ const showQuickAddIcon = isUnassigned && !isOnCourt;
         )}
       </Popover>
 
-
       <Popover
         open={Boolean(anchorEl)}
         anchorEl={anchorEl}
@@ -477,7 +564,7 @@ const showQuickAddIcon = isUnassigned && !isOnCourt;
               onChange={(e) => {
                 const to = e.target.value;
                 const alreadyInCourt = courtTags.length > 0;
-                const existingQueue = queueTags[0]; // if it exists
+                const existingQueue = queueTags[0];
 
                 if (alreadyInCourt) {
                   alert("Player is already assigned to a court. Cannot assign to another.");
@@ -485,7 +572,7 @@ const showQuickAddIcon = isUnassigned && !isOnCourt;
                 }
 
                 const newStatus: PlayerStatus[] = [to as PlayerStatus];
-                if (existingQueue) newStatus.push(existingQueue); // Condition #6
+                if (existingQueue) newStatus.push(existingQueue);
 
                 dispatch(Action.movePlayer(player.id, zone, to));
                 closePopover();
@@ -520,7 +607,7 @@ const showQuickAddIcon = isUnassigned && !isOnCourt;
               onChange={(e) => {
                 const to = e.target.value;
                 const alreadyInQueue = queueTags.length > 0;
-                const existingCourt = courtTags[0]; // if it exists
+                const existingCourt = courtTags[0];
 
                 if (alreadyInQueue) {
                   alert("Player is already assigned to a queue. Cannot assign to another.");
@@ -528,7 +615,7 @@ const showQuickAddIcon = isUnassigned && !isOnCourt;
                 }
 
                 const newStatus = existingCourt ? [existingCourt] : [];
-                newStatus.push(to as PlayerStatus); // Condition #6
+                newStatus.push(to as PlayerStatus);
 
                 dispatch(Action.movePlayer(player.id, zone, to));
                 closePopover();

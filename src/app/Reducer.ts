@@ -121,47 +121,104 @@ export default function reducer(state: any, action: Action) {
 
       const isToCourt = to.startsWith("court-");
       const isToQueue = to.startsWith("queue-");
+      const isFromCourt = from.startsWith("court-");
+      const isFromQueue = from.startsWith("queue-");
+      const isFromRest = from === "rest" || from === "all";
 
-      // ✅ Prevent overfilling courts/queues (max 4)
+      // Prevent overfilling courts/queues (max 4)
       const playersInTarget = state.players.filter((p: Player) =>
         p.status.includes(to as PlayerStatus)
       );
       if (playersInTarget.length >= 4) return state;
 
-      // ✅ Step 1: Clean existing court-*/queue-* before assigning new one
-      let newStatus: PlayerStatus[] = [];
-
+      // Get player's current statuses
       const existingCourt = playerToMove.status.find(
         (s: PlayerStatus): s is PlayerStatus => s.startsWith("court-")
       );
-
       const existingQueue = playerToMove.status.find(
         (s: PlayerStatus): s is PlayerStatus => s.startsWith("queue-")
       );
 
-      if (isToCourt) {
-        // Replace court assignment, keep queue if it exists (Condition #6)
+      // Determine new status based on the move type
+      let newStatus: PlayerStatus[] = [];
+
+      // RULE 1: Moving between queue boxes - just replace the queue
+      if (isFromQueue && isToQueue) {
+        // If player has court status, keep it (advanced queue)
+        if (existingCourt) {
+          newStatus = [existingCourt, to as PlayerStatus];
+        } else {
+          newStatus = [to as PlayerStatus];
+        }
+      }
+      // RULE 2: Moving between court boxes - just replace the court
+      else if (isFromCourt && isToCourt) {
+        // If player has queue status, keep it (advanced queue)
+        if (existingQueue) {
+          newStatus = [to as PlayerStatus, existingQueue];
+        } else {
+          newStatus = [to as PlayerStatus];
+        }
+      }
+      // RULE 3: Moving from queue to court - MOVE not duplicate
+      else if (isFromQueue && isToCourt) {
         newStatus = [to as PlayerStatus];
-        if (existingQueue) newStatus.push(existingQueue);
-      } else if (isToQueue) {
-        // Replace queue assignment, keep court if it exists (Condition #6)
-        newStatus = existingCourt ? [existingCourt] : [];
-        newStatus.push(to as PlayerStatus);
+      }
+      // RULE 4: Moving from court to queue - MOVE not duplicate
+      else if (isFromCourt && isToQueue) {
+        newStatus = [to as PlayerStatus];
+      }
+      // RULE 5: Moving from rest/player list
+      else if (isFromRest) {
+        if (isToCourt) {
+          // Check if player already has a court - if so, just update it
+          if (existingCourt) {
+            newStatus = existingQueue
+              ? [to as PlayerStatus, existingQueue]
+              : [to as PlayerStatus];
+          } else {
+            // No existing court, add court and keep queue if exists
+            newStatus = existingQueue
+              ? [to as PlayerStatus, existingQueue]
+              : [to as PlayerStatus];
+          }
+        } else if (isToQueue) {
+          // ADVANCED QUEUEING: If player is on court and dragged to queue from player list
+          if (existingCourt) {
+            newStatus = [existingCourt, to as PlayerStatus]; // TEAL status!
+          } else {
+            // Not on court, just add to queue
+            newStatus = [to as PlayerStatus];
+          }
+        }
+      }
+      // RULE 6: Moving back to rest - clear all statuses
+      else if (to === "rest" || to === "all") {
+        newStatus = [];
       }
 
       const updatedPlayer: Player = {
         ...playerToMove,
         status: newStatus,
-        timeEntered: isToCourt ? Date.now() : playerToMove.timeEntered,
+        timeEntered:
+          isToCourt && !existingCourt ? Date.now() : playerToMove.timeEntered,
       };
 
       const updatedPlayers = state.players.map((p: Player) =>
         p.id === id ? updatedPlayer : p
       );
 
-      // ✅ Step 2: Recalculate playersByCourt and playersByQueue
+      // Step 2: Recalculate playersByCourt and playersByQueue
       const playersByCourt: Record<string, Player[]> = {};
       const playersByQueue: Record<string, Player[]> = {};
+
+      // Initialize empty arrays for all courts and queues
+      for (let i = 0; i < state.courts.count; i++) {
+        playersByCourt[`court-${i}`] = [];
+      }
+      for (let i = 0; i < state.queue.count; i++) {
+        playersByQueue[`queue-${i}`] = [];
+      }
 
       for (const p of updatedPlayers) {
         const courtId = p.status.find((s: PlayerStatus) =>
@@ -171,13 +228,11 @@ export default function reducer(state: any, action: Action) {
           s.startsWith("queue-")
         );
 
-        if (courtId) {
-          if (!playersByCourt[courtId]) playersByCourt[courtId] = [];
+        if (courtId && playersByCourt[courtId]) {
           playersByCourt[courtId].push(p);
         }
 
-        if (queueId) {
-          if (!playersByQueue[queueId]) playersByQueue[queueId] = [];
+        if (queueId && playersByQueue[queueId]) {
           playersByQueue[queueId].push(p);
         }
       }
