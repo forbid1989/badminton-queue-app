@@ -152,7 +152,7 @@ const QueueItem = React.memo<{
   // Memoized queue format calculation
   const queueFormat = useMemo(() => getQueueFormat(players), [players]);
   
-  // Memoized the disabled state calculation
+  // Memoized the disabled state calculation with more robust logic
   const isTransferDisabled = useMemo(() => {
     if (players.length === 0) return true;
     
@@ -163,13 +163,14 @@ const QueueItem = React.memo<{
     
     if (hasPlayerOnCourt) return true;
     
-    // Check if all courts are full
-    const allCourtsFull = Array.from({ length: courtCount }).every((_, i) => {
+    // More robust check: see if there's any court with space
+    const hasAvailableCourt = Array.from({ length: courtCount }).some((_, i) => {
       const courtId = `court-${i}`;
-      return (courtOccupancy[courtId] || 0) >= MAX_PLAYERS_PER_COURT;
+      const currentOccupancy = courtOccupancy[courtId] || 0;
+      return currentOccupancy < MAX_PLAYERS_PER_COURT;
     });
     
-    return allCourtsFull;
+    return !hasAvailableCourt;
   }, [players, courtCount, courtOccupancy]);
 
   // Memoized the transfer handler
@@ -314,7 +315,7 @@ const QueueItem = React.memo<{
                     ? players.some(p => p.status.some(s => s.startsWith('court-')))
                       ? "Players already on court"
                       : "All courts are full"
-                    : "Transfer to available court"
+                    : `Transfer to available court (${Object.values(courtOccupancy).filter(count => count < MAX_PLAYERS_PER_COURT).length} courts available)`
                 }
               >
                 Transfer to Court
@@ -336,17 +337,33 @@ const QueueZone: React.FC<QueueZoneProps> = ({ courtCount }) => {
   const { state, dispatch } = useContext(AppContext);
 
   // Memoize court occupancy calculation to avoid recalculating on every render
+  // Use the same logic as the actual player filtering to ensure consistency
   const courtOccupancy = useMemo(() => {
     const occupancy: Record<string, number> = {};
     
     // Initialize all courts
     for (let i = 0; i < courtCount; i++) {
       const courtId = `court-${i}`;
-      occupancy[courtId] = state.courts.playersByCourt[courtId]?.length || 0;
+      
+      // Count players actually assigned to this court using the same logic as the app
+      const playersInCourt = state.players.filter((p) => {
+        const hasThisCourt = p.status.includes(courtId as PlayerStatus);
+        const courtAssignments = p.status.filter((s) => s.startsWith('court-')).length;
+        const queueAssignments = p.status.filter((s) => s.startsWith('queue-')).length;
+
+        const isValid =
+          hasThisCourt &&
+          courtAssignments <= 1 &&
+          queueAssignments <= 1;
+
+        return isValid;
+      });
+      
+      occupancy[courtId] = playersInCourt.length;
     }
     
     return occupancy;
-  }, [state.courts.playersByCourt, courtCount]);
+  }, [state.players, courtCount]);
 
   // Memoize queue data calculation
   const queueData = useMemo(() => {
