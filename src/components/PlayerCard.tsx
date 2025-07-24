@@ -47,6 +47,11 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
   const courtCount = useMemo(() => state.courts.count, [state.courts.count]);
   const queueCount = useMemo(() => state.queue.count, [state.queue.count]);
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  
+  // Determine if this card is in a team zone (smaller layout needed)
+  const isInTeamZone = useMemo(() => {
+    return zone.startsWith('court-') || zone.startsWith('queue-');
+  }, [zone]);
 
   // State management
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
@@ -351,32 +356,44 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
   // Memoized formatted time
   const formattedTime = useMemo(() => formatElapsedTime(elapsedSeconds), [elapsedSeconds]);
 
+  // Dynamic card sizing based on context
+  const cardStyles = useMemo(() => ({
+    display: 'flex',
+    width: '100%',
+    maxWidth: isInTeamZone 
+      ? '100%'  // Fill available space in teams
+      : isMobile 
+        ? '90vw' 
+        : '200px',
+    minWidth: isInTeamZone ? '120px' : '160px', // Ensure minimum readable size
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: isInTeamZone 
+      ? '2px 4px'  // Tighter padding for team zones
+      : isMobile 
+        ? '4px 6px' 
+        : '6px 8px',
+    backgroundColor: cardColors.backgroundColor,
+    borderRadius: isInTeamZone ? '12px' : '20px',
+    boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+    cursor: 'grab',
+    margin: '0 auto 2px',
+    color: cardColors.textColor,
+    border: '1px solid rgba(0, 0, 0, 0.06)',
+    opacity: isDragging ? 0.5 : 1,
+    touchAction: 'none',
+    userSelect: 'none',
+    WebkitUserSelect: 'none',
+    '&:active': {
+      cursor: 'grabbing',
+    },
+  }), [isInTeamZone, isMobile, cardColors, isDragging]);
+
   return (
     <div className="flipped">
       <Card
         ref={cardRef}
-        sx={{
-          display: 'flex',
-          width: '100%',
-          maxWidth: isMobile ? '90vw' : '200px',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          padding: isMobile ? '0.5px 2px' : '1px 4px',
-          backgroundColor: cardColors.backgroundColor,
-          borderRadius: '20px',
-          boxShadow: '0 2px 6px rgba(0,0,0,0.08)',
-          cursor: 'grab',
-          margin: '0 auto 4px',
-          color: cardColors.textColor,
-          border: '1px solid rgba(0, 0, 0, 0.06)',
-          opacity: isDragging ? 0.5 : 1,
-          touchAction: 'none',
-          userSelect: 'none',
-          WebkitUserSelect: 'none',
-          '&:active': {
-            cursor: 'grabbing',
-          },
-        }}
+        sx={cardStyles}
         draggable
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
@@ -390,16 +407,18 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
             justifyContent: 'space-between',
             alignItems: 'center',
             width: '100%',
-            gap: 0.5,
+            gap: isInTeamZone ? 0.25 : 0.5,
             pointerEvents: isDragging ? 'none' : 'auto',
           }}
         >
+          {/* Name Section */}
           <Box sx={{ 
             display: 'flex',
             alignItems: 'center',
             overflow: 'hidden',
             gap: 0.25,
             minWidth: 0,
+            flex: 1,
           }}>
             {isEditing ? (
               <TextField
@@ -416,7 +435,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
                 slotProps={{
                   input: {
                     style: {
-                      fontSize: 'clamp(0.5rem, 0.65vw, 0.65rem)',
+                      fontSize: isInTeamZone ? '0.55rem' : '0.65rem',
                       fontWeight: 'bold',
                       padding: 0,
                     },
@@ -430,75 +449,62 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
                 }}
               />
             ) : (
-              <Box
+              <Typography
+                variant="body2"
                 sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 0.25,
-                  maxWidth: 160,
+                  fontWeight: 'bold',
+                  fontSize: isInTeamZone ? '0.55rem' : '0.65rem',
+                  whiteSpace: 'nowrap',
                   overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  maxWidth: isInTeamZone ? '60px' : '80px',
+                  cursor: 'pointer',
                 }}
+                title={player.name}
+                onClick={handleEditToggle}
               >
-                <Typography
-                  variant="body2"
-                  sx={{
-                    fontWeight: 'bold',
-                    fontSize: 'clamp(0.5rem, 0.65vw, 0.65rem)',
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    maxWidth: 100,
-                  }}
-                  title={player.name}
-                >
-                  {player.name}
-                </Typography>
-                <IconButton
-                  size="small"
-                  onClick={handleEditToggle}
-                  title="Edit Name"
-                  sx={{ fontSize: '0.7rem', padding: '2px' }}
-                >
-                  ✏️
-                </IconButton>
-              </Box>
+                {player.name}
+              </Typography>
             )}
           </Box>
 
+          {/* Stats and Actions Section */}
           <Box
             sx={{
               display: 'flex',
               alignItems: 'center',
-              gap: 0.25,
+              gap: isInTeamZone ? 0.15 : 0.25,
               flexShrink: 0,
             }}
           >
+            {/* Games played indicator */}
             <Typography 
               variant="body2" 
               sx={{
                 display: 'flex',
                 alignItems: 'center',
-                fontSize: 'clamp(0.5rem, 0.65vw, 0.65rem)',
-                gap: 0.15,
+                fontSize: isInTeamZone ? '0.5rem' : '0.6rem',
+                gap: 0.1,
               }}
             >
-              <Box component="span" sx={{ fontSize: '0.8em' }}>🎮</Box>
               {player.gamesPlayed}
+              <Box component="span" sx={{ fontSize: '0.8em' }}>🎮</Box>
             </Typography>
 
+            {/* Timer */}
             <Typography 
               variant="body2" 
               sx={{
-                mx: 1,
                 fontWeight: elapsedSeconds > 900 ? 'bold' : 'normal',
                 color: elapsedSeconds > 900 ? '#8B0000' : cardColors.textColor,
-                fontSize: 'clamp(0.5rem, 0.65vw, 0.65rem)',
+                fontSize: isInTeamZone ? '0.5rem' : '0.6rem',
               }}
             >
               {formattedTime}
             </Typography>
 
-            {showQuickAddIcon && !(zone.startsWith('court') && playerStatus.isOnCourt) && (
+            {/* Action buttons - only show essential ones in team zones */}
+            {!isInTeamZone && showQuickAddIcon && (
               <IconButton
                 size="small"
                 onClick={handleQuickAdd}
@@ -506,68 +512,79 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
                 title={
                   isQuickAddDisabled
                     ? "No available court or queue"
-                    : playerStatus.isOnCourt && !playerStatus.isInQueue
-                    ? "Quick Add to Queue"
                     : "Quick Add"
                 }
                 sx={{
-                  padding: '2px',
-                  borderRadius: '12px',
-                  border: `1px solid ${
-                    isQuickAddDisabled || playerStatus.isOnCourt ? '#ccc' : '#2E7D32'
-                  }`,
-                  backgroundColor: isQuickAddDisabled || playerStatus.isOnCourt ? '#f2f2f2' : '#E8F5E9',
-                  color: isQuickAddDisabled || playerStatus.isOnCourt ? '#aaa' : '#2E7D32',
+                  padding: '1px',
+                  borderRadius: '8px',
+                  border: `1px solid ${isQuickAddDisabled ? '#ccc' : '#2E7D32'}`,
+                  backgroundColor: isQuickAddDisabled ? '#f2f2f2' : '#E8F5E9',
+                  color: isQuickAddDisabled ? '#aaa' : '#2E7D32',
                   minWidth: 'auto',
                   '&:hover': {
-                    backgroundColor: isQuickAddDisabled || playerStatus.isOnCourt ? '#f2f2f2' : '#C8E6C9',
-                    color: isQuickAddDisabled || playerStatus.isOnCourt ? '#aaa' : '#1B5E20',
-                    borderColor: isQuickAddDisabled || playerStatus.isOnCourt ? '#ccc' : '#1B5E20',
-                  },
-                  '& .MuiSvgIcon-root': {
-                    fontSize: '16px',
+                    backgroundColor: isQuickAddDisabled ? '#f2f2f2' : '#C8E6C9',
                   },
                 }}
               >
                 <BadmintonIcon
-                  size={12}
+                  size={10}
                   playerSeed={player.name}
                   isDisabled={isQuickAddDisabled}
                 />
               </IconButton>
             )}
 
+            {/* Return button - essential for team zones */}
             {!playerStatus.isUnassigned && (
               <IconButton
                 size="small"
                 onClick={handleReturnToRest}
-                title="Send to Resting Players"
+                title="Return to Rest"
                 sx={{
-                  padding: '2px',
+                  padding: '1px',
                   color: '#6D4C41',
                   '&:hover': {
                     color: '#3E2723',
                   },
                 }}
               >
-                <KeyboardReturnIcon sx={{ fontSize: '0.75rem' }} />
+                <KeyboardReturnIcon sx={{ fontSize: isInTeamZone ? '0.6rem' : '0.75rem' }} />
               </IconButton>
             )}
 
+            {/* History button - essential for tracking matches */}
             <IconButton
               size="small"
               onClick={handleHistoryOpen}
               title="View Match History"
+              sx={{ 
+                padding: '1px',
+                '& .MuiSvgIcon-root': {
+                  fontSize: isInTeamZone ? '0.6rem' : '0.75rem',
+                },
+              }}
             >
-              <HistoryIcon sx={{ fontSize: '0.75rem' }} />
+              <HistoryIcon />
             </IconButton>
-            <IconButton size="small" onClick={openPopover} sx={{ padding: '2px' }}>
-              <MoreVertIcon sx={{ fontSize: '0.75rem' }} />
+
+            {/* Menu button - always available but smaller in teams */}
+            <IconButton 
+              size="small" 
+              onClick={openPopover} 
+              sx={{ 
+                padding: '1px',
+                '& .MuiSvgIcon-root': {
+                  fontSize: isInTeamZone ? '0.6rem' : '0.75rem',
+                },
+              }}
+            >
+              <MoreVertIcon />
             </IconButton>
           </Box>
         </Box>
       </Card>
 
+      {/* Popovers - Match History available in all zones */}
       {/* Match History Popover */}
       <Popover
         open={Boolean(historyAnchorEl)}
@@ -647,73 +664,71 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
             }}
           />
 
-          <FormControl size="small" fullWidth>
-            <InputLabel sx={{ fontSize: '0.65rem' }}>Court</InputLabel>
-            <Select
-              label="Court"
-              value=""
-              onChange={(e) => {
-                const to = e.target.value;
-                const alreadyInCourt = playerStatus.courtTags.length > 0;
-                const existingQueue = playerStatus.queueTags[0];
+          {!isInTeamZone && (
+            <>
+              <Button
+                variant="text"
+                size="small"
+                onClick={handleHistoryOpen}
+                sx={{ fontSize: '0.65rem', padding: '2px 4px' }}
+              >
+                View History
+              </Button>
 
-                if (alreadyInCourt) {
-                  alert("Player is already assigned to a court. Cannot assign to another.");
-                  return;
-                }
+              <FormControl size="small" fullWidth>
+                <InputLabel sx={{ fontSize: '0.65rem' }}>Court</InputLabel>
+                <Select
+                  label="Court"
+                  value=""
+                  onChange={(e) => {
+                    const to = e.target.value;
+                    dispatch(Action.movePlayer(player.id, zone, to));
+                    closePopover();
+                  }}
+                  size='small'
+                  sx={{ fontSize: '0.65rem' }}
+                >
+                  {Array.from({ length: courtCount }, (_, i) => {
+                    const courtKey = `court-${i}`;
+                    const courtPlayers = state.courts.playersByCourt[courtKey] || [];
+                    const isCourtFull = courtPlayers.length >= 4;
 
-                dispatch(Action.movePlayer(player.id, zone, to));
-                closePopover();
-              }}
-              size='small'
-              sx={{ fontSize: '0.65rem' }}
-            >
-              {Array.from({ length: courtCount }, (_, i) => {
-                const courtKey = `court-${i}`;
-                const courtPlayers = state.courts.playersByCourt[courtKey] || [];
-                const isCourtFull = courtPlayers.length >= 4;
+                    return (
+                      <MenuItem
+                        key={courtKey}
+                        value={courtKey}
+                        sx={{ fontSize: '0.65rem' }}
+                        disabled={isCourtFull}
+                      >
+                        Court {i + 1}
+                      </MenuItem>
+                    );
+                  })}
+                </Select>
+              </FormControl>
 
-                return (
-                  <MenuItem
-                    key={courtKey}
-                    value={courtKey}
-                    sx={{ fontSize: '0.65rem' }}
-                    disabled={isCourtFull}
-                  >
-                    Court {i + 1}
-                  </MenuItem>
-                );
-              })}
-            </Select>
-          </FormControl>
-
-          <FormControl size="small" fullWidth>
-            <InputLabel sx={{ fontSize: '0.65rem' }}>Queue</InputLabel>
-            <Select
-              label="Queue"
-              value=""
-              onChange={(e) => {
-                const to = e.target.value;
-                const alreadyInQueue = playerStatus.queueTags.length > 0;
-
-                if (alreadyInQueue) {
-                  alert("Player is already assigned to a queue. Cannot assign to another.");
-                  return;
-                }
-
-                dispatch(Action.movePlayer(player.id, zone, to));
-                closePopover();
-              }}
-              size="small"
-              sx={{ fontSize: '0.65rem' }}
-            >
-              {Array.from({ length: queueCount }, (_, i) => (
-                <MenuItem key={`queue-${i}`} value={`queue-${i}`} sx={{ fontSize: '0.65rem' }}>
-                  Queue {i + 1}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+              <FormControl size="small" fullWidth>
+                <InputLabel sx={{ fontSize: '0.65rem' }}>Queue</InputLabel>
+                <Select
+                  label="Queue"
+                  value=""
+                  onChange={(e) => {
+                    const to = e.target.value;
+                    dispatch(Action.movePlayer(player.id, zone, to));
+                    closePopover();
+                  }}
+                  size="small"
+                  sx={{ fontSize: '0.65rem' }}
+                >
+                  {Array.from({ length: queueCount }, (_, i) => (
+                    <MenuItem key={`queue-${i}`} value={`queue-${i}`} sx={{ fontSize: '0.65rem' }}>
+                      Queue {i + 1}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </>
+          )}
 
           <Button
             variant="outlined"

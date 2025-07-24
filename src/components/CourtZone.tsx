@@ -1,6 +1,6 @@
 import React, { useContext, useState, useEffect, useMemo, useCallback } from 'react';
 import Grid from '@mui/material/Grid';
-import { Card, Button , Typography, Box, TextField, IconButton } from '@mui/material';
+import { Card, Button , Typography, Box, TextField, IconButton, Chip } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import { Player } from '../types/Player';
 import DroppableZone from './DroppableZone';
@@ -13,7 +13,26 @@ type CourtZoneProps = {
   courtCount: number;
 };
 
-// Memoized Badminton Court SVG Component - Only creates once
+// Helper function to determine match format and organize players
+const getMatchFormat = (players: Player[]) => {
+  const playerCount = players.length;
+  
+  if (playerCount === 0) {
+    return { format: 'Empty', teams: [] };
+  } else if (playerCount === 1) {
+    return { format: 'Waiting', teams: [players] };
+  } else if (playerCount === 2) {
+    return { format: '1v1', teams: [players.slice(0, 1), players.slice(1, 2)] };
+  } else if (playerCount === 3) {
+    return { format: '2v1', teams: [players.slice(0, 2), players.slice(2, 3)] };
+  } else if (playerCount === 4) {
+    return { format: '2v2', teams: [players.slice(0, 2), players.slice(2, 4)] };
+  } else {
+    return { format: 'Overflow', teams: [players] };
+  }
+};
+
+// Memoized Badminton Court SVG Component
 const BadmintonCourtBackground = React.memo(() => (
   <svg
     width="100%"
@@ -24,7 +43,7 @@ const BadmintonCourtBackground = React.memo(() => (
       top: 0,
       left: 0,
       zIndex: 0,
-      opacity: 0.4,
+      opacity: 0.3,
     }}
     preserveAspectRatio="none"
   >
@@ -46,8 +65,8 @@ const BadmintonCourtBackground = React.memo(() => (
       x2="150"
       y2="125"
       stroke="white"
-      strokeWidth="1.5"
-      strokeDasharray="3,3"
+      strokeWidth="2"
+      strokeDasharray="5,5"
     />
     
     {/* Short service lines */}
@@ -85,88 +104,117 @@ const BadmintonCourtBackground = React.memo(() => (
       stroke="white"
       strokeWidth="1.5"
     />
-    
-    {/* Left service boxes */}
-    <rect
-      x="25"
-      y="50"
-      width="25"
-      height="25"
-      fill="none"
-      stroke="white"
-      strokeWidth="1.5"
-    />
-    <rect
-      x="25"
-      y="75"
-      width="25"
-      height="25"
-      fill="none"
-      stroke="white"
-      strokeWidth="1.5"
-    />
-    
-    {/* Right service boxes */}
-    <rect
-      x="250"
-      y="50"
-      width="25"
-      height="25"
-      fill="none"
-      stroke="white"
-      strokeWidth="1.5"
-    />
-    <rect
-      x="250"
-      y="75"
-      width="25"
-      height="25"
-      fill="none"
-      stroke="white"
-      strokeWidth="1.5"
-    />
-    
-    {/* Inner service area rectangles */}
-    <rect
-      x="50"
-      y="50"
-      width="100"
-      height="50"
-      fill="none"
-      stroke="white"
-      strokeWidth="1.5"
-    />
-    <rect
-      x="150"
-      y="50"
-      width="100"
-      height="50"
-      fill="none"
-      stroke="white"
-      strokeWidth="1.5"
-    />
-    
-    {/* Center service line dividers */}
-    <line
-      x1="150"
-      y1="50"
-      x2="150"
-      y2="75"
-      stroke="white"
-      strokeWidth="1.5"
-    />
-    <line
-      x1="150"
-      y1="75"
-      x2="150"
-      y2="100"
-      stroke="white"
-      strokeWidth="1.5"
-    />
   </svg>
 ));
 
 BadmintonCourtBackground.displayName = 'BadmintonCourtBackground';
+
+// Team display component
+const TeamDisplay = React.memo<{
+  players: Player[];
+  courtId: string;
+  teamLabel: string;
+  isLeftSide?: boolean;
+}>(({ players, courtId, teamLabel, isLeftSide = false }) => (
+  <Box
+    sx={{
+      flex: 1,
+      minHeight: '60px',
+      backgroundColor: 'rgba(255,255,255,0.1)',
+      borderRadius: 1,
+      border: '2px dashed rgba(255,255,255,0.3)',
+      p: 0.5,
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 0.5,
+      position: 'relative',
+    }}
+  >
+    <Typography
+      variant="caption"
+      sx={{
+        fontSize: '0.6rem',
+        color: 'rgba(255,255,255,0.8)',
+        textAlign: 'center',
+        fontWeight: 'bold',
+        textTransform: 'uppercase',
+        letterSpacing: '0.5px',
+      }}
+    >
+      {teamLabel}
+    </Typography>
+    
+    {players.length === 0 ? (
+      <Box
+        sx={{
+          flex: 1,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <Typography
+          variant="body2"
+          sx={{
+            fontSize: '0.6rem',
+            color: 'rgba(255,255,255,0.6)',
+            textAlign: 'center',
+            fontStyle: 'italic',
+          }}
+        >
+          Drop players here
+        </Typography>
+      </Box>
+    ) : (
+      <Grid container spacing={0.25}>
+        {players.map((player, index) => (
+          <Grid key={player.id} size={{ xs: 12 }}>
+            <PlayerCard player={player} zone={courtId} />
+          </Grid>
+        ))}
+      </Grid>
+    )}
+  </Box>
+));
+
+TeamDisplay.displayName = 'TeamDisplay';
+
+// Match format chip component
+const MatchFormatChip = React.memo<{ format: string; playerCount: number }>(
+  ({ format, playerCount }) => {
+    const getChipColor = () => {
+      switch (format) {
+        case 'Empty': return { bg: 'rgba(255,255,255,0.2)', text: 'rgba(255,255,255,0.7)' };
+        case 'Waiting': return { bg: 'rgba(255,193,7,0.8)', text: '#000' };
+        case '1v1': return { bg: 'rgba(76,175,80,0.9)', text: 'white' };
+        case '2v1': return { bg: 'rgba(255,152,0,0.9)', text: 'white' };
+        case '2v2': return { bg: 'rgba(33,150,243,0.9)', text: 'white' };
+        case 'Overflow': return { bg: 'rgba(244,67,54,0.9)', text: 'white' };
+        default: return { bg: 'rgba(255,255,255,0.2)', text: 'rgba(255,255,255,0.7)' };
+      }
+    };
+
+    const colors = getChipColor();
+
+    return (
+      <Chip
+        label={format === 'Empty' ? 'Available' : `${format} (${playerCount}/${format === '1v1' ? '2' : '4'})`}
+        size="small"
+        sx={{
+          backgroundColor: colors.bg,
+          color: colors.text,
+          fontSize: '0.6rem',
+          height: '20px',
+          fontWeight: 'bold',
+          border: '1px solid rgba(255,255,255,0.3)',
+          backdropFilter: 'blur(4px)',
+        }}
+      />
+    );
+  }
+);
+
+MatchFormatChip.displayName = 'MatchFormatChip';
 
 // Memoized Court Item Component
 const CourtItem = React.memo<{
@@ -192,6 +240,9 @@ const CourtItem = React.memo<{
   onCancelEdit, 
   onEndGame 
 }) => {
+  
+  // Memoized match format calculation
+  const matchFormat = useMemo(() => getMatchFormat(players), [players]);
   
   // Memoized event handlers
   const handleStartEdit = useCallback(() => {
@@ -219,14 +270,14 @@ const CourtItem = React.memo<{
     onEndGame(courtId);
   }, [courtId, onEndGame]);
 
-  // Memoized empty state message
+  // Memoized empty state
   const emptyState = useMemo(() => (
     <Box
       sx={{
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        height: '60px',
+        height: '80px',
         backgroundColor: 'rgba(255,255,255,0.1)',
         borderRadius: 1,
         border: '2px dashed rgba(255,255,255,0.3)',
@@ -240,25 +291,51 @@ const CourtItem = React.memo<{
           textAlign: 'center',
         }}
       >
-        Court Available
+        🏸 Court Available
         <br />
-        <Box component="span" sx={{ fontSize: '0.6rem' }}>
-          Drag players here
+        <Box component="span" sx={{ fontSize: '0.6rem', opacity: 0.8 }}>
+          Drag players to start a match
         </Box>
       </Typography>
     </Box>
   ), []);
 
-  // Memoized player grid
-  const playerGrid = useMemo(() => (
-    <Grid container spacing={1}>
-      {players.map((player) => (
-        <Grid size={{ xs: 12, sm: 6 }} key={player.id}>
-          <PlayerCard player={player} zone={courtId} />
+  // Memoized match display
+  const matchDisplay = useMemo(() => {
+    if (matchFormat.format === 'Empty') {
+      return emptyState;
+    }
+
+    if (matchFormat.format === 'Waiting' || matchFormat.format === 'Overflow') {
+      return (
+        <Grid container spacing={1}>
+          {players.map((player) => (
+            <Grid size={{ xs: 12, sm: 6 }} key={player.id}>
+              <PlayerCard player={player} zone={courtId} />
+            </Grid>
+          ))}
         </Grid>
-      ))}
-    </Grid>
-  ), [players, courtId]);
+      );
+    }
+
+    // For organized matches (1v1, 2v1, 2v2) - Remove VS label
+    return (
+      <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'stretch' }}>
+        <TeamDisplay
+          players={matchFormat.teams[0] || []}
+          courtId={courtId}
+          teamLabel="Team A"
+          isLeftSide={true}
+        />
+        
+        <TeamDisplay
+          players={matchFormat.teams[1] || []}
+          courtId={courtId}
+          teamLabel="Team B"
+        />
+      </Box>
+    );
+  }, [matchFormat, players, courtId, emptyState]);
 
   return (
     <Grid size={{ xs: 12, sm: 6 }}>
@@ -269,7 +346,7 @@ const CourtItem = React.memo<{
           backgroundColor: '#00936a',
           color: '#fff',
           position: 'relative',
-          minHeight: '120px',
+          minHeight: '140px',
           background: 'linear-gradient(135deg, #00936a 0%, #007055 100%)',
         }}
       >
@@ -282,101 +359,106 @@ const CourtItem = React.memo<{
             height: '100%',
           }}
         >
+          {/* Header with court name, format chip, and end game button */}
           <Box
             display="flex"
             justifyContent="space-between"
             alignItems="center"
             mb={1}
+            flexWrap="wrap"
+            gap={0.5}
           >
-            {isEditing ? (
-              <TextField
-                value={courtName}
-                onChange={handleNameChange}
-                onKeyDown={handleKeyDown}
-                onBlur={handleBlur}
-                autoFocus
-                variant="standard"
-                size="small"
-                sx={{
-                  '& .MuiInputBase-input': {
-                    fontSize: 'clamp(0.65rem, 0.9vw, 0.85rem)',
-                    fontWeight: 'bold',
-                    color: 'white',
-                    padding: '2px 4px',
-                  },
-                  '& .MuiInputBase-root': {
-                    '&:before': {
-                      borderBottomColor: 'rgba(255,255,255,0.5)',
-                    },
-                    '&:after': {
-                      borderBottomColor: 'white',
-                    },
-                  },
-                }}
-              />
-            ) : (
-              <Box
-                sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 0.5,
-                }}
-              >
-                <Typography
-                  variant="h6"
-                  sx={{
-                    fontSize: 'clamp(0.65rem, 0.9vw, 0.85rem)',
-                    fontWeight: 'bold',
-                    color: 'white',
-                    padding: '2px 4px',
-                    textShadow: '1px 1px 2px rgba(0,0,0,0.5)',
-                    cursor: 'pointer',
-                  }}
-                  onClick={handleStartEdit}
-                  title="Click to edit court name"
-                >
-                  🏸 {courtName}
-                </Typography>
-                <IconButton
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flex: 1 }}>
+              {isEditing ? (
+                <TextField
+                  value={courtName}
+                  onChange={handleNameChange}
+                  onKeyDown={handleKeyDown}
+                  onBlur={handleBlur}
+                  autoFocus
+                  variant="standard"
                   size="small"
-                  onClick={handleStartEdit}
                   sx={{
-                    color: 'rgba(255,255,255,0.7)',
-                    padding: '2px',
-                    '&:hover': {
+                    '& .MuiInputBase-input': {
+                      fontSize: 'clamp(0.65rem, 0.9vw, 0.85rem)',
+                      fontWeight: 'bold',
                       color: 'white',
-                      backgroundColor: 'rgba(255,255,255,0.1)',
+                      padding: '2px 4px',
+                    },
+                    '& .MuiInputBase-root': {
+                      '&:before': {
+                        borderBottomColor: 'rgba(255,255,255,0.5)',
+                      },
+                      '&:after': {
+                        borderBottomColor: 'white',
+                      },
                     },
                   }}
-                  title="Edit court name"
+                />
+              ) : (
+                <>
+                  <Typography
+                    variant="h6"
+                    sx={{
+                      fontSize: 'clamp(0.65rem, 0.9vw, 0.85rem)',
+                      fontWeight: 'bold',
+                      color: 'white',
+                      padding: '2px 4px',
+                      textShadow: '1px 1px 2px rgba(0,0,0,0.5)',
+                      cursor: 'pointer',
+                    }}
+                    onClick={handleStartEdit}
+                    title="Click to edit court name"
+                  >
+                    🏸 {courtName}
+                  </Typography>
+                  <IconButton
+                    size="small"
+                    onClick={handleStartEdit}
+                    sx={{
+                      color: 'rgba(255,255,255,0.7)',
+                      padding: '2px',
+                      '&:hover': {
+                        color: 'white',
+                        backgroundColor: 'rgba(255,255,255,0.1)',
+                      },
+                    }}
+                    title="Edit court name"
+                  >
+                    <EditIcon sx={{ fontSize: '0.75rem' }} />
+                  </IconButton>
+                </>
+              )}
+            </Box>
+
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              <MatchFormatChip format={matchFormat.format} playerCount={players.length} />
+              
+              {players.length > 0 && (
+                <Button
+                  variant="contained"
+                  size="small"
+                  onClick={handleEndGame}
+                  sx={{
+                    fontSize: '0.65rem',
+                    padding: '2px 6px',
+                    backgroundColor: 'rgba(0, 147, 106, 0.8)',
+                    textTransform: 'none',
+                    backdropFilter: 'blur(4px)',
+                    border: '1px solid rgba(255,255,255,0.2)',
+                    '&:hover': {
+                      backgroundColor: 'rgba(0, 112, 85, 0.9)',
+                    },
+                  }}
                 >
-                  <EditIcon sx={{ fontSize: '0.75rem' }} />
-                </IconButton>
-              </Box>
-            )}
-            {players.length > 0 && (
-              <Button
-                variant="contained"
-                size="small"
-                onClick={handleEndGame}
-                sx={{
-                  fontSize: '0.65rem',
-                  padding: '2px 6px',
-                  backgroundColor: 'rgba(0, 147, 106, 0.8)',
-                  textTransform: 'none',
-                  backdropFilter: 'blur(4px)',
-                  border: '1px solid rgba(255,255,255,0.2)',
-                  '&:hover': {
-                    backgroundColor: 'rgba(0, 112, 85, 0.9)',
-                  },
-                }}
-              >
-                End Game
-              </Button>
-            )}
+                  End Game
+                </Button>
+              )}
+            </Box>
           </Box>
 
-          {players.length === 0 ? emptyState : playerGrid}
+          {/* Match display area */}
+          {matchDisplay}
         </Box>
       </DroppableZone>
     </Grid>
@@ -453,8 +535,6 @@ const CourtZone: React.FC<CourtZoneProps> = ({ courtCount }) => {
   
   const handleSubmitEdit = useCallback((courtId: string) => {
     setEditingCourt(null);
-    // Here you could dispatch an action to save court names to state if needed
-    // dispatch(Action.updateCourtName(courtId, courtNames[courtId]));
   }, []);
 
   const handleCancelEdit = useCallback(() => {
