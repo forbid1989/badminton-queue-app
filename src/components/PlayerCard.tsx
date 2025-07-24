@@ -1,4 +1,4 @@
-import React, { useContext, useState, useEffect, useRef } from 'react';
+import React, { useContext, useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   Card,
   Box,
@@ -13,7 +13,6 @@ import {
   TextField,
   useTheme,
   useMediaQuery,
-  
 } from '@mui/material';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -40,9 +39,16 @@ type PlayerCardProps = {
 let draggedElement: HTMLElement | null = null;
 let draggedData: { player: Player; zone: string } | null = null;
 
-const PlayerCard: React.FC<PlayerCardProps> = ({ player, zone }) => {
+const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
   const theme = useTheme();
   const { state, dispatch } = useContext(AppContext);
+  
+  // Memoize frequently used values
+  const courtCount = useMemo(() => state.courts.count, [state.courts.count]);
+  const queueCount = useMemo(() => state.queue.count, [state.queue.count]);
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+
+  // State management
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [historyAnchorEl, setHistoryAnchorEl] = useState<null | HTMLElement>(null);
   const [elapsedSeconds, setElapsedSeconds] = useState<number>(() => {
@@ -52,15 +58,166 @@ const PlayerCard: React.FC<PlayerCardProps> = ({ player, zone }) => {
   const [gamesPlayed, setGamesPlayed] = useState(player.gamesPlayed.toString());
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [name, setName] = useState(player.name);
+  
   const cardRef = useRef<HTMLDivElement>(null);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const nameUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const courtCount = state.courts.count;
-  const queueCount = state.queue.count;
+  // Memoized player status calculations
+  const playerStatus = useMemo(() => {
+    const isOnCourt = player.status.some(s => s.startsWith('court'));
+    const isInQueue = player.status.some(s => s.startsWith('queue'));
+    const isUnassigned = player.status.length === 0;
+    const courtTags = player.status.filter(s => s.startsWith('court'));
+    const queueTags = player.status.filter(s => s.startsWith('queue'));
+    
+    const isConflict =
+      courtTags.length > 1 ||
+      queueTags.length > 1 ||
+      player.status.length > 2 ||
+      (player.status.length === 2 && !(courtTags.length === 1 && queueTags.length === 1));
 
-  const [name, setName] = useState(player.name); 
+    const isIdleTooLong = isUnassigned && elapsedSeconds > 900;
+    const isCourtAndQueue = courtTags.length === 1 && queueTags.length === 1 && player.status.length === 2;
 
-  // Touch event handlers for mobile
-  const handleTouchStart = (e: React.TouchEvent) => {
+    return {
+      isOnCourt,
+      isInQueue,
+      isUnassigned,
+      courtTags,
+      queueTags,
+      isConflict,
+      isIdleTooLong,
+      isCourtAndQueue
+    };
+  }, [player.status, elapsedSeconds]);
+
+  // Memoized color calculations
+  const cardColors = useMemo(() => {
+    const getBackgroundColor = () => {
+      const { isConflict, isCourtAndQueue, isIdleTooLong, isOnCourt, isInQueue, isUnassigned } = playerStatus;
+      
+      if (zone !== "all") {
+        if (isConflict) return "#F7C59F";
+        if (isCourtAndQueue) return "#00b0bd";
+        if (isIdleTooLong) return "#F8D7DA";
+        if (zone.startsWith('court')) return "#B5CDA3";
+        if (zone.startsWith('queue')) return "#E5D78A";
+        return "#E8D8C4";
+      }
+
+      if (isConflict) return "#F7C59F";
+      if (isCourtAndQueue) return "#00b0bd";
+      if (isOnCourt && !isInQueue) return "#B5CDA3";
+      if (isInQueue && !isOnCourt) return "#E5D78A";
+      if (isIdleTooLong) return "#F8D7DA";
+      return "#E8D8C4";
+    };
+
+    const getTextColor = () => {
+      const { isConflict, isCourtAndQueue, isIdleTooLong, isOnCourt, isInQueue } = playerStatus;
+      
+      if (zone !== "all") {
+        if (isConflict) return "#5C3D2E";
+        if (isCourtAndQueue) return "#263238";
+        if (isIdleTooLong) return "#8B0000";
+        if (zone.startsWith('court')) return "#2F4023";
+        if (zone.startsWith('queue')) return "#4A3F1C";
+        return "#5E473B";
+      }
+
+      if (isConflict) return "#5C3D2E";
+      if (isCourtAndQueue) return "#263238";
+      if (isOnCourt && !isInQueue) return "#2F4023";
+      if (isInQueue && !isOnCourt) return "#4A3F1C";
+      if (isIdleTooLong) return "#8B0000";
+      return "#5E473B";
+    };
+
+    return {
+      backgroundColor: getBackgroundColor(),
+      textColor: getTextColor()
+    };
+  }, [playerStatus, zone]);
+
+  // Memoized available zone calculation
+  const availableZone = useMemo(() => {
+    // Try courts first
+    for (let i = 0; i < courtCount; i++) {
+      const courtKey = `court-${i}`;
+      if ((state.courts.playersByCourt[courtKey] || []).length < 4) {
+        return courtKey;
+      }
+    }
+
+    // Try queues if no court has room
+    for (let i = 0; i < queueCount; i++) {
+      const queueKey = `queue-${i}`;
+      if ((state.queue.playersByQueue?.[queueKey] || []).length < 4) {
+        return queueKey;
+      }
+    }
+
+    return null;
+  }, [courtCount, queueCount, state.courts.playersByCourt, state.queue.playersByQueue]);
+
+  const isQuickAddDisabled = !availableZone;
+  const showQuickAddIcon = useMemo(() => {
+    const { isUnassigned, isOnCourt, isInQueue } = playerStatus;
+    return (isUnassigned && !isOnCourt) || (zone === "all" && isOnCourt && !isInQueue);
+  }, [playerStatus, zone]);
+
+  // Optimized event handlers with useCallback
+  const handleQuickAdd = useCallback(() => {
+    if (availableZone) {
+      const sourceZone = zone === "all" ? "all" : "rest";
+      dispatch(Action.movePlayer(player.id, sourceZone, availableZone));
+    }
+  }, [availableZone, zone, player.id, dispatch]);
+
+  const handleGamesChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setGamesPlayed(e.target.value);
+  }, []);
+
+  const handleGamesBlur = useCallback(() => {
+    const parsed = parseInt(gamesPlayed);
+    if (!isNaN(parsed) && parsed !== player.gamesPlayed) {
+      dispatch(Action.setGamesPlayed(player.id, parsed));
+    }
+  }, [gamesPlayed, player.gamesPlayed, player.id, dispatch]);
+
+  const openPopover = useCallback((event: React.MouseEvent<HTMLElement>) => {
+    setAnchorEl(event.currentTarget);
+  }, []);
+
+  const closePopover = useCallback(() => {
+    setAnchorEl(null);
+  }, []);
+
+  const handleEditToggle = useCallback(() => {
+    setIsEditing(prev => !prev);
+  }, []);
+
+  const handleReturnToRest = useCallback(() => {
+    dispatch(Action.movePlayer(player.id, zone, 'rest'));
+  }, [player.id, zone, dispatch]);
+
+  const handleDeletePlayer = useCallback(() => {
+    dispatch(Action.removePlayer(player.id));
+    closePopover();
+  }, [player.id, dispatch, closePopover]);
+
+  const handleHistoryOpen = useCallback((e: React.MouseEvent<HTMLElement>) => {
+    setHistoryAnchorEl(e.currentTarget);
+  }, []);
+
+  const handleHistoryClose = useCallback(() => {
+    setHistoryAnchorEl(null);
+  }, []);
+
+  // Touch event handlers with useCallback
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
     const touch = e.touches[0];
     const rect = cardRef.current?.getBoundingClientRect();
     if (rect) {
@@ -74,7 +231,6 @@ const PlayerCard: React.FC<PlayerCardProps> = ({ player, zone }) => {
     draggedElement = cardRef.current;
     draggedData = { player, zone };
     
-    // Create a clone for visual feedback
     if (cardRef.current) {
       const clone = cardRef.current.cloneNode(true) as HTMLElement;
       clone.id = 'dragging-clone';
@@ -87,9 +243,9 @@ const PlayerCard: React.FC<PlayerCardProps> = ({ player, zone }) => {
       clone.style.top = `${touch.clientY - dragOffset.y}px`;
       document.body.appendChild(clone);
     }
-  };
+  }, [player, zone, dragOffset.x, dragOffset.y]);
 
-  const handleTouchMove = (e: React.TouchEvent) => {
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
     if (!isDragging) return;
     
     const touch = e.touches[0];
@@ -98,9 +254,9 @@ const PlayerCard: React.FC<PlayerCardProps> = ({ player, zone }) => {
       clone.style.left = `${touch.clientX - dragOffset.x}px`;
       clone.style.top = `${touch.clientY - dragOffset.y}px`;
     }
-  };
+  }, [isDragging, dragOffset]);
 
-  const handleTouchEnd = (e: React.TouchEvent) => {
+  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
     if (!isDragging) return;
     
     const touch = e.changedTouches[0];
@@ -109,7 +265,6 @@ const PlayerCard: React.FC<PlayerCardProps> = ({ player, zone }) => {
       clone.remove();
     }
     
-    // Find the element under the touch point
     const elementBelow = document.elementFromPoint(touch.clientX, touch.clientY);
     const droppableZone = elementBelow?.closest('[data-droppable-zone]');
     
@@ -123,166 +278,78 @@ const PlayerCard: React.FC<PlayerCardProps> = ({ player, zone }) => {
     setIsDragging(false);
     draggedElement = null;
     draggedData = null;
-  };
+  }, [isDragging, player.id, zone, dispatch]);
 
-  // Desktop drag handlers
-  const handleDragStart = (e: React.DragEvent) => {
+  const handleDragStart = useCallback((e: React.DragEvent) => {
     e.dataTransfer.setData('player/id', player.id.toString());
     e.dataTransfer.setData('player/source', zone);
     e.dataTransfer.setData('player/json', JSON.stringify(player));
     setIsDragging(true);
-  };
+  }, [player, zone]);
 
-  const handleDragEnd = () => {
+  const handleDragEnd = useCallback(() => {
     setIsDragging(false);
-  };
+  }, []);
 
-  // Debounce logic
+  // Optimized timer effect
   useEffect(() => {
-    const timeout = setTimeout(() => {
-      if (name !== player.name) {
+    const updateTimer = () => {
+      setElapsedSeconds(Math.floor((Date.now() - player.timeEntered) / 1000));
+    };
+
+    updateTimer(); // Initial update
+    timerRef.current = setInterval(updateTimer, 1000);
+
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+    };
+  }, [player.timeEntered]);
+
+  // Debounced name update effect
+  useEffect(() => {
+    if (nameUpdateTimeoutRef.current) {
+      clearTimeout(nameUpdateTimeoutRef.current);
+    }
+
+    nameUpdateTimeoutRef.current = setTimeout(() => {
+      if (name !== player.name && name.trim() !== '') {
         dispatch(Action.updatePlayerName(player.id, name));
       }
     }, 300);
-    return () => clearTimeout(timeout);
-  }, [name, player.name]);
 
-  // Keep local name in sync if player.name updates externally
+    return () => {
+      if (nameUpdateTimeoutRef.current) {
+        clearTimeout(nameUpdateTimeoutRef.current);
+      }
+    };
+  }, [name, player.name, player.id, dispatch]);
+
+  // Sync external name changes
   useEffect(() => {
     setName(player.name);
   }, [player.name]);
 
-  useEffect(() => {
-    let isMounted = true;
-    const interval = setInterval(() => {
-      if (isMounted) {
-        setElapsedSeconds(Math.floor((Date.now() - player.timeEntered) / 1000));
-      }
-    }, 1000);
-    return () => {
-      isMounted = false;
-      clearInterval(interval);
-    };
-  }, [player.timeEntered]);
-
+  // Sync games played
   useEffect(() => {
     setGamesPlayed(player.gamesPlayed.toString());
   }, [player.gamesPlayed]);
 
-  const findAvailableZone = () => {
-    // 1. Try courts first
-    for (let i = 0; i < courtCount; i++) {
-      const courtKey = `court-${i}`;
-      if ((state.courts.playersByCourt[courtKey] || []).length < 4) {
-        return courtKey;
+  // Cleanup effect
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
       }
-    }
-
-    // 2. Try queues if no court has room
-    for (let i = 0; i < queueCount; i++) {
-      const queueKey = `queue-${i}`;
-      if ((state.queue.playersByQueue?.[queueKey] || []).length < 4) {
-        return queueKey;
+      if (nameUpdateTimeoutRef.current) {
+        clearTimeout(nameUpdateTimeoutRef.current);
       }
-    }
+    };
+  }, []);
 
-    // 3. No available spot
-    return null;
-  };
-
-  const availableZone = findAvailableZone();
-  const isQuickAddDisabled = !availableZone;
-
-  const handleQuickAdd = () => {
-    if (availableZone) {
-      const sourceZone = zone === "all" ? "all" : "rest";
-      dispatch(Action.movePlayer(player.id, sourceZone, availableZone));
-    }
-  };
-
-  const handleGamesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setGamesPlayed(e.target.value);
-  };
-
-  const handleGamesBlur = () => {
-    const parsed = parseInt(gamesPlayed);
-    if (!isNaN(parsed) && parsed !== player.gamesPlayed) {
-      dispatch(Action.setGamesPlayed(player.id, parsed));
-    }
-  };
-
-  const openPopover = (event: React.MouseEvent<HTMLElement>) => {
-    setAnchorEl(event.currentTarget);
-  };
-
-  const closePopover = () => {
-    setAnchorEl(null);
-  };
-
-  const isOnCourt = player.status.some(s => s.startsWith('court'));
-  const isInQueue = player.status.some(s => s.startsWith('queue'));
-  const isUnassigned = player.status.length === 0;
-
-  const courtTags = player.status.filter(s => s.startsWith('court'));
-  const queueTags = player.status.filter(s => s.startsWith('queue'));
-
-  const isConflict =
-    courtTags.length > 1 ||
-    queueTags.length > 1 ||
-    player.status.length > 2 ||
-    (player.status.length === 2 && !(courtTags.length === 1 && queueTags.length === 1));
-
-  const isIdleTooLong = isUnassigned && elapsedSeconds > 900;
-
-  const isCourtAndQueue = courtTags.length === 1 && queueTags.length === 1 && player.status.length === 2;
-
-  // Enhanced color logic for the "all" zone (left sidebar)
-  const getBackgroundColor = () => {
-    // If this is NOT the "all" zone, use the original logic
-    if (zone !== "all") {
-      if (isConflict) return "#F7C59F";
-      if (isCourtAndQueue) return "#00b0bd";
-      if (isIdleTooLong) return "#F8D7DA";
-      if (zone.startsWith('court')) return "#B5CDA3";
-      if (zone.startsWith('queue')) return "#E5D78A";
-      return "#E8D8C4";
-    }
-
-    // Special logic for the "all" zone (left sidebar) to show status colors
-    if (isConflict) return "#F7C59F"; // Orange for conflicts
-    if (isCourtAndQueue) return "#00b0bd"; // Teal for court + queue
-    if (isOnCourt && !isInQueue) return "#B5CDA3"; // Green for court only
-    if (isInQueue && !isOnCourt) return "#E5D78A"; // Yellow for queue only
-    if (isIdleTooLong) return "#F8D7DA"; // Light red for idle too long
-    return "#E8D8C4"; // Default beige for unassigned
-  };
-
-  const getTextColor = () => {
-    // If this is NOT the "all" zone, use the original logic
-    if (zone !== "all") {
-      if (isConflict) return "#5C3D2E";
-      if (isCourtAndQueue) return "#263238";
-      if (isIdleTooLong) return "#8B0000";
-      if (zone.startsWith('court')) return "#2F4023";
-      if (zone.startsWith('queue')) return "#4A3F1C";
-      return "#5E473B";
-    }
-
-    // Special logic for the "all" zone text colors
-    if (isConflict) return "#5C3D2E";
-    if (isCourtAndQueue) return "#263238";
-    if (isOnCourt && !isInQueue) return "#2F4023"; // Dark green text
-    if (isInQueue && !isOnCourt) return "#4A3F1C"; // Dark yellow/brown text
-    if (isIdleTooLong) return "#8B0000";
-    return "#5E473B"; // Default brown text
-  };
-
-  const backgroundColor = getBackgroundColor();
-  const textColor = getTextColor();
-
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-
-  const showQuickAddIcon = (isUnassigned && !isOnCourt) || (zone === "all" && isOnCourt && !isInQueue);
+  // Memoized formatted time
+  const formattedTime = useMemo(() => formatElapsedTime(elapsedSeconds), [elapsedSeconds]);
 
   return (
     <div className="flipped">
@@ -295,16 +362,16 @@ const PlayerCard: React.FC<PlayerCardProps> = ({ player, zone }) => {
           justifyContent: 'space-between',
           alignItems: 'center',
           padding: isMobile ? '0.5px 2px' : '1px 4px',
-          backgroundColor,
+          backgroundColor: cardColors.backgroundColor,
           borderRadius: '20px',
           boxShadow: '0 2px 6px rgba(0,0,0,0.08)',
           cursor: 'grab',
           margin: '0 auto 4px',
-          color: textColor,
+          color: cardColors.textColor,
           border: '1px solid rgba(0, 0, 0, 0.06)',
           opacity: isDragging ? 0.5 : 1,
-          touchAction: 'none', // Prevents scrolling while touching
-          userSelect: 'none', // Prevents text selection
+          touchAction: 'none',
+          userSelect: 'none',
           WebkitUserSelect: 'none',
           '&:active': {
             cursor: 'grabbing',
@@ -324,7 +391,7 @@ const PlayerCard: React.FC<PlayerCardProps> = ({ player, zone }) => {
             alignItems: 'center',
             width: '100%',
             gap: 0.5,
-            pointerEvents: isDragging ? 'none' : 'auto', // Disable interactions while dragging
+            pointerEvents: isDragging ? 'none' : 'auto',
           }}
         >
           <Box sx={{ 
@@ -334,8 +401,7 @@ const PlayerCard: React.FC<PlayerCardProps> = ({ player, zone }) => {
             gap: 0.25,
             minWidth: 0,
           }}>
-          {isEditing ? (
-            <>
+            {isEditing ? (
               <TextField
                 variant="standard"
                 value={name}
@@ -363,41 +429,40 @@ const PlayerCard: React.FC<PlayerCardProps> = ({ player, zone }) => {
                   },
                 }}
               />
-            </>
-          ) : (
-            <Box
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 0.25,
-                maxWidth: 160,
-                overflow: 'hidden',
-              }}
-            >
-              <Typography
-                variant="body2"
+            ) : (
+              <Box
                 sx={{
-                  fontWeight: 'bold',
-                  fontSize: 'clamp(0.5rem, 0.65vw, 0.65rem)',
-                  whiteSpace: 'nowrap',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 0.25,
+                  maxWidth: 160,
                   overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  maxWidth: 100,
                 }}
-                title={player.name}
               >
-                {player.name}
-              </Typography>
-              <IconButton
-                size="small"
-                onClick={() => setIsEditing(true)}
-                title="Edit Name"
-                sx={{ fontSize: '0.7rem', padding: '2px' }}
-              >
-                ✏️
-              </IconButton>
-            </Box>
-          )}
+                <Typography
+                  variant="body2"
+                  sx={{
+                    fontWeight: 'bold',
+                    fontSize: 'clamp(0.5rem, 0.65vw, 0.65rem)',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    maxWidth: 100,
+                  }}
+                  title={player.name}
+                >
+                  {player.name}
+                </Typography>
+                <IconButton
+                  size="small"
+                  onClick={handleEditToggle}
+                  title="Edit Name"
+                  sx={{ fontSize: '0.7rem', padding: '2px' }}
+                >
+                  ✏️
+                </IconButton>
+              </Box>
+            )}
           </Box>
 
           <Box
@@ -426,14 +491,14 @@ const PlayerCard: React.FC<PlayerCardProps> = ({ player, zone }) => {
               sx={{
                 mx: 1,
                 fontWeight: elapsedSeconds > 900 ? 'bold' : 'normal',
-                color: elapsedSeconds > 900 ? '#8B0000' : textColor,
+                color: elapsedSeconds > 900 ? '#8B0000' : cardColors.textColor,
                 fontSize: 'clamp(0.5rem, 0.65vw, 0.65rem)',
               }}
             >
-              {formatElapsedTime(elapsedSeconds)}
+              {formattedTime}
             </Typography>
 
-            {showQuickAddIcon && !(zone.startsWith('court') && isOnCourt) && (
+            {showQuickAddIcon && !(zone.startsWith('court') && playerStatus.isOnCourt) && (
               <IconButton
                 size="small"
                 onClick={handleQuickAdd}
@@ -441,7 +506,7 @@ const PlayerCard: React.FC<PlayerCardProps> = ({ player, zone }) => {
                 title={
                   isQuickAddDisabled
                     ? "No available court or queue"
-                    : isOnCourt && !isInQueue
+                    : playerStatus.isOnCourt && !playerStatus.isInQueue
                     ? "Quick Add to Queue"
                     : "Quick Add"
                 }
@@ -449,15 +514,15 @@ const PlayerCard: React.FC<PlayerCardProps> = ({ player, zone }) => {
                   padding: '2px',
                   borderRadius: '12px',
                   border: `1px solid ${
-                    isQuickAddDisabled || isOnCourt ? '#ccc' : '#2E7D32'
+                    isQuickAddDisabled || playerStatus.isOnCourt ? '#ccc' : '#2E7D32'
                   }`,
-                  backgroundColor: isQuickAddDisabled || isOnCourt ? '#f2f2f2' : '#E8F5E9',
-                  color: isQuickAddDisabled || isOnCourt ? '#aaa' : '#2E7D32',
+                  backgroundColor: isQuickAddDisabled || playerStatus.isOnCourt ? '#f2f2f2' : '#E8F5E9',
+                  color: isQuickAddDisabled || playerStatus.isOnCourt ? '#aaa' : '#2E7D32',
                   minWidth: 'auto',
                   '&:hover': {
-                    backgroundColor: isQuickAddDisabled || isOnCourt ? '#f2f2f2' : '#C8E6C9',
-                    color: isQuickAddDisabled || isOnCourt ? '#aaa' : '#1B5E20',
-                    borderColor: isQuickAddDisabled || isOnCourt ? '#ccc' : '#1B5E20',
+                    backgroundColor: isQuickAddDisabled || playerStatus.isOnCourt ? '#f2f2f2' : '#C8E6C9',
+                    color: isQuickAddDisabled || playerStatus.isOnCourt ? '#aaa' : '#1B5E20',
+                    borderColor: isQuickAddDisabled || playerStatus.isOnCourt ? '#ccc' : '#1B5E20',
                   },
                   '& .MuiSvgIcon-root': {
                     fontSize: '16px',
@@ -472,10 +537,10 @@ const PlayerCard: React.FC<PlayerCardProps> = ({ player, zone }) => {
               </IconButton>
             )}
 
-            {!isUnassigned && (
+            {!playerStatus.isUnassigned && (
               <IconButton
                 size="small"
-                onClick={() => dispatch(Action.movePlayer(player.id, zone, 'rest'))}
+                onClick={handleReturnToRest}
                 title="Send to Resting Players"
                 sx={{
                   padding: '2px',
@@ -491,7 +556,7 @@ const PlayerCard: React.FC<PlayerCardProps> = ({ player, zone }) => {
 
             <IconButton
               size="small"
-              onClick={(e) => setHistoryAnchorEl(e.currentTarget)}
+              onClick={handleHistoryOpen}
               title="View Match History"
             >
               <HistoryIcon sx={{ fontSize: '0.75rem' }} />
@@ -503,11 +568,11 @@ const PlayerCard: React.FC<PlayerCardProps> = ({ player, zone }) => {
         </Box>
       </Card>
 
-      {/* Popovers remain unchanged */}
+      {/* Match History Popover */}
       <Popover
         open={Boolean(historyAnchorEl)}
         anchorEl={historyAnchorEl}
-        onClose={() => setHistoryAnchorEl(null)}
+        onClose={handleHistoryClose}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
         slotProps={{
           paper: {
@@ -548,6 +613,7 @@ const PlayerCard: React.FC<PlayerCardProps> = ({ player, zone }) => {
         )}
       </Popover>
 
+      {/* Settings Popover */}
       <Popover
         open={Boolean(anchorEl)}
         anchorEl={anchorEl}
@@ -588,16 +654,13 @@ const PlayerCard: React.FC<PlayerCardProps> = ({ player, zone }) => {
               value=""
               onChange={(e) => {
                 const to = e.target.value;
-                const alreadyInCourt = courtTags.length > 0;
-                const existingQueue = queueTags[0];
+                const alreadyInCourt = playerStatus.courtTags.length > 0;
+                const existingQueue = playerStatus.queueTags[0];
 
                 if (alreadyInCourt) {
                   alert("Player is already assigned to a court. Cannot assign to another.");
                   return;
                 }
-
-                const newStatus: PlayerStatus[] = [to as PlayerStatus];
-                if (existingQueue) newStatus.push(existingQueue);
 
                 dispatch(Action.movePlayer(player.id, zone, to));
                 closePopover();
@@ -631,16 +694,12 @@ const PlayerCard: React.FC<PlayerCardProps> = ({ player, zone }) => {
               value=""
               onChange={(e) => {
                 const to = e.target.value;
-                const alreadyInQueue = queueTags.length > 0;
-                const existingCourt = courtTags[0];
+                const alreadyInQueue = playerStatus.queueTags.length > 0;
 
                 if (alreadyInQueue) {
                   alert("Player is already assigned to a queue. Cannot assign to another.");
                   return;
                 }
-
-                const newStatus = existingCourt ? [existingCourt] : [];
-                newStatus.push(to as PlayerStatus);
 
                 dispatch(Action.movePlayer(player.id, zone, to));
                 closePopover();
@@ -660,10 +719,7 @@ const PlayerCard: React.FC<PlayerCardProps> = ({ player, zone }) => {
             variant="outlined"
             color="error"
             size="small"
-            onClick={() => {
-              dispatch(Action.removePlayer(player.id));
-              closePopover();
-            }}
+            onClick={handleDeletePlayer}
             startIcon={<DeleteIcon sx={{ fontSize: '0.75rem' }} />}
             sx={{ fontSize: '0.65rem', padding: '4px 6px' }}
           >
@@ -673,6 +729,8 @@ const PlayerCard: React.FC<PlayerCardProps> = ({ player, zone }) => {
       </Popover>
     </div>
   );
-};
+});
+
+PlayerCard.displayName = 'PlayerCard';
 
 export default PlayerCard;
