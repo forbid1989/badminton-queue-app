@@ -195,7 +195,8 @@ const PlayerCard: React.FC<PlayerCardProps> = ({ player, zone }) => {
 
   const handleQuickAdd = () => {
     if (availableZone) {
-      dispatch(Action.movePlayer(player.id, 'rest', availableZone));
+      const sourceZone = zone === "all" ? "all" : "rest";
+      dispatch(Action.movePlayer(player.id, sourceZone, availableZone));
     }
   };
 
@@ -240,7 +241,7 @@ const PlayerCard: React.FC<PlayerCardProps> = ({ player, zone }) => {
     // If this is NOT the "all" zone, use the original logic
     if (zone !== "all") {
       if (isConflict) return "#F7C59F";
-      if (isCourtAndQueue) return "#4DB6AC";
+      if (isCourtAndQueue) return "#00b0bd";
       if (isIdleTooLong) return "#F8D7DA";
       if (zone.startsWith('court')) return "#B5CDA3";
       if (zone.startsWith('queue')) return "#E5D78A";
@@ -249,7 +250,7 @@ const PlayerCard: React.FC<PlayerCardProps> = ({ player, zone }) => {
 
     // Special logic for the "all" zone (left sidebar) to show status colors
     if (isConflict) return "#F7C59F"; // Orange for conflicts
-    if (isCourtAndQueue) return "#4DB6AC"; // Teal for court + queue
+    if (isCourtAndQueue) return "#00b0bd"; // Teal for court + queue
     if (isOnCourt && !isInQueue) return "#B5CDA3"; // Green for court only
     if (isInQueue && !isOnCourt) return "#E5D78A"; // Yellow for queue only
     if (isIdleTooLong) return "#F8D7DA"; // Light red for idle too long
@@ -281,7 +282,7 @@ const PlayerCard: React.FC<PlayerCardProps> = ({ player, zone }) => {
 
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
-  const showQuickAddIcon = isUnassigned && !isOnCourt;
+  const showQuickAddIcon = (isUnassigned && !isOnCourt) || (zone === "all" && isOnCourt && !isInQueue);
 
   return (
     <div className="flipped">
@@ -432,7 +433,7 @@ const PlayerCard: React.FC<PlayerCardProps> = ({ player, zone }) => {
               {formatElapsedTime(elapsedSeconds)}
             </Typography>
 
-            {showQuickAddIcon && (
+            {showQuickAddIcon && !(zone.startsWith('court') && isOnCourt) && (
               <IconButton
                 size="small"
                 onClick={handleQuickAdd}
@@ -440,6 +441,8 @@ const PlayerCard: React.FC<PlayerCardProps> = ({ player, zone }) => {
                 title={
                   isQuickAddDisabled
                     ? "No available court or queue"
+                    : isOnCourt && !isInQueue
+                    ? "Quick Add to Queue"
                     : "Quick Add"
                 }
                 sx={{
@@ -469,7 +472,7 @@ const PlayerCard: React.FC<PlayerCardProps> = ({ player, zone }) => {
               </IconButton>
             )}
 
-            {(zone !== 'rest' || isOnCourt) && (
+            {!isUnassigned && (
               <IconButton
                 size="small"
                 onClick={() => dispatch(Action.movePlayer(player.id, zone, 'rest'))}
