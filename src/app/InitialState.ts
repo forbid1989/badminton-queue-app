@@ -10,12 +10,12 @@ const InitialState = {
     },
   },
 
-  // ⏳ Players in the queue
+  // ⏳ Players in the queue - START WITH JUST 1 QUEUE
   queue: {
-    count: 2, // Match this with courts.count if needed
+    count: 1, // 🆕 Changed from 2 to 1 - queues are now independent of court count
     playersByQueue: {
       "queue-0": [] as Player[],
-      "queue-1": [] as Player[],
+      // Removed "queue-1" - we'll create dynamically as needed
     },
   },
 

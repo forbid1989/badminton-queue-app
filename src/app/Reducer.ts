@@ -13,7 +13,47 @@ type Action =
   | { type: "setPriorityMode"; mode: "FIFO" | "LongestWaiting" }
   | { type: "removePlayer"; id: string }
   | { type: "transferQueueToCourt"; payload: { queueId: string } }
-  | { type: "endGame"; payload: { courtId: string } };
+  | { type: "endGame"; payload: { courtId: string } }
+  | { type: "createQueue" } // 🆕 New action type
+  | { type: "removeQueue"; payload: { queueId: string } }; // 🆕 New action type
+
+// 🆕 Helper function to check if we should auto-create a new queue
+function shouldAutoCreateQueue(state: any): boolean {
+  const queueEntries = Object.entries(state.queue.playersByQueue) as [
+    string,
+    Player[]
+  ][];
+
+  // Auto-create if all existing queues have 3+ players
+  return (
+    queueEntries.length > 0 &&
+    queueEntries.every(([, players]) => players.length >= 3)
+  );
+}
+
+// 🆕 Helper function to get next queue ID
+function getNextQueueId(state: any): string {
+  const existingIds = Object.keys(state.queue.playersByQueue)
+    .map((id) => parseInt(id.split("-")[1]))
+    .filter((num) => !isNaN(num));
+
+  const maxId = existingIds.length > 0 ? Math.max(...existingIds) : -1;
+  return `queue-${maxId + 1}`;
+}
+
+// 🆕 Helper function to rebuild queue IDs after removal
+function rebuildQueueIds(
+  playersByQueue: Record<string, Player[]>
+): Record<string, Player[]> {
+  const entries = Object.entries(playersByQueue) as [string, Player[]][];
+  const rebuilt: Record<string, Player[]> = {};
+
+  entries.forEach(([, players], index) => {
+    rebuilt[`queue-${index}`] = players;
+  });
+
+  return rebuilt;
+}
 
 export default function reducer(state: any, action: Action) {
   switch (action.type) {
@@ -24,10 +64,9 @@ export default function reducer(state: any, action: Action) {
         { length: newCount },
         (_, i) => `court-${i}`
       );
-      const newQueueIds = Array.from(
-        { length: newCount },
-        (_, i) => `queue-${i}`
-      );
+
+      // 🆕 Keep queue IDs unchanged - they're now independent
+      const existingQueueIds = Object.keys(state.queue.playersByQueue);
 
       const updatedPlayers = state.players.map((player: Player) => {
         // ✅ Filter statuses to only valid court/queue IDs
@@ -36,7 +75,7 @@ export default function reducer(state: any, action: Action) {
           const isQueue = s.startsWith("queue-");
           return (
             (!isCourt || newCourtIds.includes(s)) &&
-            (!isQueue || newQueueIds.includes(s))
+            (!isQueue || existingQueueIds.includes(s))
           );
         });
 
@@ -60,10 +99,7 @@ export default function reducer(state: any, action: Action) {
           ...state.courts,
           count: newCount,
         },
-        queue: {
-          ...state.queue,
-          count: newCount,
-        },
+        // 🆕 Don't change queue count when court count changes
         players: updatedPlayers,
       };
     }
@@ -216,9 +252,11 @@ export default function reducer(state: any, action: Action) {
       for (let i = 0; i < state.courts.count; i++) {
         playersByCourt[`court-${i}`] = [];
       }
-      for (let i = 0; i < state.queue.count; i++) {
-        playersByQueue[`queue-${i}`] = [];
-      }
+
+      // 🆕 Initialize queues based on existing queue keys
+      Object.keys(state.queue.playersByQueue).forEach((queueId) => {
+        playersByQueue[queueId] = [];
+      });
 
       for (const p of updatedPlayers) {
         const courtId = p.status.find((s: PlayerStatus) =>
@@ -237,6 +275,21 @@ export default function reducer(state: any, action: Action) {
         }
       }
 
+      // 🆕 Check if we should auto-create a new queue after this move
+      const tempState = {
+        ...state,
+        players: updatedPlayers,
+        queue: {
+          ...state.queue,
+          playersByQueue,
+        },
+      };
+
+      if (isToQueue && shouldAutoCreateQueue(tempState)) {
+        const newQueueId = getNextQueueId(tempState);
+        playersByQueue[newQueueId] = [];
+      }
+
       return {
         ...state,
         players: updatedPlayers,
@@ -246,6 +299,113 @@ export default function reducer(state: any, action: Action) {
         },
         queue: {
           ...state.queue,
+          count: Object.keys(playersByQueue).length,
+          playersByQueue,
+        },
+      };
+    }
+
+    // 🆕 New case for creating queue manually
+    case ActionType.CREATE_QUEUE: {
+      const newQueueId = getNextQueueId(state);
+
+      return {
+        ...state,
+        queue: {
+          ...state.queue,
+          count: state.queue.count + 1,
+          playersByQueue: {
+            ...state.queue.playersByQueue,
+            [newQueueId]: [],
+          },
+        },
+      };
+    }
+
+    // 🆕 New case for removing queue
+    case ActionType.REMOVE_QUEUE: {
+      const { queueId } = action.payload;
+
+      // Don't allow removing the last queue
+      if (Object.keys(state.queue.playersByQueue).length <= 1) {
+        return state;
+      }
+
+      // Move players from deleted queue back to unqueued state
+      const updatedPlayers = state.players.map((player: Player) => {
+        if (player.status.includes(queueId as PlayerStatus)) {
+          const newStatus = player.status.filter((s) => s !== queueId);
+          return {
+            ...player,
+            status: newStatus,
+          };
+        }
+        return player;
+      });
+
+      // Remove the queue and rebuild IDs
+      const { [queueId]: removedQueue, ...remainingQueues } =
+        state.queue.playersByQueue;
+      const rebuiltQueues = rebuildQueueIds(remainingQueues);
+
+      // Update player statuses to match new queue IDs
+      const oldToNewQueueMap: Record<string, string> = {};
+      Object.keys(remainingQueues).forEach((oldId, index) => {
+        oldToNewQueueMap[oldId] = `queue-${index}`;
+      });
+
+      const playersWithUpdatedQueueIds = updatedPlayers.map(
+        (player: Player) => {
+          const newStatus = player.status.map((s) => {
+            if (s.startsWith("queue-") && oldToNewQueueMap[s]) {
+              return oldToNewQueueMap[s] as PlayerStatus;
+            }
+            return s;
+          });
+          return {
+            ...player,
+            status: newStatus,
+          };
+        }
+      );
+
+      // Rebuild court mappings
+      const playersByCourt: Record<string, Player[]> = {};
+      for (let i = 0; i < state.courts.count; i++) {
+        playersByCourt[`court-${i}`] = [];
+      }
+
+      const playersByQueue: Record<string, Player[]> = {};
+      Object.keys(rebuiltQueues).forEach((queueId) => {
+        playersByQueue[queueId] = [];
+      });
+
+      for (const p of playersWithUpdatedQueueIds) {
+        const courtId = p.status.find((s: PlayerStatus) =>
+          s.startsWith("court-")
+        );
+        const queueId = p.status.find((s: PlayerStatus) =>
+          s.startsWith("queue-")
+        );
+
+        if (courtId && playersByCourt[courtId]) {
+          playersByCourt[courtId].push(p);
+        }
+
+        if (queueId && playersByQueue[queueId]) {
+          playersByQueue[queueId].push(p);
+        }
+      }
+
+      return {
+        ...state,
+        players: playersWithUpdatedQueueIds,
+        courts: {
+          ...state.courts,
+          playersByCourt,
+        },
+        queue: {
+          count: Object.keys(rebuiltQueues).length,
           playersByQueue,
         },
       };

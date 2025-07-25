@@ -14,6 +14,8 @@ const ActionType = {
   END_GAME: "endGame",
   UPDATE_PLAYER_NAME: "updatePlayerName",
   RENAME_PLAYER: "renamePlayer",
+  CREATE_QUEUE: "createQueue", // 🆕 New action
+  REMOVE_QUEUE: "removeQueue", // 🆕 New action
 } as const;
 
 // 🧠 Action creators
@@ -97,6 +99,20 @@ const Action = {
     return {
       type: ActionType.UPDATE_PLAYER_NAME,
       payload: { id, newName },
+    };
+  },
+
+  // 🆕 New actions for dynamic queues
+  createQueue() {
+    return {
+      type: ActionType.CREATE_QUEUE,
+    };
+  },
+
+  removeQueue(queueId: string) {
+    return {
+      type: ActionType.REMOVE_QUEUE,
+      payload: { queueId },
     };
   },
 };

@@ -1,7 +1,9 @@
 import React, { useContext, useMemo, useCallback } from 'react';
 import Grid from '@mui/material/Grid';
-import { Typography, Button, Box, Chip } from '@mui/material';
+import { Typography, Button, Box, Chip, IconButton } from '@mui/material';
 import { Flipper, Flipped } from 'react-flip-toolkit';
+import AddIcon from '@mui/icons-material/Add';
+import CloseIcon from '@mui/icons-material/Close';
 import { Player } from '../types/Player';
 import PlayerCard from './PlayerCard';
 import DroppableZone from './DroppableZone';
@@ -146,8 +148,10 @@ const QueueItem = React.memo<{
   players: Player[];
   courtCount: number;
   courtOccupancy: Record<string, number>;
+  canRemove: boolean;
   onTransferToCourt: (queueId: string) => void;
-}>(({ queueId, index, players, courtCount, courtOccupancy, onTransferToCourt }) => {
+  onRemoveQueue: (queueId: string) => void;
+}>(({ queueId, index, players, courtCount, courtOccupancy, canRemove, onTransferToCourt, onRemoveQueue }) => {
   
   // Memoized queue format calculation
   const queueFormat = useMemo(() => getQueueFormat(players), [players]);
@@ -177,6 +181,11 @@ const QueueItem = React.memo<{
   const handleTransfer = useCallback(() => {
     onTransferToCourt(queueId);
   }, [queueId, onTransferToCourt]);
+
+  // Memoized the remove handler
+  const handleRemove = useCallback(() => {
+    onRemoveQueue(queueId);
+  }, [queueId, onRemoveQueue]);
 
   // Memoized the flip key for animations
   const flipKey = useMemo(() => 
@@ -265,7 +274,7 @@ const QueueItem = React.memo<{
           background: 'linear-gradient(135deg, #FBC02D 0%, #F9A825 100%)',
         }}
       >
-        {/* Header: Queue title, format chip, and transfer button */}
+        {/* Header: Queue title, format chip, remove button, and transfer button */}
         <Box
           display="flex"
           justifyContent="space-between"
@@ -286,6 +295,25 @@ const QueueItem = React.memo<{
             >
               ⏳ Queue {index + 1}
             </Typography>
+            
+            {/* 🆕 Remove queue button - only show if we can remove */}
+            {canRemove && (
+              <IconButton
+                size="small"
+                onClick={handleRemove}
+                sx={{
+                  padding: '2px',
+                  backgroundColor: 'rgba(244,67,54,0.8)',
+                  color: 'white',
+                  '&:hover': {
+                    backgroundColor: 'rgba(244,67,54,0.9)',
+                  },
+                }}
+                title="Remove this queue"
+              >
+                <CloseIcon sx={{ fontSize: '0.7rem' }} />
+              </IconButton>
+            )}
           </Box>
 
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
@@ -333,6 +361,52 @@ const QueueItem = React.memo<{
 
 QueueItem.displayName = 'QueueItem';
 
+// 🆕 Add Queue Button Component
+const AddQueueButton = React.memo<{ onAddQueue: () => void }>(({ onAddQueue }) => (
+  <Grid size={{ xs: 12, sm: 6 }}>
+    <Box
+      onClick={onAddQueue}
+      sx={{
+        minHeight: '120px',
+        backgroundColor: '#E8F5E9',
+        borderRadius: 2,
+        border: '2px dashed #4CAF50',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        cursor: 'pointer',
+        transition: 'all 0.2s ease',
+        '&:hover': {
+          backgroundColor: '#C8E6C9',
+          transform: 'scale(1.02)',
+        },
+      }}
+    >
+      <AddIcon
+        sx={{
+          fontSize: '2rem',
+          color: '#4CAF50',
+          marginBottom: '8px',
+        }}
+      />
+      <Typography
+        variant="body2"
+        sx={{
+          fontSize: '0.8rem',
+          color: '#2E7D32',
+          fontWeight: 'bold',
+          textAlign: 'center',
+        }}
+      >
+        Add Queue
+      </Typography>
+    </Box>
+  </Grid>
+));
+
+AddQueueButton.displayName = 'AddQueueButton';
+
 const QueueZone: React.FC<QueueZoneProps> = ({ courtCount }) => {
   const { state, dispatch } = useContext(AppContext);
 
@@ -365,13 +439,14 @@ const QueueZone: React.FC<QueueZoneProps> = ({ courtCount }) => {
     return occupancy;
   }, [state.players, courtCount]);
 
-  // Memoize queue data calculation
+  // 🆕 Memoize queue data calculation - now uses dynamic queue count
   const queueData = useMemo(() => {
     const queues: Array<{ queueId: string; players: Player[] }> = [];
     
-    for (let index = 0; index < courtCount; index++) {
-      const queueId = `queue-${index}`;
-      
+    // 🆕 Use actual queue IDs from state instead of court count
+    const queueIds = Object.keys(state.queue.playersByQueue);
+    
+    queueIds.forEach((queueId) => {
       // Filter players for this specific queue
       const queuePlayers = state.players.filter((p) => {
         const hasThisQueue = p.status.includes(queueId as PlayerStatus);
@@ -389,17 +464,30 @@ const QueueZone: React.FC<QueueZoneProps> = ({ courtCount }) => {
       });
 
       queues.push({ queueId, players: queuePlayers });
-    }
+    });
     
     return queues;
-  }, [state.players, courtCount]);
+  }, [state.players, state.queue.playersByQueue]);
 
-  // Memoize the transfer handler
+  // Memoized event handlers
   const handleTransferToCourt = useCallback((queueId: string) => {
     dispatch(Action.transferQueueToCourt(queueId));
   }, [dispatch]);
 
-  // Memoize the queue items
+  // 🆕 Add queue handler
+  const handleAddQueue = useCallback(() => {
+    dispatch(Action.createQueue());
+  }, [dispatch]);
+
+  // 🆕 Remove queue handler
+  const handleRemoveQueue = useCallback((queueId: string) => {
+    dispatch(Action.removeQueue(queueId));
+  }, [dispatch]);
+
+  // 🆕 Determine if queues can be removed (need at least 1)
+  const canRemoveQueues = useMemo(() => queueData.length > 1, [queueData.length]);
+
+  // Memoized the queue items
   const queueItems = useMemo(() => 
     queueData.map(({ queueId, players }, index) => (
       <QueueItem
@@ -409,15 +497,19 @@ const QueueZone: React.FC<QueueZoneProps> = ({ courtCount }) => {
         players={players}
         courtCount={courtCount}
         courtOccupancy={courtOccupancy}
+        canRemove={canRemoveQueues}
         onTransferToCourt={handleTransferToCourt}
+        onRemoveQueue={handleRemoveQueue}
       />
     )), 
-    [queueData, courtCount, courtOccupancy, handleTransferToCourt]
+    [queueData, courtCount, courtOccupancy, canRemoveQueues, handleTransferToCourt, handleRemoveQueue]
   );
 
   return (
     <Grid container spacing={2}>
       {queueItems}
+      {/* 🆕 Add Queue Button */}
+      <AddQueueButton onAddQueue={handleAddQueue} />
     </Grid>
   );
 };
