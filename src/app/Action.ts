@@ -4,6 +4,7 @@ const ActionType = {
   SET_COURT_COUNT: "setCourtCount",
   ADD_PLAYERS_FROM_TEXT: "addPlayersFromText",
   CLEAR_ALL_PLAYERS: "clearAllPlayers",
+  CLEAR_ALL_DATA: "clearAllData", // 🆕 New action for clearing everything including localStorage
   MOVE_PLAYER: "movePlayer",
   SET_GAMES_PLAYED: "setGamesPlayed",
   SET_PLAYER_TEXT_INPUT: "setPlayerTextInput",
@@ -37,6 +38,13 @@ const Action = {
   clearAllPlayers() {
     return {
       type: ActionType.CLEAR_ALL_PLAYERS,
+    };
+  },
+
+  // 🆕 New action to clear everything including localStorage
+  clearAllData() {
+    return {
+      type: ActionType.CLEAR_ALL_DATA,
     };
   },
 

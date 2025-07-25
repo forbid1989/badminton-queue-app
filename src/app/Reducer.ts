@@ -1,10 +1,12 @@
 import { ActionType } from "./Action";
 import { Player, PlayerStatus } from "../types/Player";
+import { clearLocalStorage } from "../utils/localStorage";
 
 type Action =
   | { type: "setCourtCount"; payload: number }
   | { type: "addPlayersFromText"; players: Player[] }
   | { type: "clearAllPlayers" }
+  | { type: "clearAllData" }
   | { type: "movePlayer"; payload: { id: string; from: string; to: string } }
   | { type: "setGamesPlayed"; payload: { id: string; value: number } }
   | { type: "updatePlayerName"; payload: { id: string; newName: string } }
@@ -751,6 +753,35 @@ export default function reducer(state: any, action: Action) {
       return {
         ...state,
         players: updatedPlayers,
+      };
+    }
+
+    case ActionType.CLEAR_ALL_DATA: {
+      // Clear localStorage
+      clearLocalStorage();
+
+      // Reset to initial state
+      return {
+        courts: {
+          count: 2,
+          playersByCourt: {
+            "court-0": [],
+            "court-1": [],
+          },
+        },
+        queue: {
+          count: 1,
+          playersByQueue: {
+            "queue-0": [],
+          },
+        },
+        players: [],
+        playerTextInput: "",
+        showTimers: true,
+        settings: {
+          priorityMode: "FIFO",
+          colorCodedTimers: true,
+        },
       };
     }
 
