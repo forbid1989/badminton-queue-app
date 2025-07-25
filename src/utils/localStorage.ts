@@ -1,0 +1,129 @@
+// src/utils/localStorage.ts
+import { RootState } from '../app/rootState';
+import { Player } from '../types/Player';
+
+const STORAGE_KEY = 'badminton-queue-state';
+const VERSION_KEY = 'badminton-queue-version';
+const CURRENT_VERSION = '1.0';
+
+// Define what we want to persist - only the essential data
+interface PersistedState {
+    players: Player[];
+    courts: {
+        count: number;
+    };
+    queue: {
+        count: number;
+    };
+    version: string;
+}
+
+/**
+ * Save state to localStorage
+ */
+export const saveToLocalStorage = (state: RootState): void => {
+    try {
+        const persistedState: PersistedState = {
+            players: state.players,
+            courts: {
+                count: state.courts.count,
+            },
+            queue: {
+                count: state.queue.count,
+            },
+            version: CURRENT_VERSION,
+        };
+
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(persistedState));
+        localStorage.setItem(VERSION_KEY, CURRENT_VERSION);
+
+        console.log('State saved to localStorage:', persistedState);
+    } catch (error) {
+        console.error('Failed to save state to localStorage:', error);
+    }
+};
+
+/**
+ * Load state from localStorage
+ */
+export const loadFromLocalStorage = (): Partial<RootState> | null => {
+    try {
+        const savedData = localStorage.getItem(STORAGE_KEY);
+        const savedVersion = localStorage.getItem(VERSION_KEY);
+
+        if (!savedData) {
+            return null;
+        }
+
+        // Check version compatibility
+        if (savedVersion !== CURRENT_VERSION) {
+            console.warn('localStorage version mismatch, clearing data');
+            clearLocalStorage();
+            return null;
+        }
+
+        const persistedState: PersistedState = JSON.parse(savedData);
+
+        // Validate the structure
+        if (!persistedState.players || !Array.isArray(persistedState.players)) {
+            console.warn('Invalid localStorage data structure, clearing data');
+            clearLocalStorage();
+            return null;
+        }
+
+        // Return only the parts we want to restore
+        return {
+            players: persistedState.players,
+            courts: {
+                count: persistedState.courts?.count || 2,
+                playersByCourt: {}, // Will be rebuilt by InitialState
+            },
+            queue: {
+                count: persistedState.queue?.count || 1,
+                playersByQueue: {}, // Will be rebuilt by InitialState
+            },
+        };
+    } catch (error) {
+        console.error('Failed to load state from localStorage:', error);
+        clearLocalStorage();
+        return null;
+    }
+};
+
+/**
+ * Clear localStorage data
+ */
+export const clearLocalStorage = (): void => {
+    try {
+        localStorage.removeItem(STORAGE_KEY);
+        localStorage.removeItem(VERSION_KEY);
+        console.log('localStorage cleared');
+    } catch (error) {
+        console.error('Failed to clear localStorage:', error);
+    }
+};
+
+/**
+ * Check if localStorage is available
+ */
+export const isLocalStorageAvailable = (): boolean => {
+    try {
+        const test = '__localStorage_test__';
+        localStorage.setItem(test, test);
+        localStorage.removeItem(test);
+        return true;
+    } catch {
+        return false;
+    }
+};
+
+/**
+ * Debounced save function to avoid too frequent saves
+ */
+let saveTimeout: NodeJS.Timeout;
+export const debouncedSave = (state: RootState, delay: number = 1000): void => {
+    clearTimeout(saveTimeout);
+    saveTimeout = setTimeout(() => {
+        saveToLocalStorage(state);
+    }, delay);
+};

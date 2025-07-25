@@ -5,6 +5,7 @@ import { AppContext } from '../../BadmintonQueueUI';
 import CourtZone from '../CourtZone';
 import QueueZone from '../QueueZone';
 import UnqueuedZone from '../PlayerListZone';
+import DataManagement from '../DataManagement';
 import PlayerParserForm from '../input/PlayerParserForm';
 import CourtControlPanel from '../CourtControlPanel';
 import Popover from '@mui/material/Popover';
@@ -149,6 +150,10 @@ const Dashboard: React.FC = React.memo(() => {
       <Box sx={leftSidebarSx}>
         {headerContent}
         <UnqueuedZone state={state} />
+        
+        {/* 🆕 Add DataManagement component here */}
+        <DataManagement />
+        
         {popoverContent}
       </Box>
 

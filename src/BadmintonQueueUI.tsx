@@ -1,12 +1,12 @@
-import React, { useReducer, useMemo, useState } from 'react';
-import { ThemeProvider, createTheme, CssBaseline, Container, Box, AppBar, Toolbar, Typography } from '@mui/material';
+import React, { useReducer, useEffect } from 'react';
+import { ThemeProvider, CssBaseline, Box, AppBar, Toolbar, Typography } from '@mui/material';
 import theme from './theme';
 
 import reducer from './app/Reducer';
 import InitialState from './app/InitialState';
 import { RootState } from './app/rootState';
 import Dashboard from './components/dashboard/Dashboard';
-import CourtControlPanel from './components/CourtControlPanel';
+import { debouncedSave, isLocalStorageAvailable } from './utils/localStorage';
 
 export const AppContext = React.createContext<{
 	state: RootState;
@@ -18,6 +18,14 @@ export const AppContext = React.createContext<{
 
 const BadmintonQueueUI: React.FC = () => {
 	const [state, dispatch] = useReducer(reducer, InitialState);
+
+	// Save state to localStorage whenever it changes
+	useEffect(() => {
+		// Only save if localStorage is available (this check helps with development)
+		if (isLocalStorageAvailable()) {
+			debouncedSave(state);
+		}
+	}, [state]);
 
 	return (
 		<ThemeProvider theme={theme}>
