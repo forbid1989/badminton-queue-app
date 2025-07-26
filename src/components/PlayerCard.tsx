@@ -24,6 +24,8 @@ import HistoryIcon from '@mui/icons-material/History';
 import BadmintonIcon from './input/BadmintonIcon';
 import { getTimeAgo } from '../utils/getTimeAgo';
 
+let currentDragData: { playerId: string; playerZone: string } | null = null;
+
 const formatElapsedTime = (seconds: number) => {
   const mins = Math.floor(seconds / 60);
   const secs = seconds % 60;
@@ -64,7 +66,8 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [name, setName] = useState(player.name);
-  
+  const [isDropTarget, setIsDropTarget] = useState(false); // For visual feedback when being a drop target
+
   const cardRef = useRef<HTMLDivElement>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const nameUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -221,7 +224,127 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
     setHistoryAnchorEl(null);
   }, []);
 
-  // Touch event handlers with useCallback
+  // Enhanced drag start with global state
+  const handleDragStart = useCallback((e: React.DragEvent) => {
+    // Set global drag data
+    currentDragData = { playerId: player.id, playerZone: zone };
+    
+    // Keep original data transfer for zone drops
+    e.dataTransfer.setData('player/id', player.id.toString());
+    e.dataTransfer.setData('player/source', zone);
+    e.dataTransfer.setData('player/json', JSON.stringify(player));
+    e.dataTransfer.setData('player/isSwapOperation', 'false');
+    
+    setIsDragging(true);
+    console.log('🚀 Drag started:', currentDragData);
+  }, [player, zone]);
+
+  const handleDragEnd = useCallback(() => {
+    setIsDragging(false);
+    currentDragData = null; // Clear global drag data
+    console.log('🏁 Drag ended');
+  }, []);
+
+  // Fixed drag over using global variables
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    
+    // Use global drag data instead of dataTransfer
+    if (!currentDragData) {
+      console.log('❌ No current drag data');
+      return;
+    }
+    
+    const { playerId: draggedPlayerId, playerZone: draggedPlayerZone } = currentDragData;
+    
+    console.log('🔍 Drag over check:', {
+      draggedPlayerId,
+      draggedPlayerZone,
+      currentPlayerId: player.id,
+      currentZone: zone,
+      isDifferentPlayer: draggedPlayerId !== player.id,
+      isSameZone: draggedPlayerZone === zone,
+      isValidZone: zone.startsWith('court-') || zone.startsWith('queue-')
+    });
+    
+    // Only allow swap if conditions are met
+    if (
+      draggedPlayerId !== player.id && 
+      draggedPlayerZone === zone &&
+      (zone.startsWith('court-') || zone.startsWith('queue-'))
+    ) {
+      console.log('✅ Setting drop target');
+      setIsDropTarget(true);
+    } else {
+      console.log('❌ Conditions not met, clearing drop target');
+      setIsDropTarget(false);
+    }
+  }, [player.id, zone]);
+
+  // Handle drag leave
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    // Only remove drop target state if we're actually leaving this element
+    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+      console.log('🚪 Drag leave');
+      setIsDropTarget(false);
+    }
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    console.log('📦 Drop detected on player:', player.name);
+    setIsDropTarget(false);
+    
+    if (!currentDragData) {
+      console.log('❌ No drag data on drop');
+      return;
+    }
+    
+    const { playerId: draggedPlayerId, playerZone: draggedPlayerZone } = currentDragData;
+    
+    console.log('🔍 Drop validation:', {
+      draggedPlayerId,
+      draggedPlayerZone,
+      targetPlayerId: player.id,
+      targetPlayerName: player.name,
+      targetZone: zone,
+      condition1_DifferentPlayer: draggedPlayerId !== player.id,
+      condition2_SameZone: draggedPlayerZone === zone,
+      condition3_ValidZone: zone.startsWith('court-') || zone.startsWith('queue-'),
+      allConditionsMet: (
+        draggedPlayerId !== player.id && 
+        draggedPlayerZone === zone &&
+        (zone.startsWith('court-') || zone.startsWith('queue-'))
+      )
+    });
+    
+    // Perform swap if conditions are met
+    if (
+      draggedPlayerId !== player.id && 
+      draggedPlayerZone === zone &&
+      (zone.startsWith('court-') || zone.startsWith('queue-'))
+    ) {
+      console.log('🔄 Dispatching swap action:', {
+        from: draggedPlayerId,
+        to: player.id,
+        zone: zone,
+        actionType: 'SWAP_PLAYERS'
+      });
+      
+      try {
+        dispatch(Action.swapPlayers(draggedPlayerId, player.id, zone));
+        console.log('✅ Swap action dispatched successfully');
+      } catch (error) {
+        console.error('❌ Error dispatching swap action:', error);
+      }
+    } else {
+      console.log('❌ Drop conditions not met - no swap will occur');
+    }
+  }, [player.id, player.name, zone, dispatch]);
+
+  // Enhanced touch event handlers for swap support
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     const touch = e.touches[0];
     const rect = cardRef.current?.getBoundingClientRect();
@@ -261,6 +384,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
     }
   }, [isDragging, dragOffset]);
 
+  // Enhanced touch end handler with swap support
   const handleTouchEnd = useCallback((e: React.TouchEvent) => {
     if (!isDragging) return;
     
@@ -271,8 +395,30 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
     }
     
     const elementBelow = document.elementFromPoint(touch.clientX, touch.clientY);
-    const droppableZone = elementBelow?.closest('[data-droppable-zone]');
     
+    // Check for player card first (swap operation)
+    const playerCard = elementBelow?.closest('[data-player-id]');
+    if (playerCard && draggedData) {
+      const targetPlayerId = playerCard.getAttribute('data-player-id');
+      const targetZone = playerCard.getAttribute('data-zone');
+      
+      if (
+        targetPlayerId && 
+        targetZone === zone && 
+        targetPlayerId !== player.id &&
+        (zone.startsWith('court-') || zone.startsWith('queue-'))
+      ) {
+        // Perform swap
+        dispatch(Action.swapPlayers(player.id, targetPlayerId, zone));
+        setIsDragging(false);
+        draggedElement = null;
+        draggedData = null;
+        return;
+      }
+    }
+    
+    // Fall back to zone drop (move operation)
+    const droppableZone = elementBelow?.closest('[data-droppable-zone]');
     if (droppableZone && draggedData) {
       const targetZone = droppableZone.getAttribute('data-droppable-zone');
       if (targetZone && targetZone !== zone) {
@@ -284,17 +430,6 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
     draggedElement = null;
     draggedData = null;
   }, [isDragging, player.id, zone, dispatch]);
-
-  const handleDragStart = useCallback((e: React.DragEvent) => {
-    e.dataTransfer.setData('player/id', player.id.toString());
-    e.dataTransfer.setData('player/source', zone);
-    e.dataTransfer.setData('player/json', JSON.stringify(player));
-    setIsDragging(true);
-  }, [player, zone]);
-
-  const handleDragEnd = useCallback(() => {
-    setIsDragging(false);
-  }, []);
 
   // Optimized timer effect
   useEffect(() => {
@@ -356,8 +491,8 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
   // Memoized formatted time
   const formattedTime = useMemo(() => formatElapsedTime(elapsedSeconds), [elapsedSeconds]);
 
-  // Dynamic card sizing based on context
-  const cardStyles = useMemo(() => ({
+  // Enhanced card styles with drop target indication
+  const enhancedCardStyles = useMemo(() => ({
     display: 'flex',
     width: '100%',
     maxWidth: isInTeamZone 
@@ -373,30 +508,46 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
       : isMobile 
         ? '4px 6px' 
         : '6px 8px',
-    backgroundColor: cardColors.backgroundColor,
+    backgroundColor: isDropTarget 
+      ? '#E8F5E9'  // Light green when drop target
+      : cardColors.backgroundColor,
     borderRadius: isInTeamZone ? '12px' : '20px',
-    boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+    boxShadow: isDropTarget 
+      ? '0 4px 12px rgba(76, 175, 80, 0.3)'  // Enhanced shadow when drop target
+      : '0 1px 3px rgba(0,0,0,0.1)',
     cursor: 'grab',
     margin: '0 auto 2px',
     color: cardColors.textColor,
-    border: '1px solid rgba(0, 0, 0, 0.06)',
+    border: isDropTarget 
+      ? '2px solid #4CAF50'  // Green border when drop target
+      : '1px solid rgba(0, 0, 0, 0.06)',
     opacity: isDragging ? 0.5 : 1,
+    transform: isDropTarget 
+      ? 'scale(1.08)'  // Larger scale when drop target (more noticeable)
+      : (isDragging ? 'scale(0.95)' : 'scale(1)'),
+    transition: 'all 0.2s ease-in-out',  // Smoother transition
     touchAction: 'none',
     userSelect: 'none',
     WebkitUserSelect: 'none',
     '&:active': {
       cursor: 'grabbing',
     },
-  }), [isInTeamZone, isMobile, cardColors, isDragging]);
+  }), [isInTeamZone, isMobile, cardColors, isDragging, isDropTarget]);
 
   return (
     <div className="flipped">
       <Card
         ref={cardRef}
-        sx={cardStyles}
+        sx={enhancedCardStyles}
         draggable
+        // Add data attributes for touch swap detection
+        data-player-id={player.id}
+        data-zone={zone}
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
+        onDragOver={handleDragOver} // Handle drag over for swap detection
+        onDragLeave={handleDragLeave} // Handle drag leave
+        onDrop={handleDrop} // Handle drop for swapping
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
@@ -720,9 +871,9 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
                   size="small"
                   sx={{ fontSize: '0.65rem' }}
                 >
-                  {Array.from({ length: queueCount }, (_, i) => (
-                    <MenuItem key={`queue-${i}`} value={`queue-${i}`} sx={{ fontSize: '0.65rem' }}>
-                      Queue {i + 1}
+                  {Object.keys(state.queue.playersByQueue).map((queueId, index) => (
+                    <MenuItem key={queueId} value={queueId} sx={{ fontSize: '0.65rem' }}>
+                      Queue {index + 1}
                     </MenuItem>
                   ))}
                 </Select>

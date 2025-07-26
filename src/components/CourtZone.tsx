@@ -487,25 +487,13 @@ const CourtZone: React.FC<CourtZoneProps> = ({ courtCount }) => {
     for (let index = 0; index < courtCount; index++) {
       const courtId = `court-${index}`;
       
-      // Filter players for this specific court
-      const courtPlayers = state.players.filter((p) => {
-        const hasThisCourt = p.status.includes(courtId as PlayerStatus);
-        const courtAssignments = p.status.filter((s) => s.startsWith('court-')).length;
-        const queueAssignments = p.status.filter((s) => s.startsWith('queue-')).length;
-
-        const isValid =
-          hasThisCourt &&
-          courtAssignments <= 1 &&
-          queueAssignments <= 1;
-
-        return isValid;
-      });
-
+      // Use the pre-calculated zone mapping instead of filtering players
+      const courtPlayers = state.courts.playersByCourt[courtId] || [];
       courts.push({ courtId, players: courtPlayers, index });
     }
     
     return courts;
-  }, [state.players, courtCount]);
+  }, [state.courts.playersByCourt, courtCount]);
 
   // Update court names when court count changes
   useEffect(() => {

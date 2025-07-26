@@ -296,7 +296,7 @@ const QueueItem = React.memo<{
               ⏳ Queue {index + 1}
             </Typography>
             
-            {/* 🆕 Remove queue button - only show if we can remove */}
+            {/* Remove queue button - only show if we can remove */}
             {canRemove && (
               <IconButton
                 size="small"
@@ -361,7 +361,7 @@ const QueueItem = React.memo<{
 
 QueueItem.displayName = 'QueueItem';
 
-// 🆕 Add Queue Button Component
+// Add Queue Button Component
 const AddQueueButton = React.memo<{ onAddQueue: () => void }>(({ onAddQueue }) => (
   <Grid size={{ xs: 12, sm: 6 }}>
     <Box
@@ -410,81 +410,52 @@ AddQueueButton.displayName = 'AddQueueButton';
 const QueueZone: React.FC<QueueZoneProps> = ({ courtCount }) => {
   const { state, dispatch } = useContext(AppContext);
 
-  // Memoize court occupancy calculation to avoid recalculating on every render
-  // Use the same logic as the actual player filtering to ensure consistency
+  // Memoize court occupancy calculation - use pre-calculated zone mappings
   const courtOccupancy = useMemo(() => {
     const occupancy: Record<string, number> = {};
     
-    // Initialize all courts
+    // Initialize all courts and use the pre-calculated mappings
     for (let i = 0; i < courtCount; i++) {
       const courtId = `court-${i}`;
-      
-      // Count players actually assigned to this court using the same logic as the app
-      const playersInCourt = state.players.filter((p) => {
-        const hasThisCourt = p.status.includes(courtId as PlayerStatus);
-        const courtAssignments = p.status.filter((s) => s.startsWith('court-')).length;
-        const queueAssignments = p.status.filter((s) => s.startsWith('queue-')).length;
-
-        const isValid =
-          hasThisCourt &&
-          courtAssignments <= 1 &&
-          queueAssignments <= 1;
-
-        return isValid;
-      });
-      
+      const playersInCourt = state.courts.playersByCourt[courtId] || [];
       occupancy[courtId] = playersInCourt.length;
     }
     
     return occupancy;
-  }, [state.players, courtCount]);
+  }, [state.courts.playersByCourt, courtCount]);
 
-  // 🆕 Memoize queue data calculation - now uses dynamic queue count
+  // Memoize queue data calculation - use direct zone mappings
   const queueData = useMemo(() => {
     const queues: Array<{ queueId: string; players: Player[] }> = [];
     
-    // 🆕 Use actual queue IDs from state instead of court count
+    // Use actual queue IDs from state and get players directly from the zone mappings
     const queueIds = Object.keys(state.queue.playersByQueue);
     
     queueIds.forEach((queueId) => {
-      // Filter players for this specific queue
-      const queuePlayers = state.players.filter((p) => {
-        const hasThisQueue = p.status.includes(queueId as PlayerStatus);
-        const queueCount = p.status.filter((s) => s.startsWith('queue-')).length;
-        const courtCount = p.status.filter((s) => s.startsWith('court-')).length;
-
-        // ✅ Allow status: ['queue-*'] or ['court-*', 'queue-*']
-        const isValid =
-          hasThisQueue &&
-          queueCount <= 1 &&
-          courtCount <= 1 &&
-          !(courtCount > 1 || queueCount > 1);
-          
-        return isValid;
-      });
-
+      // Use the pre-calculated zone mapping instead of filtering players
+      const queuePlayers = state.queue.playersByQueue[queueId] || [];
       queues.push({ queueId, players: queuePlayers });
     });
     
     return queues;
-  }, [state.players, state.queue.playersByQueue]);
+  }, [state.queue.playersByQueue]);
 
   // Memoized event handlers
   const handleTransferToCourt = useCallback((queueId: string) => {
     dispatch(Action.transferQueueToCourt(queueId));
   }, [dispatch]);
 
-  // 🆕 Add queue handler
+  // Add queue handler
   const handleAddQueue = useCallback(() => {
     dispatch(Action.createQueue());
   }, [dispatch]);
 
-  // 🆕 Remove queue handler
+  // Remove queue handler
   const handleRemoveQueue = useCallback((queueId: string) => {
     dispatch(Action.removeQueue(queueId));
   }, [dispatch]);
 
-  // 🆕 Determine if queues can be removed (need at least 1)
+  // Determine if queues can be removed (need at least 1)
   const canRemoveQueues = useMemo(() => queueData.length > 1, [queueData.length]);
 
   // Memoized the queue items
@@ -508,7 +479,7 @@ const QueueZone: React.FC<QueueZoneProps> = ({ courtCount }) => {
   return (
     <Grid container spacing={2}>
       {queueItems}
-      {/* 🆕 Add Queue Button */}
+      {/* Add Queue Button */}
       <AddQueueButton onAddQueue={handleAddQueue} />
     </Grid>
   );

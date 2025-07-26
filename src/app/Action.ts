@@ -6,6 +6,7 @@ const ActionType = {
   CLEAR_ALL_PLAYERS: "clearAllPlayers",
   CLEAR_ALL_DATA: "clearAllData", // 🆕 New action for clearing everything including localStorage
   MOVE_PLAYER: "movePlayer",
+  SWAP_PLAYERS: "swapPlayers", // 🆕 Moved up to be with other player actions
   SET_GAMES_PLAYED: "setGamesPlayed",
   SET_PLAYER_TEXT_INPUT: "setPlayerTextInput",
   TOGGLE_TIMERS: "toggleTimers",
@@ -52,6 +53,14 @@ const Action = {
     return {
       type: ActionType.MOVE_PLAYER,
       payload: { id, from, to },
+    };
+  },
+
+  // 🆕 New action to swap two players' positions
+  swapPlayers(playerId1: string, playerId2: string, zone: string) {
+    return {
+      type: ActionType.SWAP_PLAYERS,
+      payload: { playerId1, playerId2, zone },
     };
   },
 

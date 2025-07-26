@@ -1,5 +1,5 @@
 import { Player } from "../types/Player";
-import { loadFromLocalStorage } from '../utils/localStorage';
+import { loadFromLocalStorage } from "../utils/localStorage";
 
 // Base initial state
 const baseInitialState = {
@@ -14,7 +14,7 @@ const baseInitialState = {
 
   // ⏳ Players in the queue - START WITH JUST 1 QUEUE
   queue: {
-    count: 1, // 🆕 Changed from 2 to 1 - queues are now independent of court count
+    count: 1, // Changed from 2 to 1 - queues are now independent of court count
     playersByQueue: {
       "queue-0": [] as Player[],
       // Removed "queue-1" - we'll create dynamically as needed
@@ -38,7 +38,10 @@ const baseInitialState = {
 };
 
 // Helper function to rebuild court mappings from players
-function generateCourtMappings(players: Player[], courtCount: number): Record<string, Player[]> {
+function generateCourtMappings(
+  players: Player[],
+  courtCount: number
+): Record<string, Player[]> {
   const mappings: Record<string, Player[]> = {};
 
   // Initialize empty courts
@@ -46,9 +49,9 @@ function generateCourtMappings(players: Player[], courtCount: number): Record<st
     mappings[`court-${i}`] = [];
   }
 
-  // Populate courts with players
-  players.forEach(player => {
-    const courtId = player.status?.find(s => s.startsWith('court-'));
+  // Populate courts with players - maintain proper order
+  players.forEach((player) => {
+    const courtId = player.status?.find((s) => s.startsWith("court-"));
     if (courtId && mappings[courtId]) {
       mappings[courtId].push(player);
     }
@@ -58,17 +61,25 @@ function generateCourtMappings(players: Player[], courtCount: number): Record<st
 }
 
 // Helper function to rebuild queue mappings from players
-function generateQueueMappings(players: Player[], queueCount: number): Record<string, Player[]> {
+function generateQueueMappings(
+  players: Player[],
+  existingQueueKeys: string[]
+): Record<string, Player[]> {
   const mappings: Record<string, Player[]> = {};
 
-  // Initialize empty queues
-  for (let i = 0; i < queueCount; i++) {
-    mappings[`queue-${i}`] = [];
+  // Initialize queues based on existing keys (preserve dynamic queues)
+  existingQueueKeys.forEach((queueId) => {
+    mappings[queueId] = [];
+  });
+
+  // If no existing queues, create at least one default queue
+  if (existingQueueKeys.length === 0) {
+    mappings["queue-0"] = [];
   }
 
-  // Populate queues with players
-  players.forEach(player => {
-    const queueId = player.status?.find(s => s.startsWith('queue-'));
+  // Populate queues with players - maintain proper order
+  players.forEach((player) => {
+    const queueId = player.status?.find((s) => s.startsWith("queue-"));
     if (queueId && mappings[queueId]) {
       mappings[queueId].push(player);
     }
@@ -83,7 +94,7 @@ const loadedState = loadFromLocalStorage();
 const InitialState = {
   ...baseInitialState,
   ...(loadedState || {}),
-  // Always rebuild these from the players array
+  // Always rebuild these from the players array to ensure consistency
   courts: {
     ...baseInitialState.courts,
     ...(loadedState?.courts || {}),
@@ -97,7 +108,7 @@ const InitialState = {
     ...(loadedState?.queue || {}),
     playersByQueue: generateQueueMappings(
       loadedState?.players || [],
-      loadedState?.queue?.count || 1
+      Object.keys(loadedState?.queue?.playersByQueue || { "queue-0": [] })
     ),
   },
 };

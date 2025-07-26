@@ -8,6 +8,10 @@ type Action =
   | { type: "clearAllPlayers" }
   | { type: "clearAllData" }
   | { type: "movePlayer"; payload: { id: string; from: string; to: string } }
+  | {
+      type: "swapPlayers";
+      payload: { playerId1: string; playerId2: string; zone: string };
+    }
   | { type: "setGamesPlayed"; payload: { id: string; value: number } }
   | { type: "updatePlayerName"; payload: { id: string; newName: string } }
   | { type: "setPlayerTextInput"; text: string }
@@ -781,6 +785,122 @@ export default function reducer(state: any, action: Action) {
         settings: {
           priorityMode: "FIFO",
           colorCodedTimers: true,
+        },
+      };
+    }
+
+    // SWAP_PLAYERS case with fixes
+    case ActionType.SWAP_PLAYERS: {
+      console.log("🔄 REDUCER: SWAP_PLAYERS action received:", action.payload);
+
+      const { playerId1, playerId2, zone } = action.payload;
+
+      // Find both players
+      const player1 = state.players.find((p: Player) => p.id === playerId1);
+      const player2 = state.players.find((p: Player) => p.id === playerId2);
+
+      console.log("🔍 REDUCER: Player lookup results:", {
+        player1: player1 ? `${player1.name} (${player1.id})` : "NOT FOUND",
+        player2: player2 ? `${player2.name} (${player2.id})` : "NOT FOUND",
+        zone,
+      });
+
+      if (!player1 || !player2) {
+        console.warn("❌ REDUCER: Cannot swap: one or both players not found");
+        return state;
+      }
+
+      // Verify both players are in the same zone
+      const player1InZone = player1.status.includes(zone as PlayerStatus);
+      const player2InZone = player2.status.includes(zone as PlayerStatus);
+
+      console.log("🔍 REDUCER: Zone validation:", {
+        player1InZone,
+        player2InZone,
+        player1Status: player1.status,
+        player2Status: player2.status,
+      });
+
+      if (!player1InZone || !player2InZone) {
+        console.warn("❌ REDUCER: Cannot swap: players not in the same zone");
+        return state;
+      }
+
+      console.log(
+        "✅ REDUCER: Swap validation passed, proceeding with swap..."
+      );
+
+      // CRITICAL FIX: Use the zone mappings instead of filtering from global players
+      let playersInZone: Player[] = [];
+
+      if (zone.startsWith("court-")) {
+        playersInZone = [...(state.courts.playersByCourt[zone] || [])];
+      } else if (zone.startsWith("queue-")) {
+        playersInZone = [...(state.queue.playersByQueue[zone] || [])];
+      }
+
+      console.log(
+        "🔍 REDUCER: Players in zone before swap:",
+        playersInZone.map((p: Player) => p.name)
+      );
+
+      // Find the indices of the two players in the zone
+      const index1 = playersInZone.findIndex((p: Player) => p.id === playerId1);
+      const index2 = playersInZone.findIndex((p: Player) => p.id === playerId2);
+
+      if (index1 === -1 || index2 === -1) {
+        console.warn(
+          "❌ REDUCER: Cannot swap: players not found in zone mapping"
+        );
+        return state;
+      }
+
+      // Create a new array with swapped positions
+      const newPlayersInZone = [...playersInZone];
+      [newPlayersInZone[index1], newPlayersInZone[index2]] = [
+        newPlayersInZone[index2],
+        newPlayersInZone[index1],
+      ];
+
+      console.log(
+        "🔄 REDUCER: Players in zone after swap:",
+        newPlayersInZone.map((p) => p.name)
+      );
+
+      // CRITICAL FIX: Copy existing mappings and only update the swapped zone
+      const playersByCourt = { ...state.courts.playersByCourt };
+      const playersByQueue = { ...state.queue.playersByQueue };
+
+      // Update only the specific zone that was swapped
+      if (zone.startsWith("court-")) {
+        playersByCourt[zone] = newPlayersInZone;
+        console.log(
+          "🔄 REDUCER: Updated court",
+          zone,
+          "with players:",
+          newPlayersInZone.map((p) => p.name)
+        );
+      } else if (zone.startsWith("queue-")) {
+        playersByQueue[zone] = newPlayersInZone;
+        console.log(
+          "🔄 REDUCER: Updated queue",
+          zone,
+          "with players:",
+          newPlayersInZone.map((p) => p.name)
+        );
+      }
+
+      console.log("✅ REDUCER: Swap completed successfully");
+
+      return {
+        ...state,
+        courts: {
+          ...state.courts,
+          playersByCourt,
+        },
+        queue: {
+          ...state.queue,
+          playersByQueue,
         },
       };
     }

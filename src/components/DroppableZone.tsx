@@ -68,6 +68,12 @@ const DroppableZone: React.FC<DroppableZoneProps> = React.memo(({ zone, players,
       borderColor: '#4CAF50',
       transform: 'scale(1.02)',
     },
+    // Add CSS for touch swap targets
+    '& [data-player-id].touch-swap-target': {
+      backgroundColor: '#E8F5E9',
+      borderColor: '#4CAF50',
+      transform: 'scale(1.05)',
+    },
     ...sx
   }), [borderColor, backgroundColor, transform, sx]);
 
@@ -77,12 +83,20 @@ const DroppableZone: React.FC<DroppableZoneProps> = React.memo(({ zone, players,
     setIsHovered(false);
     
     const json = e.dataTransfer.getData('player/json');
+    const isSwapOperation = e.dataTransfer.getData('player/isSwapOperation') === 'true';
+
     if (!json) return;
 
     try {
       const player: Player = JSON.parse(json);
       const from = e.dataTransfer.getData('player/source');
 
+      // If this was a swap operation that was handled by a PlayerCard, don't process it here
+      if (isSwapOperation) {
+        return;
+      }
+
+      // Regular move operation
       if (from === zoneRef.current) return; // no-op if dropped into same zone
 
       dispatch(Action.movePlayer(player.id, from, zoneRef.current));
@@ -102,32 +116,40 @@ const DroppableZone: React.FC<DroppableZoneProps> = React.memo(({ zone, players,
     setIsHovered(false);
   }, []);
 
-  // Optimized touch handlers with useCallback and refs
+  // Enhanced touch handlers to support swap operations
   const handleTouchMove = useCallback((e: TouchEvent) => {
     const touch = e.touches[0];
     const elementBelow = document.elementFromPoint(touch.clientX, touch.clientY);
+    
+    // Check if we're over another player card for potential swap
+    const playerCard = elementBelow?.closest('[data-player-id]');
     const droppableZone = elementBelow?.closest('[data-droppable-zone]');
     
-    // Remove hover from all zones (optimized selector)
+    // Remove hover from all zones and player cards
     const allZones = document.querySelectorAll('[data-droppable-zone]');
-    allZones.forEach(el => {
-      el.classList.remove('touch-hover');
-    });
+    const allPlayerCards = document.querySelectorAll('[data-player-id]');
     
-    // Add hover to current zone if it's not full
-    if (droppableZone && 
-        droppableZone.getAttribute('data-droppable-zone') === zoneRef.current && 
-        !isFullRef.current) {
+    allZones.forEach(el => el.classList.remove('touch-hover'));
+    allPlayerCards.forEach(el => el.classList.remove('touch-swap-target'));
+    
+    if (playerCard && playerCard.getAttribute('data-zone') === zoneRef.current) {
+      // Hovering over a player in the same zone - potential swap
+      playerCard.classList.add('touch-swap-target');
+    } else if (droppableZone && 
+               droppableZone.getAttribute('data-droppable-zone') === zoneRef.current && 
+               !isFullRef.current) {
+      // Hovering over the zone itself - regular move
       droppableZone.classList.add('touch-hover');
     }
   }, []);
 
   const handleTouchEnd = useCallback(() => {
-    // Remove all hover states (cached selector)
+    // Remove all hover states
     const allZones = document.querySelectorAll('[data-droppable-zone]');
-    allZones.forEach(el => {
-      el.classList.remove('touch-hover');
-    });
+    const allPlayerCards = document.querySelectorAll('[data-player-id]');
+    
+    allZones.forEach(el => el.classList.remove('touch-hover'));
+    allPlayerCards.forEach(el => el.classList.remove('touch-swap-target'));
   }, []);
 
   // Optimized effect with proper cleanup and memoized handlers
