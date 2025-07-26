@@ -67,6 +67,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [name, setName] = useState(player.name);
   const [isDropTarget, setIsDropTarget] = useState(false); // For visual feedback when being a drop target
+  const [isSwapping, setIsSwapping] = useState(false);
 
   const cardRef = useRef<HTMLDivElement>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -334,7 +335,12 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
       });
       
       try {
+        setIsSwapping(true);
         dispatch(Action.swapPlayers(draggedPlayerId, player.id, zone));
+         // Reset animation after delay
+        setTimeout(() => {
+          setIsSwapping(false);
+        }, 600); // Animation duration
         console.log('✅ Swap action dispatched successfully');
       } catch (error) {
         console.error('❌ Error dispatching swap action:', error);
@@ -409,6 +415,12 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
         (zone.startsWith('court-') || zone.startsWith('queue-'))
       ) {
         // Perform swap
+        // Trigger swap animation for both players involved
+        setIsSwapping(true);
+        setTimeout(() => {
+          setIsSwapping(false);
+        }, 600);
+
         dispatch(Action.swapPlayers(player.id, targetPlayerId, zone));
         setIsDragging(false);
         draggedElement = null;
@@ -492,6 +504,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
   const formattedTime = useMemo(() => formatElapsedTime(elapsedSeconds), [elapsedSeconds]);
 
   // Enhanced card styles with drop target indication
+  // Enhanced card styles with drop target indication and swap animation
   const enhancedCardStyles = useMemo(() => ({
     display: 'flex',
     width: '100%',
@@ -513,27 +526,35 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
       : cardColors.backgroundColor,
     borderRadius: isInTeamZone ? '12px' : '20px',
     boxShadow: isDropTarget 
-      ? '0 4px 12px rgba(76, 175, 80, 0.3)'  // Enhanced shadow when drop target
+    ? '0 4px 12px rgba(233, 30, 99, 0.3)'  // Magenta shadow when drop target
+    : isSwapping
+      ? '0 0 20px rgba(233, 30, 99, 0.8)'  // Magenta glow when swapping
       : '0 1px 3px rgba(0,0,0,0.1)',
     cursor: 'grab',
     margin: '0 auto 2px',
     color: cardColors.textColor,
-    border: isDropTarget 
-      ? '2px solid #4CAF50'  // Green border when drop target
+    border: isSwapping
+    ? '3px solid #E91E63'  // Bright magenta border when swapping
+    : isDropTarget 
+      ? '2px solid #E91E63'  // Magenta border when drop target
       : '1px solid rgba(0, 0, 0, 0.06)',
     opacity: isDragging ? 0.5 : 1,
     transform: isDropTarget 
       ? 'scale(1.08)'  // Larger scale when drop target (more noticeable)
       : (isDragging ? 'scale(0.95)' : 'scale(1)'),
-    transition: 'all 0.2s ease-in-out',  // Smoother transition
+    transition: isSwapping 
+      ? 'border-color 0.15s ease-in-out, border-width 0.15s ease-in-out, box-shadow 0.15s ease-in-out'  // Quick flash transition for swap
+      : 'all 0.2s ease-in-out',  // Normal transition for other states
+    animation: isSwapping 
+      ? 'swapFlash 0.6s ease-in-out'  // Flash animation when swapping - references CSS keyframes
+      : 'none',
     touchAction: 'none',
     userSelect: 'none',
     WebkitUserSelect: 'none',
     '&:active': {
       cursor: 'grabbing',
     },
-  }), [isInTeamZone, isMobile, cardColors, isDragging, isDropTarget]);
-
+  }), [isInTeamZone, isMobile, cardColors, isDragging, isDropTarget, isSwapping]);
   return (
     <div className="flipped">
       <Card
