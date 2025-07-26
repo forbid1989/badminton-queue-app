@@ -234,9 +234,18 @@ export default function reducer(state: any, action: Action) {
           }
         }
       }
-      // RULE 6: Moving back to rest - clear all statuses
+      // RULE 6: Moving back to rest - only remove the specific status being moved FROM
       else if (to === "rest" || to === "all") {
-        newStatus = [];
+        if (isFromCourt) {
+          // Remove only court status, keep queue if exists
+          newStatus = existingQueue ? [existingQueue] : [];
+        } else if (isFromQueue) {
+          // Remove only queue status, keep court if exists
+          newStatus = existingCourt ? [existingCourt] : [];
+        } else {
+          // If moving from "all" zone (player list), clear all statuses
+          newStatus = [];
+        }
       }
 
       const updatedPlayer: Player = {
