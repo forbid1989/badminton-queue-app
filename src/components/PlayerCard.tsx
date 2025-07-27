@@ -68,9 +68,6 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
   const [name, setName] = useState(player.name);
   const [isDropTarget, setIsDropTarget] = useState(false); // For visual feedback when being a drop target
   const [isSwapping, setIsSwapping] = useState(false);
-  const [touchStartTime, setTouchStartTime] = useState<number>(0);
-  const [touchStartPos, setTouchStartPos] = useState({ x: 0, y: 0 });
-  const [dragStarted, setDragStarted] = useState(false);
 
   const cardRef = useRef<HTMLDivElement>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -357,11 +354,6 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
     const touch = e.touches[0];
     const rect = cardRef.current?.getBoundingClientRect();
     
-    // Store initial touch info
-    setTouchStartTime(Date.now());
-    setTouchStartPos({ x: touch.clientX, y: touch.clientY });
-    setDragStarted(false);
-    
     // Calculate offset immediately and store
     const currentOffset = rect ? {
       x: touch.clientX - rect.left,
@@ -369,86 +361,50 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
     } : { x: 0, y: 0 };
     
     setDragOffset(currentOffset);
-    
-    // Set global drag data for future reference
+    setIsDragging(true);
     draggedElement = cardRef.current;
     draggedData = { player, zone };
+    
+    if (cardRef.current) {
+      const clone = cardRef.current.cloneNode(true) as HTMLElement;
+      clone.id = 'dragging-clone';
+      clone.style.position = 'fixed';
+      clone.style.pointerEvents = 'none';
+      clone.style.zIndex = '9999';
+      clone.style.opacity = '0.8';
+      clone.style.transition = 'none'; // KEY FIX: Immediate response
+      clone.style.willChange = 'transform'; // KEY FIX: Hardware acceleration
+      clone.style.transform = `translate3d(${touch.clientX - currentOffset.x}px, ${touch.clientY - currentOffset.y}px, 0) rotate(3deg) scale(1.05)`;
+      document.body.appendChild(clone);
+    }
   }, [player, zone]);
 
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    if (!touchStartTime) return;
+    if (!isDragging) return;
+    
+    e.preventDefault(); // KEY FIX: Prevent scrolling while dragging
     
     const touch = e.touches[0];
-    const currentTime = Date.now();
-    const timeDiff = currentTime - touchStartTime;
-    const distance = Math.sqrt(
-      Math.pow(touch.clientX - touchStartPos.x, 2) + 
-      Math.pow(touch.clientY - touchStartPos.y, 2)
-    );
-  
-    // Start drag after 150ms hold OR 10px movement
-    if (!dragStarted && (timeDiff > 150 || distance > 10)) {
-      setIsDragging(true);
-      setDragStarted(true);
-      
-      // Create the visual clone now
-      if (cardRef.current) {
-        const clone = cardRef.current.cloneNode(true) as HTMLElement;
-        clone.id = 'dragging-clone';
-        clone.style.position = 'fixed';
-        clone.style.pointerEvents = 'none';
-        clone.style.zIndex = '9999';
-        clone.style.opacity = '0.8';
-        clone.style.transition = 'none';
-        clone.style.willChange = 'transform';
-        clone.style.backfaceVisibility = 'hidden';
-        clone.style.webkitBackfaceVisibility = 'hidden';
-        
-        // Position it at current touch location
-        const x = touch.clientX - dragOffset.x;
-        const y = touch.clientY - dragOffset.y;
-        clone.style.transform = `translate3d(${x}px, ${y}px, 0) rotate(3deg) scale(1.05)`;
-        
-        document.body.appendChild(clone);
-      }
+    const clone = document.getElementById('dragging-clone');
+    if (clone) {
+      // KEY FIX: Use transform3d instead of left/top for better performance
+      const x = touch.clientX - dragOffset.x;
+      const y = touch.clientY - dragOffset.y;
+      clone.style.transform = `translate3d(${x}px, ${y}px, 0) rotate(3deg) scale(1.05)`;
     }
-    
-    // Update clone position if dragging
-    if (dragStarted && isDragging) {
-      e.preventDefault(); // Prevent scrolling while dragging
-      
-      const clone = document.getElementById('dragging-clone');
-      if (clone) {
-        const x = touch.clientX - dragOffset.x;
-        const y = touch.clientY - dragOffset.y;
-        clone.style.transform = `translate3d(${x}px, ${y}px, 0) rotate(3deg) scale(1.05)`;
-      }
-    }
-  }, [isDragging, dragOffset, touchStartTime, touchStartPos, dragStarted]);
+  }, [isDragging, dragOffset]);
 
+  // Enhanced touch end handler with swap support
   const handleTouchEnd = useCallback((e: React.TouchEvent) => {
-    // Clean up clone
+    if (!isDragging) return;
+    
+    const touch = e.changedTouches[0];
     const clone = document.getElementById('dragging-clone');
     if (clone) {
       clone.remove();
     }
     
-    // Only process drop if we actually started dragging
-    if (!dragStarted || !isDragging) {
-      // Reset states
-      setIsDragging(false);
-      setDragStarted(false);
-      setTouchStartTime(0);
-      draggedElement = null;
-      draggedData = null;
-      return;
-    }
-    
-    const touch = e.changedTouches[0];
     const elementBelow = document.elementFromPoint(touch.clientX, touch.clientY);
-    
-    console.log('🎯 Touch end - checking for drop targets');
-    console.log('Element below finger:', elementBelow);
     
     // Check for player card first (swap operation)
     const playerCard = elementBelow?.closest('[data-player-id]');
@@ -456,43 +412,40 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
       const targetPlayerId = playerCard.getAttribute('data-player-id');
       const targetZone = playerCard.getAttribute('data-zone');
       
-      console.log('🔄 Player card detected:', { targetPlayerId, targetZone, currentZone: zone });
-      
       if (
         targetPlayerId && 
         targetZone === zone && 
         targetPlayerId !== player.id &&
         (zone.startsWith('court-') || zone.startsWith('queue-'))
       ) {
-        console.log('✅ Performing player swap');
+        // Perform swap
+        // Trigger swap animation for both players involved
         setIsSwapping(true);
-        setTimeout(() => setIsSwapping(false), 600);
+        setTimeout(() => {
+          setIsSwapping(false);
+        }, 600);
+
         dispatch(Action.swapPlayers(player.id, targetPlayerId, zone));
-      }
-    } else {
-      // Check for droppable zone (move operation)
-      const droppableZone = elementBelow?.closest('[data-droppable-zone]');
-      if (droppableZone && draggedData) {
-        const targetZone = droppableZone.getAttribute('data-droppable-zone');
-        
-        console.log('🎯 Droppable zone detected:', { targetZone, currentZone: zone });
-        
-        if (targetZone && targetZone !== zone) {
-          console.log('✅ Performing zone move');
-          dispatch(Action.movePlayer(player.id, zone, targetZone));
-        }
-      } else {
-        console.log('❌ No valid drop target found');
+        setIsDragging(false);
+        draggedElement = null;
+        draggedData = null;
+        return;
       }
     }
     
-    // Reset all states
+    // Fall back to zone drop (move operation)
+    const droppableZone = elementBelow?.closest('[data-droppable-zone]');
+    if (droppableZone && draggedData) {
+      const targetZone = droppableZone.getAttribute('data-droppable-zone');
+      if (targetZone && targetZone !== zone) {
+        dispatch(Action.movePlayer(player.id, zone, targetZone));
+      }
+    }
+    
     setIsDragging(false);
-    setDragStarted(false);
-    setTouchStartTime(0);
     draggedElement = null;
     draggedData = null;
-  }, [isDragging, player.id, zone, dispatch, dragStarted]);
+  }, [isDragging, player.id, zone, dispatch]);
 
   // Optimized timer effect
   useEffect(() => {
