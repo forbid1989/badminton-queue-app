@@ -492,7 +492,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
     setTouchStartTime(0);
     draggedElement = null;
     draggedData = null;
-  }, [isDragging, player.id, zone, dispatch, dragStarted, dragOffset]);
+  }, [isDragging, player.id, zone, dispatch, dragStarted]);
 
   // Optimized timer effect
   useEffect(() => {
