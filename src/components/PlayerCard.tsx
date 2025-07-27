@@ -350,17 +350,17 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
     }
   }, [player.id, player.name, zone, dispatch]);
 
-  // Enhanced touch event handlers for swap support
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     const touch = e.touches[0];
     const rect = cardRef.current?.getBoundingClientRect();
-    if (rect) {
-      setDragOffset({
-        x: touch.clientX - rect.left,
-        y: touch.clientY - rect.top
-      });
-    }
     
+    // Calculate offset immediately and store
+    const currentOffset = rect ? {
+      x: touch.clientX - rect.left,
+      y: touch.clientY - rect.top
+    } : { x: 0, y: 0 };
+    
+    setDragOffset(currentOffset);
     setIsDragging(true);
     draggedElement = cardRef.current;
     draggedData = { player, zone };
@@ -372,21 +372,25 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
       clone.style.pointerEvents = 'none';
       clone.style.zIndex = '9999';
       clone.style.opacity = '0.8';
-      clone.style.transform = 'rotate(3deg) scale(1.05)';
-      clone.style.left = `${touch.clientX - dragOffset.x}px`;
-      clone.style.top = `${touch.clientY - dragOffset.y}px`;
+      clone.style.transition = 'none'; // KEY FIX: Immediate response
+      clone.style.willChange = 'transform'; // KEY FIX: Hardware acceleration
+      clone.style.transform = `translate3d(${touch.clientX - currentOffset.x}px, ${touch.clientY - currentOffset.y}px, 0) rotate(3deg) scale(1.05)`;
       document.body.appendChild(clone);
     }
-  }, [player, zone, dragOffset.x, dragOffset.y]);
+  }, [player, zone]);
 
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
     if (!isDragging) return;
     
+    e.preventDefault(); // KEY FIX: Prevent scrolling while dragging
+    
     const touch = e.touches[0];
     const clone = document.getElementById('dragging-clone');
     if (clone) {
-      clone.style.left = `${touch.clientX - dragOffset.x}px`;
-      clone.style.top = `${touch.clientY - dragOffset.y}px`;
+      // KEY FIX: Use transform3d instead of left/top for better performance
+      const x = touch.clientX - dragOffset.x;
+      const y = touch.clientY - dragOffset.y;
+      clone.style.transform = `translate3d(${x}px, ${y}px, 0) rotate(3deg) scale(1.05)`;
     }
   }, [isDragging, dragOffset]);
 
@@ -554,6 +558,9 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
     '&:active': {
       cursor: 'grabbing',
     },
+    willChange: 'transform, opacity',
+    backfaceVisibility: 'hidden',
+    WebkitBackfaceVisibility: 'hidden',
   }), [isInTeamZone, isMobile, cardColors, isDragging, isDropTarget, isSwapping]);
   return (
     <div className="flipped">
