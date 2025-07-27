@@ -167,6 +167,26 @@ const PlayerListZone: React.FC<PlayerListZoneProps> = ({ state }) => {
           py: 1,
           boxShadow: 'inset 0 0 4px rgba(0,0,0,0.04)',
           borderTop: '2px dashed #d8c9aa',
+          maxHeight: 'calc(100vh - 300px)', // Limit height to allow scrolling
+          overflowY: 'auto', // Add vertical scrollbar when needed
+          // Ensure scrollbar is visible and styled
+          '&::-webkit-scrollbar': {
+            width: '8px',
+          },
+          '&::-webkit-scrollbar-track': {
+            backgroundColor: 'rgba(0,0,0,0.1)',
+            borderRadius: '4px',
+          },
+          '&::-webkit-scrollbar-thumb': {
+            backgroundColor: '#5C4033',
+            borderRadius: '4px',
+            '&:hover': {
+              backgroundColor: '#3E2723',
+            },
+          },
+          // For Firefox
+          scrollbarWidth: 'thin',
+          scrollbarColor: '#5C4033 rgba(0,0,0,0.1)',
         }}
       >
         {filteredAndSortedPlayers.length === 0 ? emptyMessage : playerGrid}
