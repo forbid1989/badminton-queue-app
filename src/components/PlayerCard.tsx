@@ -68,6 +68,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
   const [name, setName] = useState(player.name);
   const [isDropTarget, setIsDropTarget] = useState(false); // For visual feedback when being a drop target
   const [isSwapping, setIsSwapping] = useState(false);
+  const [dragStarted, setDragStarted] = useState(false);
 
   const cardRef = useRef<HTMLDivElement>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -351,10 +352,14 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
   }, [player.id, player.name, zone, dispatch]);
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    e.preventDefault(); // Prevent any default touch behavior
+    
     const touch = e.touches[0];
     const rect = cardRef.current?.getBoundingClientRect();
     
-    // Calculate offset immediately and store
+    console.log('🎯 Touch start - IMMEDIATE DRAG:', { x: touch.clientX, y: touch.clientY });
+    
+    // Calculate offset immediately
     const currentOffset = rect ? {
       x: touch.clientX - rect.left,
       y: touch.clientY - rect.top
@@ -362,49 +367,98 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
     
     setDragOffset(currentOffset);
     setIsDragging(true);
+    setDragStarted(true);
+    
+    // Set global drag data
     draggedElement = cardRef.current;
     draggedData = { player, zone };
     
+    // Create visual clone IMMEDIATELY (dnd-kit style)
     if (cardRef.current) {
+      console.log('📋 Creating immediate drag clone (dnd-kit style)');
+      
+      // Remove any existing clone first
+      const existingClone = document.getElementById('dragging-clone');
+      if (existingClone) {
+        existingClone.remove();
+      }
+      
       const clone = cardRef.current.cloneNode(true) as HTMLElement;
       clone.id = 'dragging-clone';
+      
+      // dnd-kit style: High-performance overlay styling
       clone.style.position = 'fixed';
       clone.style.pointerEvents = 'none';
-      clone.style.zIndex = '9999';
-      clone.style.opacity = '0.8';
-      clone.style.transition = 'none'; // KEY FIX: Immediate response
-      clone.style.willChange = 'transform'; // KEY FIX: Hardware acceleration
-      clone.style.transform = `translate3d(${touch.clientX - currentOffset.x}px, ${touch.clientY - currentOffset.y}px, 0) rotate(3deg) scale(1.05)`;
+      clone.style.zIndex = '10000';
+      clone.style.opacity = '0.9';
+      clone.style.transition = 'none';
+      clone.style.willChange = 'transform';
+      clone.style.backfaceVisibility = 'hidden';
+      clone.style.transform = 'translate3d(0, 0, 0)'; // Force GPU layer
+      
+      // Position it at current touch location
+      const x = touch.clientX - currentOffset.x;
+      const y = touch.clientY - currentOffset.y;
+      clone.style.transform = `translate3d(${x}px, ${y}px, 0) rotate(2deg) scale(1.05)`;
+      
+      // Enhanced visual feedback (like dnd-kit DragOverlay)
+      clone.style.boxShadow = '0 10px 25px rgba(0,0,0,0.3)';
+      clone.style.border = '2px solid #E91E63';
+      clone.style.borderRadius = '20px'; // Match your card styling
+      
       document.body.appendChild(clone);
+      console.log('✅ Immediate clone added to DOM at position:', { x, y });
     }
+    
+    console.log('📏 Drag offset calculated:', currentOffset);
   }, [player, zone]);
 
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    if (!isDragging) return;
+    if (!isDragging || !dragStarted) return;
     
-    e.preventDefault(); // KEY FIX: Prevent scrolling while dragging
+    e.preventDefault(); // CRITICAL: Prevent scrolling
     
     const touch = e.touches[0];
     const clone = document.getElementById('dragging-clone');
+    
     if (clone) {
-      // KEY FIX: Use transform3d instead of left/top for better performance
+      // dnd-kit style: Smooth GPU-accelerated movement
       const x = touch.clientX - dragOffset.x;
       const y = touch.clientY - dragOffset.y;
-      clone.style.transform = `translate3d(${x}px, ${y}px, 0) rotate(3deg) scale(1.05)`;
+      clone.style.transform = `translate3d(${x}px, ${y}px, 0) rotate(2deg) scale(1.05)`;
+      // console.log('📍 Updating clone position:', { x, y }); // Comment out for performance
+    } else {
+      console.log('❌ Clone not found during move - should exist!');
     }
-  }, [isDragging, dragOffset]);
+  }, [isDragging, dragOffset, dragStarted]);
 
   // Enhanced touch end handler with swap support
   const handleTouchEnd = useCallback((e: React.TouchEvent) => {
-    if (!isDragging) return;
+    console.log('🏁 Touch end - dragStarted:', dragStarted, 'isDragging:', isDragging);
     
-    const touch = e.changedTouches[0];
+    // Clean up clone FIRST (dnd-kit style cleanup)
     const clone = document.getElementById('dragging-clone');
     if (clone) {
+      console.log('🗑️ Removing drag clone');
       clone.remove();
     }
     
+    // Only process drop if we actually started dragging
+    if (!dragStarted || !isDragging) {
+      console.log('❌ Not processing drop - resetting states');
+      setIsDragging(false);
+      setDragStarted(false);
+      draggedElement = null;
+      draggedData = null;
+      return;
+    }
+    
+    const touch = e.changedTouches[0];
+    console.log('👆 Final touch coordinates:', { x: touch.clientX, y: touch.clientY });
+    
+    // Drop detection (similar to dnd-kit collision detection)
     const elementBelow = document.elementFromPoint(touch.clientX, touch.clientY);
+    console.log('🎯 Element below finger:', elementBelow);
     
     // Check for player card first (swap operation)
     const playerCard = elementBelow?.closest('[data-player-id]');
@@ -418,34 +472,31 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
         targetPlayerId !== player.id &&
         (zone.startsWith('court-') || zone.startsWith('queue-'))
       ) {
-        // Perform swap
-        // Trigger swap animation for both players involved
+        console.log('✅ Performing player swap');
         setIsSwapping(true);
-        setTimeout(() => {
-          setIsSwapping(false);
-        }, 600);
-
+        setTimeout(() => setIsSwapping(false), 600);
         dispatch(Action.swapPlayers(player.id, targetPlayerId, zone));
-        setIsDragging(false);
-        draggedElement = null;
-        draggedData = null;
-        return;
+      }
+    } else {
+      // Check for droppable zone (dnd-kit style zone detection)
+      const droppableZone = elementBelow?.closest('[data-droppable-zone]');
+      if (droppableZone && draggedData) {
+        const targetZone = droppableZone.getAttribute('data-droppable-zone');
+        
+        if (targetZone && targetZone !== zone) {
+          console.log('✅ Performing zone move');
+          dispatch(Action.movePlayer(player.id, zone, targetZone));
+        }
       }
     }
     
-    // Fall back to zone drop (move operation)
-    const droppableZone = elementBelow?.closest('[data-droppable-zone]');
-    if (droppableZone && draggedData) {
-      const targetZone = droppableZone.getAttribute('data-droppable-zone');
-      if (targetZone && targetZone !== zone) {
-        dispatch(Action.movePlayer(player.id, zone, targetZone));
-      }
-    }
-    
+    // Reset all states (dnd-kit style cleanup)
+    console.log('🔄 Resetting all drag states');
     setIsDragging(false);
+    setDragStarted(false);
     draggedElement = null;
     draggedData = null;
-  }, [isDragging, player.id, zone, dispatch]);
+  }, [isDragging, player.id, zone, dispatch, dragStarted, dragOffset]);
 
   // Optimized timer effect
   useEffect(() => {
@@ -560,7 +611,6 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
     },
     willChange: 'transform, opacity',
     backfaceVisibility: 'hidden',
-    WebkitBackfaceVisibility: 'hidden',
   }), [isInTeamZone, isMobile, cardColors, isDragging, isDropTarget, isSwapping]);
   return (
     <div className="flipped">
