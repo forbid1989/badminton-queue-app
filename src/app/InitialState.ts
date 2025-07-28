@@ -63,18 +63,21 @@ function generateCourtMappings(
 // Helper function to rebuild queue mappings from players
 function generateQueueMappings(
   players: Player[],
-  existingQueueKeys: string[]
+  savedQueueStructure: Record<string, Player[]>
 ): Record<string, Player[]> {
   const mappings: Record<string, Player[]> = {};
 
-  // Initialize queues based on existing keys (preserve dynamic queues)
-  existingQueueKeys.forEach((queueId) => {
-    mappings[queueId] = [];
-  });
+  // 🆕 Use the saved queue structure to preserve queue IDs
+  const queueIds = Object.keys(savedQueueStructure);
 
-  // If no existing queues, create at least one default queue
-  if (existingQueueKeys.length === 0) {
+  // If no saved queues, create default queue
+  if (queueIds.length === 0) {
     mappings["queue-0"] = [];
+  } else {
+    // Initialize all saved queue IDs
+    queueIds.forEach((queueId) => {
+      mappings[queueId] = [];
+    });
   }
 
   // Populate queues with players - maintain proper order
@@ -106,9 +109,10 @@ const InitialState = {
   queue: {
     ...baseInitialState.queue,
     ...(loadedState?.queue || {}),
+    // 🆕 Use the saved queue structure instead of just the keys
     playersByQueue: generateQueueMappings(
       loadedState?.players || [],
-      Object.keys(loadedState?.queue?.playersByQueue || { "queue-0": [] })
+      loadedState?.queue?.playersByQueue || { "queue-0": [] }
     ),
   },
 };

@@ -14,6 +14,8 @@ interface PersistedState {
   };
   queue: {
     count: number;
+    // 🆕 Add the queue structure so we know which queue IDs exist
+    playersByQueue: Record<string, Player[]>;
   };
   version: string;
 }
@@ -30,6 +32,8 @@ export const saveToLocalStorage = (state: RootState): void => {
       },
       queue: {
         count: state.queue.count,
+        // 🆕 Save the actual queue structure
+        playersByQueue: state.queue.playersByQueue,
       },
       version: CURRENT_VERSION,
     };
@@ -80,7 +84,10 @@ export const loadFromLocalStorage = (): Partial<RootState> | null => {
       },
       queue: {
         count: persistedState.queue?.count || 1,
-        playersByQueue: {}, // Will be rebuilt by InitialState
+        // 🆕 Restore the actual queue structure instead of empty object
+        playersByQueue: persistedState.queue?.playersByQueue || {
+          "queue-0": [],
+        },
       },
     };
   } catch (error) {
