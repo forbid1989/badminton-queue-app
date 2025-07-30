@@ -160,12 +160,18 @@ const QueueItem = React.memo<{
   const isTransferDisabled = useMemo(() => {
     if (players.length === 0) return true;
     
-    // Check if any player is already on court
-    const hasPlayerOnCourt = players.some((player) =>
-      player.status.some((s) => s.startsWith('court-'))
-    );
+    // FIXED: Check if any player is on court BUT NOT in this queue (non-advanced queue players)
+    // Advanced queue players (teal) have both court and queue status and should be transferable
+    const hasNonTransferablePlayer = players.some((player) => {
+      const hasCourtStatus = player.status.some((s) => s.startsWith('court-'));
+      const hasThisQueueStatus = player.status.includes(queueId as PlayerStatus);
+      
+      // Block transfer only if player is on court but NOT in this specific queue
+      // This means they're playing but not actually queued for this transfer
+      return hasCourtStatus && !hasThisQueueStatus;
+    });
     
-    if (hasPlayerOnCourt) return true;
+    if (hasNonTransferablePlayer) return true;
     
     // More robust check: see if there's any court with space
     const hasAvailableCourt = Array.from({ length: courtCount }).some((_, i) => {
@@ -175,7 +181,7 @@ const QueueItem = React.memo<{
     });
     
     return !hasAvailableCourt;
-  }, [players, courtCount, courtOccupancy]);
+  }, [players, courtCount, courtOccupancy, queueId]);
 
   // Memoized the transfer handler
   const handleTransfer = useCallback(() => {
