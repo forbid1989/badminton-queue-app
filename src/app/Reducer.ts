@@ -9,9 +9,9 @@ type Action =
   | { type: "clearAllData" }
   | { type: "movePlayer"; payload: { id: string; from: string; to: string } }
   | {
-      type: "swapPlayers";
-      payload: { playerId1: string; playerId2: string; zone: string };
-    }
+    type: "swapPlayers";
+    payload: { playerId1: string; playerId2: string; zone: string };
+  }
   | { type: "setGamesPlayed"; payload: { id: string; value: number } }
   | { type: "updatePlayerName"; payload: { id: string; newName: string } }
   | { type: "setPlayerTextInput"; text: string }
@@ -20,10 +20,10 @@ type Action =
   | { type: "removePlayer"; id: string }
   | { type: "transferQueueToCourt"; payload: { queueId: string } }
   | { type: "endGame"; payload: { courtId: string } }
-  | { type: "createQueue" } // 🆕 New action type
-  | { type: "removeQueue"; payload: { queueId: string } }; // 🆕 New action type
+  | { type: "createQueue" }
+  | { type: "removeQueue"; payload: { queueId: string } };
 
-// 🆕 Helper function to check if we should auto-create a new queue
+// Helper function to check if we should auto-create a new queue
 function shouldAutoCreateQueue(state: any): boolean {
   const queueEntries = Object.entries(state.queue.playersByQueue) as [
     string,
@@ -37,7 +37,7 @@ function shouldAutoCreateQueue(state: any): boolean {
   );
 }
 
-// 🆕 Helper function to get next queue ID
+// Helper function to get next queue ID
 function getNextQueueId(state: any): string {
   const existingIds = Object.keys(state.queue.playersByQueue)
     .map((id) => parseInt(id.split("-")[1]))
@@ -47,7 +47,7 @@ function getNextQueueId(state: any): string {
   return `queue-${maxId + 1}`;
 }
 
-// 🆕 Helper function to rebuild queue IDs after removal
+// Helper function to rebuild queue IDs after removal
 function rebuildQueueIds(
   playersByQueue: Record<string, Player[]>
 ): Record<string, Player[]> {
@@ -71,11 +71,11 @@ export default function reducer(state: any, action: Action) {
         (_, i) => `court-${i}`
       );
 
-      // 🆕 Keep queue IDs unchanged - they're now independent
+      // Keep queue IDs unchanged - they're now independent
       const existingQueueIds = Object.keys(state.queue.playersByQueue);
 
       const updatedPlayers = state.players.map((player: Player) => {
-        // ✅ Filter statuses to only valid court/queue IDs
+        // Filter statuses to only valid court/queue IDs
         const validStatuses = player.status.filter((s) => {
           const isCourt = s.startsWith("court-");
           const isQueue = s.startsWith("queue-");
@@ -85,7 +85,7 @@ export default function reducer(state: any, action: Action) {
           );
         });
 
-        // ✅ Keep only 1 court-* and 1 queue-* (Condition #6 & #7)
+        // Keep only 1 court-* and 1 queue-* (Condition #6 & #7)
         const court = validStatuses.find((s) => s.startsWith("court-"));
         const queue = validStatuses.find((s) => s.startsWith("queue-"));
 
@@ -105,7 +105,6 @@ export default function reducer(state: any, action: Action) {
           ...state.courts,
           count: newCount,
         },
-        // 🆕 Don't change queue count when court count changes
         players: updatedPlayers,
       };
     }
@@ -113,7 +112,7 @@ export default function reducer(state: any, action: Action) {
     case ActionType.ADD_PLAYERS_FROM_TEXT: {
       const newPlayers = action.players.map((player) => ({
         ...player,
-        status: [], // ✅ Start as unqueued (Condition #1)
+        status: [], // Start as unqueued (Condition #1)
       }));
 
       return {
@@ -143,7 +142,7 @@ export default function reducer(state: any, action: Action) {
 
       return {
         ...state,
-        players: clearedPlayers, // ✅ global list updated
+        players: clearedPlayers,
         courts: {
           ...state.courts,
           playersByCourt: clearedCourts,
@@ -259,7 +258,7 @@ export default function reducer(state: any, action: Action) {
         p.id === id ? updatedPlayer : p
       );
 
-      // Step 2: Recalculate playersByCourt and playersByQueue
+      // Step 2: SIMPLE REBUILD (like first reducer) - this preserves advanced queueing
       const playersByCourt: Record<string, Player[]> = {};
       const playersByQueue: Record<string, Player[]> = {};
 
@@ -268,11 +267,12 @@ export default function reducer(state: any, action: Action) {
         playersByCourt[`court-${i}`] = [];
       }
 
-      // 🆕 Initialize queues based on existing queue keys
+      // Initialize queues based on existing queue keys
       Object.keys(state.queue.playersByQueue).forEach((queueId) => {
         playersByQueue[queueId] = [];
       });
 
+      // SIMPLE POPULATE (like first reducer) - this works with advanced queueing
       for (const p of updatedPlayers) {
         const courtId = p.status.find((s: PlayerStatus) =>
           s.startsWith("court-")
@@ -290,7 +290,7 @@ export default function reducer(state: any, action: Action) {
         }
       }
 
-      // 🆕 Check if we should auto-create a new queue after this move
+      // Check if we should auto-create a new queue after this move
       const tempState = {
         ...state,
         players: updatedPlayers,
@@ -320,7 +320,7 @@ export default function reducer(state: any, action: Action) {
       };
     }
 
-    // 🆕 New case for creating queue manually
+    // New case for creating queue manually
     case ActionType.CREATE_QUEUE: {
       const newQueueId = getNextQueueId(state);
 
@@ -337,7 +337,7 @@ export default function reducer(state: any, action: Action) {
       };
     }
 
-    // 🆕 New case for removing queue
+    // New case for removing queue
     case ActionType.REMOVE_QUEUE: {
       const { queueId } = action.payload;
 
@@ -429,12 +429,12 @@ export default function reducer(state: any, action: Action) {
     case ActionType.SET_GAMES_PLAYED: {
       const { id, value } = action.payload;
 
-      // ✅ Step 1: Update the player's gamesPlayed field
+      // Step 1: Update the player's gamesPlayed field
       const updatedPlayers = state.players.map((p: Player) =>
         p.id === id ? { ...p, gamesPlayed: value } : p
       );
 
-      // ✅ Step 2: Rebuild court and queue mappings only (no unqueued zone)
+      // Step 2: Rebuild court and queue mappings only (no unqueued zone)
       const playersByCourt: Record<string, Player[]> = {};
       const playersByQueue: Record<string, Player[]> = {};
 
@@ -498,12 +498,12 @@ export default function reducer(state: any, action: Action) {
     case ActionType.REMOVE_PLAYER: {
       const idToRemove = action.id;
 
-      // ✅ Step 1: Remove player from global list
+      // Step 1: Remove player from global list
       const updatedPlayers = state.players.filter(
         (p: Player) => p.id !== idToRemove
       );
 
-      // ✅ Step 2: Rebuild court and queue mappings only
+      // Step 2: Rebuild court and queue mappings only
       const playersByCourt: Record<string, Player[]> = {};
       const playersByQueue: Record<string, Player[]> = {};
 
@@ -544,7 +544,7 @@ export default function reducer(state: any, action: Action) {
       const { queueId } = action.payload;
       console.log("🚀 TRANSFER_QUEUE_TO_COURT started:", { queueId });
 
-      // Step 1: Extract players in the queue - FIX: Use zone mapping directly
+      // Step 1: Extract players in the queue - Use zone mapping directly
       const playersInQueue = state.queue.playersByQueue[queueId] || [];
       console.log(
         "👥 Players in queue:",
@@ -566,7 +566,7 @@ export default function reducer(state: any, action: Action) {
         return state;
       }
 
-      // Step 3: Find available court - FIX: Use zone mapping for accurate count
+      // Step 3: Find available court - Use zone mapping for accurate count
       const courtOccupancy: Record<string, number> = {};
 
       // Initialize all courts
@@ -593,8 +593,13 @@ export default function reducer(state: any, action: Action) {
 
       const timestamp = Date.now();
 
-      // Step 4: Update player statuses - Transfer players AND shift queue numbers
-      const transferredQueueIndex = parseInt(queueId.split("-")[1], 10);
+      // Step 4: FIXED QUEUE ORDERING - Get properly sorted queue IDs
+      const allQueueIds = Object.keys(state.queue.playersByQueue)
+        .map(id => ({ id, num: parseInt(id.split("-")[1]) }))
+        .sort((a, b) => a.num - b.num)
+        .map(item => item.id);
+
+      const transferredQueueIndex = allQueueIds.indexOf(queueId);
 
       const updatedPlayers = state.players.map((player: Player) => {
         const isInThisQueue = playersInQueue.some(
@@ -613,14 +618,14 @@ export default function reducer(state: any, action: Action) {
           };
         }
 
-        // For all other players: shift their queue numbers down if they're in higher queues
+        // FIXED: For all other players: shift their queue numbers down if they're in higher queues
         const newStatus = player.status.map((s) => {
           if (s.startsWith("queue-")) {
-            const currentQueueIndex = parseInt(s.split("-")[1], 10);
+            const oldQueueIndex = allQueueIds.indexOf(s);
 
             // If this queue is higher than the transferred queue, shift it down
-            if (currentQueueIndex > transferredQueueIndex) {
-              const newQueueIndex = currentQueueIndex - 1;
+            if (oldQueueIndex > transferredQueueIndex) {
+              const newQueueIndex = oldQueueIndex - 1;
               console.log(
                 `🔽 Shifting ${player.name} from ${s} to queue-${newQueueIndex}`
               );
@@ -636,7 +641,7 @@ export default function reducer(state: any, action: Action) {
         };
       });
 
-      // Step 5: Rebuild zone mappings with shifted queue numbers
+      // Step 5: SIMPLE REBUILD (like first reducer) - this preserves advanced queueing
       const playersByCourt: Record<string, Player[]> = {};
       const playersByQueue: Record<string, Player[]> = {};
 
@@ -646,13 +651,12 @@ export default function reducer(state: any, action: Action) {
       }
 
       // Initialize queues - one less queue since one was transferred
-      const remainingQueueCount =
-        Object.keys(state.queue.playersByQueue).length - 1;
+      const remainingQueueCount = allQueueIds.length - 1;
       for (let i = 0; i < remainingQueueCount; i++) {
         playersByQueue[`queue-${i}`] = [];
       }
 
-      // Populate zone mappings
+      // SIMPLE POPULATE (like first reducer)
       for (const player of updatedPlayers) {
         const courtId = player.status.find((s: PlayerStatus) =>
           s.startsWith("court-")
@@ -670,25 +674,6 @@ export default function reducer(state: any, action: Action) {
       }
 
       console.log("✅ Transfer completed successfully");
-      console.log("🔽 Queue shift completed");
-      console.log(
-        "🏟️ Updated court mapping:",
-        Object.fromEntries(
-          Object.entries(playersByCourt).map(([k, v]) => [
-            k,
-            v.map((p) => p.name),
-          ])
-        )
-      );
-      console.log(
-        "⏳ Updated queue mapping:",
-        Object.fromEntries(
-          Object.entries(playersByQueue).map(([k, v]) => [
-            k,
-            v.map((p) => p.name),
-          ])
-        )
-      );
 
       return {
         ...state,
@@ -744,7 +729,7 @@ export default function reducer(state: any, action: Action) {
         };
       });
 
-      // Step 2: Rebuild courts & queue (❌ skip unqueued)
+      // Step 2: SIMPLE REBUILD (like first reducer) - preserves advanced queueing
       const playersByCourt: Record<string, Player[]> = {};
       const playersByQueue: Record<string, Player[]> = {};
 
@@ -823,7 +808,7 @@ export default function reducer(state: any, action: Action) {
       };
     }
 
-    // SWAP_PLAYERS case with fixes
+    // SWAP_PLAYERS case - ONLY updates zone mappings, preserves advanced queueing
     case ActionType.SWAP_PLAYERS: {
       console.log("🔄 REDUCER: SWAP_PLAYERS action received:", action.payload);
 
@@ -832,12 +817,6 @@ export default function reducer(state: any, action: Action) {
       // Find both players
       const player1 = state.players.find((p: Player) => p.id === playerId1);
       const player2 = state.players.find((p: Player) => p.id === playerId2);
-
-      console.log("🔍 REDUCER: Player lookup results:", {
-        player1: player1 ? `${player1.name} (${player1.id})` : "NOT FOUND",
-        player2: player2 ? `${player2.name} (${player2.id})` : "NOT FOUND",
-        zone,
-      });
 
       if (!player1 || !player2) {
         console.warn("❌ REDUCER: Cannot swap: one or both players not found");
@@ -848,23 +827,12 @@ export default function reducer(state: any, action: Action) {
       const player1InZone = player1.status.includes(zone as PlayerStatus);
       const player2InZone = player2.status.includes(zone as PlayerStatus);
 
-      console.log("🔍 REDUCER: Zone validation:", {
-        player1InZone,
-        player2InZone,
-        player1Status: player1.status,
-        player2Status: player2.status,
-      });
-
       if (!player1InZone || !player2InZone) {
         console.warn("❌ REDUCER: Cannot swap: players not in the same zone");
         return state;
       }
 
-      console.log(
-        "✅ REDUCER: Swap validation passed, proceeding with swap..."
-      );
-
-      // CRITICAL FIX: Use the zone mappings instead of filtering from global players
+      // Use the zone mappings instead of filtering from global players
       let playersInZone: Player[] = [];
 
       if (zone.startsWith("court-")) {
@@ -872,11 +840,6 @@ export default function reducer(state: any, action: Action) {
       } else if (zone.startsWith("queue-")) {
         playersInZone = [...(state.queue.playersByQueue[zone] || [])];
       }
-
-      console.log(
-        "🔍 REDUCER: Players in zone before swap:",
-        playersInZone.map((p: Player) => p.name)
-      );
 
       // Find the indices of the two players in the zone
       const index1 = playersInZone.findIndex((p: Player) => p.id === playerId1);
@@ -896,32 +859,15 @@ export default function reducer(state: any, action: Action) {
         newPlayersInZone[index1],
       ];
 
-      console.log(
-        "🔄 REDUCER: Players in zone after swap:",
-        newPlayersInZone.map((p) => p.name)
-      );
-
-      // CRITICAL FIX: Copy existing mappings and only update the swapped zone
+      // Copy existing mappings and only update the swapped zone
       const playersByCourt = { ...state.courts.playersByCourt };
       const playersByQueue = { ...state.queue.playersByQueue };
 
       // Update only the specific zone that was swapped
       if (zone.startsWith("court-")) {
         playersByCourt[zone] = newPlayersInZone;
-        console.log(
-          "🔄 REDUCER: Updated court",
-          zone,
-          "with players:",
-          newPlayersInZone.map((p) => p.name)
-        );
       } else if (zone.startsWith("queue-")) {
         playersByQueue[zone] = newPlayersInZone;
-        console.log(
-          "🔄 REDUCER: Updated queue",
-          zone,
-          "with players:",
-          newPlayersInZone.map((p) => p.name)
-        );
       }
 
       console.log("✅ REDUCER: Swap completed successfully");
