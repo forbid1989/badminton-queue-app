@@ -593,23 +593,12 @@ export default function reducer(state: any, action: Action) {
 
       const timestamp = Date.now();
 
-      // Step 4: FIXED QUEUE ORDERING - Get properly sorted queue IDs
-      const allQueueIds = Object.keys(state.queue.playersByQueue)
-        .map(id => ({ id, num: parseInt(id.split("-")[1]) }))
-        .sort((a, b) => a.num - b.num)
-        .map(item => item.id);
-
-      const transferredQueueIndex = allQueueIds.indexOf(queueId);
+      // Step 4: Update all players - remove transferred players and update their status
+      const transferredPlayerIds = new Set(playersInQueue.map((p: Player) => p.id));
 
       const updatedPlayers = state.players.map((player: Player) => {
-        const isInThisQueue = playersInQueue.some(
-          (p: Player) => p.id === player.id
-        );
-
-        if (isInThisQueue) {
-          console.log(
-            `🔄 Transferring player ${player.name} to ${availableCourtId}`
-          );
+        if (transferredPlayerIds.has(player.id)) {
+          console.log(`🔄 Transferring player ${player.name} to ${availableCourtId}`);
           // Transfer to court and remove from queue
           return {
             ...player,
@@ -617,20 +606,46 @@ export default function reducer(state: any, action: Action) {
             timeEntered: timestamp,
           };
         }
+        return player;
+      });
 
-        // FIXED: For all other players: shift their queue numbers down if they're in higher queues
+      // Step 5: Build new queue mappings - PRESERVE ORDER BY REMOVING ONLY THE TRANSFERRED QUEUE
+      const newQueuePlayersByQueue: Record<string, Player[]> = {};
+
+      // Get all queue IDs except the transferred one, maintaining original order
+      const remainingQueueIds = Object.keys(state.queue.playersByQueue)
+        .filter(id => id !== queueId)
+        .sort((a, b) => {
+          const numA = parseInt(a.split("-")[1]);
+          const numB = parseInt(b.split("-")[1]);
+          return numA - numB;
+        });
+
+      console.log("📋 Remaining queue IDs after transfer:", remainingQueueIds);
+
+      // Rebuild queue structure with sequential numbering, preserving original order
+      remainingQueueIds.forEach((oldQueueId, index) => {
+        const newQueueId = `queue-${index}`;
+        newQueuePlayersByQueue[newQueueId] = state.queue.playersByQueue[oldQueueId] || [];
+        console.log(`🔄 Mapping ${oldQueueId} → ${newQueueId}`);
+      });
+
+      // Step 6: Update player statuses to match new queue IDs
+      const queueIdMapping: Record<string, string> = {};
+      remainingQueueIds.forEach((oldId, index) => {
+        queueIdMapping[oldId] = `queue-${index}`;
+      });
+
+      const playersWithUpdatedQueueIds = updatedPlayers.map((player: Player) => {
+        // Skip transferred players - they're already updated
+        if (transferredPlayerIds.has(player.id)) {
+          return player;
+        }
+
         const newStatus = player.status.map((s) => {
-          if (s.startsWith("queue-")) {
-            const oldQueueIndex = allQueueIds.indexOf(s);
-
-            // If this queue is higher than the transferred queue, shift it down
-            if (oldQueueIndex > transferredQueueIndex) {
-              const newQueueIndex = oldQueueIndex - 1;
-              console.log(
-                `🔽 Shifting ${player.name} from ${s} to queue-${newQueueIndex}`
-              );
-              return `queue-${newQueueIndex}` as PlayerStatus;
-            }
+          if (s.startsWith("queue-") && queueIdMapping[s]) {
+            console.log(`🔄 Updating ${player.name}: ${s} → ${queueIdMapping[s]}`);
+            return queueIdMapping[s] as PlayerStatus;
           }
           return s;
         });
@@ -641,7 +656,121 @@ export default function reducer(state: any, action: Action) {
         };
       });
 
-      // Step 5: SIMPLE REBUILD (like first reducer) - this preserves advanced queueing
+      // Step 7: Rebuild zone mappings
+      const playersByCourt: Record<string, Player[]> = {};
+      const finalPlayersByQueue: Record<string, Player[]> = {};
+
+      // Initialize courts
+      for (let i = 0; i < state.courts.count; i++) {
+        const courtId = `court-${i}`;
+        playersByCourt[courtId] = [];
+      }
+
+      // Initialize queues
+      Object.keys(newQueuePlayersByQueue).forEach((queueId) => {
+        finalPlayersByQueue[queueId] = [];
+      });
+
+      // Populate mappings
+      for (const player of playersWithUpdatedQueueIds) {
+        const courtId = player.status.find((s: PlayerStatus) =>
+          s.startsWith("court-")
+        );
+        const queueId = player.status.find((s: PlayerStatus) =>
+          s.startsWith("queue-")
+        );
+
+        if (courtId && playersByCourt[courtId]) {
+          playersByCourt[courtId].push(player);
+        }
+
+        if (queueId && finalPlayersByQueue[queueId]) {
+          finalPlayersByQueue[queueId].push(player);
+        }
+      }
+
+      console.log("✅ Transfer completed successfully");
+      console.log(
+        "🏟️ Updated court mapping:",
+        Object.fromEntries(
+          Object.entries(playersByCourt).map(([k, v]) => [
+            k,
+            v.map((p) => p.name),
+          ])
+        )
+      );
+      console.log(
+        "⏳ Updated queue mapping:",
+        Object.fromEntries(
+          Object.entries(finalPlayersByQueue).map(([k, v]) => [
+            k,
+            v.map((p) => p.name),
+          ])
+        )
+      );
+
+      return {
+        ...state,
+        players: playersWithUpdatedQueueIds,
+        courts: {
+          ...state.courts,
+          playersByCourt,
+        },
+        queue: {
+          count: Object.keys(finalPlayersByQueue).length,
+          playersByQueue: finalPlayersByQueue,
+        },
+      };
+    }
+
+    case ActionType.END_GAME: {
+      const courtId = action.payload.courtId;
+      const timestamp = Date.now();
+
+      // Step 1: Find players on this court
+      const playersOnCourt: Player[] = state.players.filter((player: Player) =>
+        player.status.includes(courtId as PlayerStatus)
+      );
+
+      if (playersOnCourt.length === 0) {
+        console.log("❌ No players found on court", courtId);
+        return state;
+      }
+
+      console.log("🎮 Ending game on", courtId, "with players:", playersOnCourt.map(p => p.name));
+
+      // Step 2: Update players - increment games and handle status
+      const updatedPlayers = state.players.map((player: Player) => {
+        const isOnCourt = player.status.includes(courtId as PlayerStatus);
+        if (!isOnCourt) return player;
+
+        // Find opponents (other players on same court)
+        const opponents = playersOnCourt
+          .filter(p => p.id !== player.id)
+          .map(p => p.name);
+
+        const matchEntry = {
+          opponents,
+          timestamp,
+        };
+
+        // Remove this court from status, keep queue if present (Condition #6)
+        const remainingStatus = player.status.filter(
+          (s) => s !== courtId
+        );
+
+        console.log(`🔄 ${player.name}: status ${JSON.stringify(player.status)} → ${JSON.stringify(remainingStatus)}`);
+
+        return {
+          ...player,
+          gamesPlayed: player.gamesPlayed + 1,
+          status: remainingStatus,
+          timeEntered: timestamp,
+          matchHistory: [...(player.matchHistory || []), matchEntry],
+        };
+      });
+
+      // Step 3: Rebuild zone mappings
       const playersByCourt: Record<string, Player[]> = {};
       const playersByQueue: Record<string, Player[]> = {};
 
@@ -650,13 +779,12 @@ export default function reducer(state: any, action: Action) {
         playersByCourt[`court-${i}`] = [];
       }
 
-      // Initialize queues - one less queue since one was transferred
-      const remainingQueueCount = allQueueIds.length - 1;
-      for (let i = 0; i < remainingQueueCount; i++) {
-        playersByQueue[`queue-${i}`] = [];
-      }
+      // Initialize queues
+      Object.keys(state.queue.playersByQueue).forEach((queueId) => {
+        playersByQueue[queueId] = [];
+      });
 
-      // SIMPLE POPULATE (like first reducer)
+      // Populate mappings
       for (const player of updatedPlayers) {
         const courtId = player.status.find((s: PlayerStatus) =>
           s.startsWith("court-")
@@ -668,89 +796,13 @@ export default function reducer(state: any, action: Action) {
         if (courtId && playersByCourt[courtId]) {
           playersByCourt[courtId].push(player);
         }
+
         if (queueId && playersByQueue[queueId]) {
           playersByQueue[queueId].push(player);
         }
       }
 
-      console.log("✅ Transfer completed successfully");
-
-      return {
-        ...state,
-        players: updatedPlayers,
-        courts: {
-          ...state.courts,
-          playersByCourt,
-        },
-        queue: {
-          count: remainingQueueCount,
-          playersByQueue,
-        },
-      };
-    }
-
-    case ActionType.END_GAME: {
-      const courtId = action.payload.courtId;
-      const timestamp = Date.now();
-
-      // Step 1: Update players
-      const updatedPlayers = state.players.map((player: Player) => {
-        const isOnCourt = player.status.includes(courtId as PlayerStatus);
-        if (!isOnCourt) return player;
-
-        // Find opponents (same court)
-        const opponents = state.players
-          .filter(
-            (p: Player) =>
-              p.id !== player.id && p.status.includes(courtId as PlayerStatus)
-          )
-          .map((p: Player) => p.name);
-
-        const matchEntry = {
-          opponents,
-          timestamp,
-        };
-
-        // Remove this court from status
-        const remainingStatus = player.status.filter(
-          (s) => !s.startsWith("court-")
-        );
-
-        // Keep queue if present (Condition #6)
-        const queue = remainingStatus.find((s) => s.startsWith("queue-"));
-        const newStatus: PlayerStatus[] = queue ? [queue] : [];
-
-        return {
-          ...player,
-          gamesPlayed: player.gamesPlayed + 1,
-          status: newStatus,
-          timeEntered: timestamp,
-          matchHistory: [...(player.matchHistory || []), matchEntry],
-        };
-      });
-
-      // Step 2: SIMPLE REBUILD (like first reducer) - preserves advanced queueing
-      const playersByCourt: Record<string, Player[]> = {};
-      const playersByQueue: Record<string, Player[]> = {};
-
-      for (const p of updatedPlayers) {
-        const court = p.status.find((s: PlayerStatus) =>
-          s.startsWith("court-")
-        );
-        const queue = p.status.find((s: PlayerStatus) =>
-          s.startsWith("queue-")
-        );
-
-        if (court) {
-          if (!playersByCourt[court]) playersByCourt[court] = [];
-          playersByCourt[court].push(p);
-        }
-
-        if (queue) {
-          if (!playersByQueue[queue]) playersByQueue[queue] = [];
-          playersByQueue[queue].push(p);
-        }
-      }
+      console.log("✅ Game ended successfully");
 
       return {
         ...state,
