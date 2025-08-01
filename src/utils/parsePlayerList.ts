@@ -27,6 +27,9 @@ export function parsePlayerList(text: string): Player[] {
           status: [], // ✅ Condition 1: Unqueued
           timeEntered: Date.now(),
           waitingSince: undefined,
+          // ✨ NEW: Initialize order fields as null (unassigned)
+          courtOrder: null,
+          queueOrder: null,
         });
       }
     }

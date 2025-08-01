@@ -29,4 +29,17 @@ export interface Player {
   timeEntered: number;
   waitingSince?: number;
   matchHistory?: MatchHistoryEntry[];
+
+  // ✨ NEW: Explicit ordering fields
+  /**
+   * Position within a court (0-3). null if not on any court.
+   * Used to maintain consistent player positioning in court displays.
+   */
+  courtOrder: number | null;
+
+  /**
+   * Position within a queue (0-3). null if not in any queue.
+   * Used to maintain consistent player positioning in queue displays.
+   */
+  queueOrder: number | null;
 }
