@@ -56,6 +56,7 @@
   transition: all 300ms ease;
 }
 
+/* Swap animation for player cards */
 @keyframes swapFlash {
   0% {
     border-color: #E91E63;
@@ -72,4 +73,71 @@
     border-width: 1px;
     box-shadow: 0 1px 3px rgba(0,0,0,0.1);
   }
+}
+
+/* DND-Kit specific styles */
+.dnd-dragging {
+  cursor: grabbing !important;
+}
+
+/* Prevent text selection during drag */
+.dnd-kit-dragging * {
+  user-select: none !important;
+  -webkit-user-select: none !important;
+}
+
+/* Smooth transitions for drag animations */
+[data-dnd-kit-draggable] {
+  transition: transform 200ms ease;
+  will-change: transform;
+}
+
+/* Drag overlay styles */
+[data-dnd-kit-drag-overlay] {
+  z-index: 10000;
+  pointer-events: none;
+}
+
+/* Drop indicator animations */
+@keyframes dropPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(76, 175, 80, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(76, 175, 80, 0);
+  }
+}
+
+.drop-indicator {
+  animation: dropPulse 1.5s infinite;
+}
+
+/* Player card hover states */
+[data-player-id] {
+  transition: all 200ms ease;
+}
+
+[data-player-id]:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+/* Zone hover states */
+[data-droppable-zone] {
+  transition: all 200ms ease;
+}
+
+[data-droppable-zone].drag-over {
+  background-color: #E8F5E9;
+  border-color: #4CAF50;
+  transform: scale(1.02);
+}
+
+/* Disable transitions during drag for performance */
+.dragging [data-player-id],
+.dragging [data-droppable-zone] {
+  transition: none !important;
 }

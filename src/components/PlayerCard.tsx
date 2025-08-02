@@ -16,6 +16,8 @@ import {
 } from '@mui/material';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import DeleteIcon from '@mui/icons-material/Delete';
+import { useDraggable, useDroppable } from '@dnd-kit/core';
+import { CSS } from '@dnd-kit/utilities';
 import { Player, PlayerStatus } from '../types/Player';
 import { AppContext } from '../BadmintonQueueUI';
 import { Action } from '../app/Action';
@@ -23,8 +25,6 @@ import KeyboardReturnIcon from '@mui/icons-material/KeyboardReturn';
 import HistoryIcon from '@mui/icons-material/History';
 import BadmintonIcon from './input/BadmintonIcon';
 import { getTimeAgo } from '../utils/getTimeAgo';
-
-let currentDragData: { playerId: string; playerZone: string } | null = null;
 
 const formatElapsedTime = (seconds: number) => {
   const mins = Math.floor(seconds / 60);
@@ -35,13 +35,10 @@ const formatElapsedTime = (seconds: number) => {
 type PlayerCardProps = {
   player: Player;
   zone: string;
+  isDragOverlay?: boolean;
 };
 
-// Global variable to store the dragged element
-let draggedElement: HTMLElement | null = null;
-let draggedData: { player: Player; zone: string } | null = null;
-
-const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
+const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone, isDragOverlay = false }) => {
   const theme = useTheme();
   const { state, dispatch } = useContext(AppContext);
   
@@ -50,7 +47,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
   const queueCount = useMemo(() => state.queue.count, [state.queue.count]);
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   
-  // Determine if this card is in a team zone (smaller layout needed)
+  // Determine if this card is in a team zone
   const isInTeamZone = useMemo(() => {
     return zone.startsWith('court-') || zone.startsWith('queue-');
   }, [zone]);
@@ -63,16 +60,48 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
   });
   const [isEditing, setIsEditing] = useState(false);
   const [gamesPlayed, setGamesPlayed] = useState(player.gamesPlayed.toString());
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [name, setName] = useState(player.name);
-  const [isDropTarget, setIsDropTarget] = useState(false); // For visual feedback when being a drop target
   const [isSwapping, setIsSwapping] = useState(false);
-  const [dragStarted, setDragStarted] = useState(false);
 
-  const cardRef = useRef<HTMLDivElement>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const nameUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // DND-Kit hooks
+  const {
+    attributes,
+    listeners,
+    setNodeRef: setDraggableRef,
+    transform,
+    isDragging,
+  } = useDraggable({
+    id: player.id,
+    data: {
+      type: 'player',
+      player,
+      zone,
+    },
+    disabled: isDragOverlay || isEditing,
+  });
+
+  // Make the card itself a drop target for swapping
+  const { isOver, setNodeRef: setDroppableRef } = useDroppable({
+    id: `player-${player.id}`,
+    data: {
+      type: 'player',
+      player,
+      zone,
+    },
+    disabled: isDragOverlay,
+  });
+
+  // Combine refs
+  const setNodeRef = useCallback(
+    (node: HTMLElement | null) => {
+      setDraggableRef(node);
+      setDroppableRef(node);
+    },
+    [setDraggableRef, setDroppableRef]
+  );
 
   // Memoized player status calculations
   const playerStatus = useMemo(() => {
@@ -178,7 +207,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
     return (isUnassigned && !isOnCourt) || (zone === "all" && isOnCourt && !isInQueue);
   }, [playerStatus, zone]);
 
-  // Optimized event handlers with useCallback
+  // Event handlers
   const handleQuickAdd = useCallback(() => {
     if (availableZone) {
       const sourceZone = zone === "all" ? "all" : "rest";
@@ -226,285 +255,13 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
     setHistoryAnchorEl(null);
   }, []);
 
-  // Enhanced drag start with global state
-  const handleDragStart = useCallback((e: React.DragEvent) => {
-    // Set global drag data
-    currentDragData = { playerId: player.id, playerZone: zone };
-    
-    // Keep original data transfer for zone drops
-    e.dataTransfer.setData('player/id', player.id.toString());
-    e.dataTransfer.setData('player/source', zone);
-    e.dataTransfer.setData('player/json', JSON.stringify(player));
-    e.dataTransfer.setData('player/isSwapOperation', 'false');
-    
-    setIsDragging(true);
-    console.log('🚀 Drag started:', currentDragData);
-  }, [player, zone]);
-
-  const handleDragEnd = useCallback(() => {
-    setIsDragging(false);
-    currentDragData = null; // Clear global drag data
-    console.log('🏁 Drag ended');
-  }, []);
-
-  // Fixed drag over using global variables
-  const handleDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    
-    // Use global drag data instead of dataTransfer
-    if (!currentDragData) {
-      console.log('❌ No current drag data');
-      return;
-    }
-    
-    const { playerId: draggedPlayerId, playerZone: draggedPlayerZone } = currentDragData;
-    
-    console.log('🔍 Drag over check:', {
-      draggedPlayerId,
-      draggedPlayerZone,
-      currentPlayerId: player.id,
-      currentZone: zone,
-      isDifferentPlayer: draggedPlayerId !== player.id,
-      isSameZone: draggedPlayerZone === zone,
-      isValidZone: zone.startsWith('court-') || zone.startsWith('queue-')
-    });
-    
-    // Only allow swap if conditions are met
-    if (
-      draggedPlayerId !== player.id && 
-      draggedPlayerZone === zone &&
-      (zone.startsWith('court-') || zone.startsWith('queue-'))
-    ) {
-      console.log('✅ Setting drop target');
-      setIsDropTarget(true);
-    } else {
-      console.log('❌ Conditions not met, clearing drop target');
-      setIsDropTarget(false);
-    }
-  }, [player.id, zone]);
-
-  // Handle drag leave
-  const handleDragLeave = useCallback((e: React.DragEvent) => {
-    // Only remove drop target state if we're actually leaving this element
-    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
-      console.log('🚪 Drag leave');
-      setIsDropTarget(false);
-    }
-  }, []);
-
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    console.log('📦 Drop detected on player:', player.name);
-    setIsDropTarget(false);
-    
-    if (!currentDragData) {
-      console.log('❌ No drag data on drop');
-      return;
-    }
-    
-    const { playerId: draggedPlayerId, playerZone: draggedPlayerZone } = currentDragData;
-    
-    console.log('🔍 Drop validation:', {
-      draggedPlayerId,
-      draggedPlayerZone,
-      targetPlayerId: player.id,
-      targetPlayerName: player.name,
-      targetZone: zone,
-      condition1_DifferentPlayer: draggedPlayerId !== player.id,
-      condition2_SameZone: draggedPlayerZone === zone,
-      condition3_ValidZone: zone.startsWith('court-') || zone.startsWith('queue-'),
-      allConditionsMet: (
-        draggedPlayerId !== player.id && 
-        draggedPlayerZone === zone &&
-        (zone.startsWith('court-') || zone.startsWith('queue-'))
-      )
-    });
-    
-    // Perform swap if conditions are met
-    if (
-      draggedPlayerId !== player.id && 
-      draggedPlayerZone === zone &&
-      (zone.startsWith('court-') || zone.startsWith('queue-'))
-    ) {
-      console.log('🔄 Dispatching swap action:', {
-        from: draggedPlayerId,
-        to: player.id,
-        zone: zone,
-        actionType: 'SWAP_PLAYERS'
-      });
-      
-      try {
-        setIsSwapping(true);
-        dispatch(Action.swapPlayers(draggedPlayerId, player.id, zone));
-         // Reset animation after delay
-        setTimeout(() => {
-          setIsSwapping(false);
-        }, 600); // Animation duration
-        console.log('✅ Swap action dispatched successfully');
-      } catch (error) {
-        console.error('❌ Error dispatching swap action:', error);
-      }
-    } else {
-      console.log('❌ Drop conditions not met - no swap will occur');
-    }
-  }, [player.id, player.name, zone, dispatch]);
-
-  const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    e.preventDefault(); // Prevent any default touch behavior
-    
-    const touch = e.touches[0];
-    const rect = cardRef.current?.getBoundingClientRect();
-    
-    console.log('🎯 Touch start - IMMEDIATE DRAG:', { x: touch.clientX, y: touch.clientY });
-    
-    // Calculate offset immediately
-    const currentOffset = rect ? {
-      x: touch.clientX - rect.left,
-      y: touch.clientY - rect.top
-    } : { x: 0, y: 0 };
-    
-    setDragOffset(currentOffset);
-    setIsDragging(true);
-    setDragStarted(true);
-    
-    // Set global drag data
-    draggedElement = cardRef.current;
-    draggedData = { player, zone };
-    
-    // Create visual clone IMMEDIATELY (dnd-kit style)
-    if (cardRef.current) {
-      console.log('📋 Creating immediate drag clone (dnd-kit style)');
-      
-      // Remove any existing clone first
-      const existingClone = document.getElementById('dragging-clone');
-      if (existingClone) {
-        existingClone.remove();
-      }
-      
-      const clone = cardRef.current.cloneNode(true) as HTMLElement;
-      clone.id = 'dragging-clone';
-      
-      // dnd-kit style: High-performance overlay styling
-      clone.style.position = 'fixed';
-      clone.style.pointerEvents = 'none';
-      clone.style.zIndex = '10000';
-      clone.style.opacity = '0.9';
-      clone.style.transition = 'none';
-      clone.style.willChange = 'transform';
-      clone.style.backfaceVisibility = 'hidden';
-      clone.style.transform = 'translate3d(0, 0, 0)'; // Force GPU layer
-      
-      // Position it at current touch location
-      const x = touch.clientX - currentOffset.x;
-      const y = touch.clientY - currentOffset.y;
-      clone.style.transform = `translate3d(${x}px, ${y}px, 0) rotate(2deg) scale(1.05)`;
-      
-      // Enhanced visual feedback (like dnd-kit DragOverlay)
-      clone.style.boxShadow = '0 10px 25px rgba(0,0,0,0.3)';
-      clone.style.border = '2px solid #E91E63';
-      clone.style.borderRadius = '20px'; // Match your card styling
-      
-      document.body.appendChild(clone);
-      console.log('✅ Immediate clone added to DOM at position:', { x, y });
-    }
-    
-    console.log('📏 Drag offset calculated:', currentOffset);
-  }, [player, zone]);
-
-  const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    if (!isDragging || !dragStarted) return;
-    
-    e.preventDefault(); // CRITICAL: Prevent scrolling
-    
-    const touch = e.touches[0];
-    const clone = document.getElementById('dragging-clone');
-    
-    if (clone) {
-      // dnd-kit style: Smooth GPU-accelerated movement
-      const x = touch.clientX - dragOffset.x;
-      const y = touch.clientY - dragOffset.y;
-      clone.style.transform = `translate3d(${x}px, ${y}px, 0) rotate(2deg) scale(1.05)`;
-      // console.log('📍 Updating clone position:', { x, y }); // Comment out for performance
-    } else {
-      console.log('❌ Clone not found during move - should exist!');
-    }
-  }, [isDragging, dragOffset, dragStarted]);
-
-  // Enhanced touch end handler with swap support
-  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
-    console.log('🏁 Touch end - dragStarted:', dragStarted, 'isDragging:', isDragging);
-    
-    // Clean up clone FIRST (dnd-kit style cleanup)
-    const clone = document.getElementById('dragging-clone');
-    if (clone) {
-      console.log('🗑️ Removing drag clone');
-      clone.remove();
-    }
-    
-    // Only process drop if we actually started dragging
-    if (!dragStarted || !isDragging) {
-      console.log('❌ Not processing drop - resetting states');
-      setIsDragging(false);
-      setDragStarted(false);
-      draggedElement = null;
-      draggedData = null;
-      return;
-    }
-    
-    const touch = e.changedTouches[0];
-    console.log('👆 Final touch coordinates:', { x: touch.clientX, y: touch.clientY });
-    
-    // Drop detection (similar to dnd-kit collision detection)
-    const elementBelow = document.elementFromPoint(touch.clientX, touch.clientY);
-    console.log('🎯 Element below finger:', elementBelow);
-    
-    // Check for player card first (swap operation)
-    const playerCard = elementBelow?.closest('[data-player-id]');
-    if (playerCard && draggedData) {
-      const targetPlayerId = playerCard.getAttribute('data-player-id');
-      const targetZone = playerCard.getAttribute('data-zone');
-      
-      if (
-        targetPlayerId && 
-        targetZone === zone && 
-        targetPlayerId !== player.id &&
-        (zone.startsWith('court-') || zone.startsWith('queue-'))
-      ) {
-        console.log('✅ Performing player swap');
-        setIsSwapping(true);
-        setTimeout(() => setIsSwapping(false), 600);
-        dispatch(Action.swapPlayers(player.id, targetPlayerId, zone));
-      }
-    } else {
-      // Check for droppable zone (dnd-kit style zone detection)
-      const droppableZone = elementBelow?.closest('[data-droppable-zone]');
-      if (droppableZone && draggedData) {
-        const targetZone = droppableZone.getAttribute('data-droppable-zone');
-        
-        if (targetZone && targetZone !== zone) {
-          console.log('✅ Performing zone move');
-          dispatch(Action.movePlayer(player.id, zone, targetZone));
-        }
-      }
-    }
-    
-    // Reset all states (dnd-kit style cleanup)
-    console.log('🔄 Resetting all drag states');
-    setIsDragging(false);
-    setDragStarted(false);
-    draggedElement = null;
-    draggedData = null;
-  }, [isDragging, player.id, zone, dispatch, dragStarted, dragOffset]);
-
-  // Optimized timer effect
+  // Timer effect
   useEffect(() => {
     const updateTimer = () => {
       setElapsedSeconds(Math.floor((Date.now() - player.timeEntered) / 1000));
     };
 
-    updateTimer(); // Initial update
+    updateTimer();
     timerRef.current = setInterval(updateTimer, 1000);
 
     return () => {
@@ -514,7 +271,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
     };
   }, [player.timeEntered]);
 
-  // Debounced name update effect
+  // Name update effect
   useEffect(() => {
     if (nameUpdateTimeoutRef.current) {
       clearTimeout(nameUpdateTimeoutRef.current);
@@ -533,12 +290,11 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
     };
   }, [name, player.name, player.id, dispatch]);
 
-  // Sync external name changes
+  // Sync external changes
   useEffect(() => {
     setName(player.name);
   }, [player.name]);
 
-  // Sync games played
   useEffect(() => {
     setGamesPlayed(player.gamesPlayed.toString());
   }, [player.gamesPlayed]);
@@ -555,80 +311,83 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
     };
   }, []);
 
-  // Memoized formatted time
+  // Handle swap animation when dropped on
+  useEffect(() => {
+    if (isOver && !isDragging) {
+      setIsSwapping(true);
+      const timeout = setTimeout(() => setIsSwapping(false), 600);
+      return () => clearTimeout(timeout);
+    }
+  }, [isOver, isDragging]);
+
+  // Memoized values
   const formattedTime = useMemo(() => formatElapsedTime(elapsedSeconds), [elapsedSeconds]);
 
-  // Enhanced card styles with drop target indication
-  // Enhanced card styles with drop target indication and swap animation
+  // DND-Kit transform style
+  const style = {
+    transform: CSS.Translate.toString(transform),
+    touchAction: 'none',
+  };
+
+  // Enhanced card styles
   const enhancedCardStyles = useMemo(() => ({
     display: 'flex',
     width: '100%',
     maxWidth: isInTeamZone 
-      ? '100%'  // Fill available space in teams
+      ? '100%'
       : isMobile 
         ? '90vw' 
         : '200px',
-    minWidth: isInTeamZone ? '120px' : '160px', // Ensure minimum readable size
+    minWidth: isInTeamZone ? '120px' : '160px',
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: isInTeamZone 
-      ? '2px 4px'  // Tighter padding for team zones
+      ? '2px 4px'
       : isMobile 
         ? '4px 6px' 
         : '6px 8px',
-    backgroundColor: isDropTarget 
-      ? '#E8F5E9'  // Light green when drop target
+    backgroundColor: isOver && !isDragging
+      ? '#E8F5E9'
       : cardColors.backgroundColor,
     borderRadius: isInTeamZone ? '12px' : '20px',
-    boxShadow: isDropTarget 
-    ? '0 4px 12px rgba(233, 30, 99, 0.3)'  // Magenta shadow when drop target
-    : isSwapping
-      ? '0 0 20px rgba(233, 30, 99, 0.8)'  // Magenta glow when swapping
-      : '0 1px 3px rgba(0,0,0,0.1)',
-    cursor: 'grab',
+    boxShadow: isOver && !isDragging
+      ? '0 4px 12px rgba(233, 30, 99, 0.3)'
+      : isSwapping
+        ? '0 0 20px rgba(233, 30, 99, 0.8)'
+        : '0 1px 3px rgba(0,0,0,0.1)',
+    cursor: isDragging ? 'grabbing' : 'grab',
     margin: '0 auto 2px',
     color: cardColors.textColor,
     border: isSwapping
-    ? '3px solid #E91E63'  // Bright magenta border when swapping
-    : isDropTarget 
-      ? '2px solid #E91E63'  // Magenta border when drop target
-      : '1px solid rgba(0, 0, 0, 0.06)',
-    opacity: isDragging ? 0.5 : 1,
-    transform: isDropTarget 
-      ? 'scale(1.08)'  // Larger scale when drop target (more noticeable)
-      : (isDragging ? 'scale(0.95)' : 'scale(1)'),
+      ? '3px solid #E91E63'
+      : isOver && !isDragging
+        ? '2px solid #E91E63'
+        : '1px solid rgba(0, 0, 0, 0.06)',
+    opacity: isDragging && !isDragOverlay ? 0.5 : 1,
+    transform: isOver && !isDragging
+      ? 'scale(1.08)'
+      : 'scale(1)',
     transition: isSwapping 
-      ? 'border-color 0.15s ease-in-out, border-width 0.15s ease-in-out, box-shadow 0.15s ease-in-out'  // Quick flash transition for swap
-      : 'all 0.2s ease-in-out',  // Normal transition for other states
+      ? 'border-color 0.15s ease-in-out, border-width 0.15s ease-in-out, box-shadow 0.15s ease-in-out'
+      : 'all 0.2s ease-in-out',
     animation: isSwapping 
-      ? 'swapFlash 0.6s ease-in-out'  // Flash animation when swapping - references CSS keyframes
+      ? 'swapFlash 0.6s ease-in-out'
       : 'none',
-    touchAction: 'none',
     userSelect: 'none',
     WebkitUserSelect: 'none',
-    '&:active': {
-      cursor: 'grabbing',
-    },
-    willChange: 'transform, opacity',
+    willChange: 'transform',
     backfaceVisibility: 'hidden',
-  }), [isInTeamZone, isMobile, cardColors, isDragging, isDropTarget, isSwapping]);
+  }), [isInTeamZone, isMobile, cardColors, isDragging, isOver, isSwapping, isDragOverlay]);
+
   return (
-    <div className="flipped">
+    <div className="flipped" style={style}>
       <Card
-        ref={cardRef}
+        ref={setNodeRef}
         sx={enhancedCardStyles}
-        draggable
-        // Add data attributes for touch swap detection
+        {...listeners}
+        {...attributes}
         data-player-id={player.id}
         data-zone={zone}
-        onDragStart={handleDragStart}
-        onDragEnd={handleDragEnd}
-        onDragOver={handleDragOver} // Handle drag over for swap detection
-        onDragLeave={handleDragLeave} // Handle drag leave
-        onDrop={handleDrop} // Handle drop for swapping
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
       >
         <Box
           sx={{
