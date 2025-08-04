@@ -4,10 +4,11 @@ const ActionType = {
   SET_COURT_COUNT: "setCourtCount",
   ADD_PLAYERS_FROM_TEXT: "addPlayersFromText",
   CLEAR_ALL_PLAYERS: "clearAllPlayers",
-  CLEAR_ALL_DATA: "clearAllData",
+  CLEAR_ALL_DATA: "clearAllData", // 🆕 New action for clearing everything including localStorage
   MOVE_PLAYER: "movePlayer",
-  MOVE_PLAYER_TO_POSITION: "movePlayerToPosition", // 🆕 New action
-  SWAP_PLAYERS: "swapPlayers",
+  MOVE_PLAYER_TO_POSITION: "movePlayerToPosition", // 🆕 New action for position-specific moves
+  QUICK_MOVE_PLAYER: "quickMovePlayer", // 🆕 New action for quick add button and regular zone drops
+  SWAP_PLAYERS: "swapPlayers", // 🆕 Moved up to be with other player actions
   SET_GAMES_PLAYED: "setGamesPlayed",
   SET_PLAYER_TEXT_INPUT: "setPlayerTextInput",
   TOGGLE_TIMERS: "toggleTimers",
@@ -17,8 +18,8 @@ const ActionType = {
   END_GAME: "endGame",
   UPDATE_PLAYER_NAME: "updatePlayerName",
   RENAME_PLAYER: "renamePlayer",
-  CREATE_QUEUE: "createQueue",
-  REMOVE_QUEUE: "removeQueue",
+  CREATE_QUEUE: "createQueue", // 🆕 New action
+  REMOVE_QUEUE: "removeQueue", // 🆕 New action
 } as const;
 
 // 🧠 Action creators
@@ -62,6 +63,14 @@ const Action = {
     return {
       type: ActionType.MOVE_PLAYER_TO_POSITION,
       payload: { playerId, zone, position },
+    };
+  },
+
+  // 🆕 New action for quick add button and regular zone drops with auto-positioning
+  quickMovePlayer(id: string, from: string, to: string) {
+    return {
+      type: ActionType.QUICK_MOVE_PLAYER,
+      payload: { id, from, to },
     };
   },
 

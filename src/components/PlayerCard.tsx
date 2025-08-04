@@ -182,9 +182,10 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
   const handleQuickAdd = useCallback(() => {
     if (availableZone) {
       const sourceZone = zone === "all" ? "all" : "rest";
-      dispatch(Action.movePlayer(player.id, sourceZone, availableZone));
+      dispatch(Action.quickMovePlayer(player.id, sourceZone, availableZone));
     }
   }, [availableZone, zone, player.id, dispatch]);
+
 
   const handleGamesChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setGamesPlayed(e.target.value);

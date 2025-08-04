@@ -216,8 +216,12 @@ const CourtItem = React.memo<{
       }}
     >
       {[0, 1, 2, 3].map((position) => {
-        // Find player assigned to this position based on courtOrder
-        const playerInPosition = players.find(p => p.courtOrder === position);
+        // ✅ FIXED: Find player assigned to this position based on courtOrder
+        // AND ensure they are actually assigned to THIS court
+        const playerInPosition = players.find(p => 
+          p.courtOrder === position && 
+          p.status.includes(courtId as any) // Ensure player is actually on this court
+        );
         
         console.log(`🔍 Court ${courtId} Position ${position}:`, playerInPosition ? `${playerInPosition.name} (order: ${playerInPosition.courtOrder})` : 'Empty');
         

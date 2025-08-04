@@ -188,8 +188,12 @@ const QueueItem = React.memo<{
       }}
     >
       {[0, 1, 2, 3].map((position) => {
-        // Find player assigned to this position based on queueOrder
-        const playerInPosition = players.find(p => p.queueOrder === position);
+        // ✅ FIXED: Find player assigned to this position based on queueOrder
+        // AND ensure they are actually assigned to THIS queue
+        const playerInPosition = players.find(p => 
+          p.queueOrder === position && 
+          p.status.includes(queueId as any) // Ensure player is actually in this queue
+        );
         
         console.log(`🔍 Queue ${queueId} Position ${position}:`, playerInPosition ? `${playerInPosition.name} (order: ${playerInPosition.queueOrder})` : 'Empty');
         

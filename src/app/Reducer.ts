@@ -25,6 +25,10 @@ type Action =
   | {
       type: "movePlayerToPosition";
       payload: { playerId: string; zone: string; position: number };
+    }
+  | {
+      type: "quickMovePlayer";
+      payload: { id: string; from: string; to: string };
     };
 
 // Helper function to check if we should auto-create a new queue
@@ -136,12 +140,62 @@ function rebuildZoneMappings(
     const courtId = player.status.find((s) => s.startsWith("court-"));
     const queueId = player.status.find((s) => s.startsWith("queue-"));
 
-    if (courtId && playersByCourt[courtId] && player.courtOrder !== null) {
-      playersByCourt[courtId].push(player);
+    // ✅ FIXED: Add players to court even if courtOrder is null (assign order later)
+    if (courtId && playersByCourt[courtId]) {
+      // If courtOrder is null, assign next available position
+      if (player.courtOrder === null) {
+        const existingOrders = playersByCourt[courtId]
+          .filter((p) => p.courtOrder !== null)
+          .map((p) => p.courtOrder!);
+
+        // Find next available position
+        let nextOrder = 0;
+        while (existingOrders.includes(nextOrder) && nextOrder < 4) {
+          nextOrder++;
+        }
+
+        // Create updated player with assigned order
+        const updatedPlayer = { ...player, courtOrder: nextOrder };
+        playersByCourt[courtId].push(updatedPlayer);
+
+        // Update the original player in the players array (this will be reflected in the returned state)
+        player.courtOrder = nextOrder;
+
+        console.log(
+          `🔧 REBUILD: Auto-assigned courtOrder ${nextOrder} to ${player.name} in ${courtId}`
+        );
+      } else {
+        playersByCourt[courtId].push(player);
+      }
     }
 
-    if (queueId && playersByQueue[queueId] && player.queueOrder !== null) {
-      playersByQueue[queueId].push(player);
+    // ✅ FIXED: Add players to queue even if queueOrder is null (assign order later)
+    if (queueId && playersByQueue[queueId]) {
+      // If queueOrder is null, assign next available position
+      if (player.queueOrder === null) {
+        const existingOrders = playersByQueue[queueId]
+          .filter((p) => p.queueOrder !== null)
+          .map((p) => p.queueOrder!);
+
+        // Find next available position
+        let nextOrder = 0;
+        while (existingOrders.includes(nextOrder) && nextOrder < 4) {
+          nextOrder++;
+        }
+
+        // Create updated player with assigned order
+        const updatedPlayer = { ...player, queueOrder: nextOrder };
+        playersByQueue[queueId].push(updatedPlayer);
+
+        // Update the original player in the players array
+        player.queueOrder = nextOrder;
+
+        console.log(
+          `🔧 REBUILD: Auto-assigned queueOrder ${nextOrder} to ${player.name} in ${queueId}`
+        );
+      } else {
+        playersByQueue[queueId].push(player);
+      }
     }
   });
 
@@ -401,6 +455,9 @@ export default function reducer(state: any, action: Action) {
       };
     }
 
+    // ========================================
+    // MOVE_PLAYER case (no automatic positioning)
+    // ========================================
     case ActionType.MOVE_PLAYER: {
       const { id, from, to } = action.payload;
 
@@ -408,7 +465,7 @@ export default function reducer(state: any, action: Action) {
       if (!playerToMove) return state;
 
       console.log(
-        `🎯 MOVE_PLAYER: ${playerToMove.name} from "${from}" to "${to}"`
+        `🎯 MOVE_PLAYER: ${playerToMove.name} from "${from}" to "${to}" (no auto-positioning)`
       );
 
       const isToCourt = to.startsWith("court-");
@@ -501,28 +558,179 @@ export default function reducer(state: any, action: Action) {
         }
       }
 
-      // ✨ FIXED: Calculate next available position correctly for general zone drops
-      // let assignedPosition: number | null = null;
-      // if (isToCourt || isToQueue) {
-      //   // Get players currently in the target zone (BEFORE this move) and exclude the moving player
-      //   const currentTargetZonePlayers = state.players.filter(
-      //     (p: Player) => p.status.includes(to as PlayerStatus) && p.id !== id
-      //   );
-      //   assignedPosition = getNextAvailablePosition(
-      //     currentTargetZonePlayers,
-      //     to
-      //   );
-      //   console.log(
-      //     `📍 Calculated position ${assignedPosition} for ${playerToMove.name} in ${to} (${currentTargetZonePlayers.length} existing players)`
-      //   );
-      // }
+      // ✨ No automatic position assignment for MOVE_PLAYER
+      let updatedPlayer: Player = {
+        ...playerToMove,
+        status: newStatus,
+        timeEntered:
+          isToCourt && !existingCourt ? Date.now() : playerToMove.timeEntered,
+      };
 
-      // ✨ No automatic position assignment - let position-specific drops handle positioning
-      let assignedPosition: number | null = null;
-      // Position assignment is handled by MOVE_PLAYER_TO_POSITION action or stays null
+      // ✨ Update order fields based on move
+      if (isFromCourt && (to === "rest" || to === "all")) {
+        // Leaving court - clear court order
+        updatedPlayer = clearOrderFromPlayer(updatedPlayer, from);
+        console.log(`🧹 Cleared court order for ${updatedPlayer.name}`);
+      } else if (isFromQueue && (to === "rest" || to === "all")) {
+        // Leaving queue - clear queue order
+        updatedPlayer = clearOrderFromPlayer(updatedPlayer, from);
+        console.log(`🧹 Cleared queue order for ${updatedPlayer.name}`);
+      }
+
+      // No position assignment for MOVE_PLAYER - positions handled elsewhere
       console.log(
-        `🎯 MOVE_PLAYER: ${playerToMove.name} - no automatic position assignment`
+        `🎯 Player ${updatedPlayer.name} moved to ${to} - no position assigned (zone drop only)`
       );
+
+      const updatedPlayers = state.players.map((p: Player) =>
+        p.id === id ? updatedPlayer : p
+      );
+
+      // ✨ Rebuild using order fields
+      const { playersByCourt, playersByQueue } = rebuildZoneMappings(
+        updatedPlayers,
+        state.courts.count,
+        Object.keys(state.queue.playersByQueue)
+      );
+
+      console.log(
+        `✅ Move completed: ${updatedPlayer.name} status=${JSON.stringify(
+          updatedPlayer.status
+        )} court=${updatedPlayer.courtOrder} queue=${updatedPlayer.queueOrder}`
+      );
+
+      return {
+        ...state,
+        players: updatedPlayers,
+        courts: {
+          ...state.courts,
+          playersByCourt,
+        },
+        queue: {
+          ...state.queue,
+          playersByQueue,
+        },
+      };
+    }
+
+    // ========================================
+    // QUICK_MOVE_PLAYER case (with automatic positioning and auto-queue creation)
+    // ========================================
+    case ActionType.QUICK_MOVE_PLAYER: {
+      const { id, from, to } = action.payload;
+
+      const playerToMove = state.players.find((p: Player) => p.id === id);
+      if (!playerToMove) return state;
+
+      console.log(
+        `🚀 QUICK_MOVE_PLAYER: ${playerToMove.name} from "${from}" to "${to}" (with auto-positioning)`
+      );
+
+      const isToCourt = to.startsWith("court-");
+      const isToQueue = to.startsWith("queue-");
+      const isFromCourt = from.startsWith("court-");
+      const isFromQueue = from.startsWith("queue-");
+      const isFromRest = from === "rest" || from === "all";
+
+      // Prevent overfilling courts/queues (max 4)
+      const playersInTarget = state.players.filter((p: Player) =>
+        p.status.includes(to as PlayerStatus)
+      );
+      if (playersInTarget.length >= 4) {
+        console.log(`❌ Zone ${to} is full (${playersInTarget.length}/4)`);
+        return state;
+      }
+
+      // Get player's current statuses
+      const existingCourt = playerToMove.status.find(
+        (s: PlayerStatus): s is PlayerStatus => s.startsWith("court-")
+      );
+      const existingQueue = playerToMove.status.find(
+        (s: PlayerStatus): s is PlayerStatus => s.startsWith("queue-")
+      );
+
+      // Determine new status based on the move type (same logic as MOVE_PLAYER)
+      let newStatus: PlayerStatus[] = [];
+
+      // RULE 1: Moving between queue boxes - just replace the queue
+      if (isFromQueue && isToQueue) {
+        // If player has court status, keep it (advanced queue)
+        if (existingCourt) {
+          newStatus = [existingCourt, to as PlayerStatus];
+        } else {
+          newStatus = [to as PlayerStatus];
+        }
+      }
+      // RULE 2: Moving between court boxes - just replace the court
+      else if (isFromCourt && isToCourt) {
+        // If player has queue status, keep it (advanced queue)
+        if (existingQueue) {
+          newStatus = [to as PlayerStatus, existingQueue];
+        } else {
+          newStatus = [to as PlayerStatus];
+        }
+      }
+      // RULE 3: Moving from queue to court - MOVE not duplicate
+      else if (isFromQueue && isToCourt) {
+        newStatus = [to as PlayerStatus];
+      }
+      // RULE 4: Moving from court to queue - MOVE not duplicate
+      else if (isFromCourt && isToQueue) {
+        newStatus = [to as PlayerStatus];
+      }
+      // RULE 5: Moving from rest/player list
+      else if (isFromRest) {
+        if (isToCourt) {
+          // Check if player already has a court - if so, just update it
+          if (existingCourt) {
+            newStatus = existingQueue
+              ? [to as PlayerStatus, existingQueue]
+              : [to as PlayerStatus];
+          } else {
+            // No existing court, add court and keep queue if exists
+            newStatus = existingQueue
+              ? [to as PlayerStatus, existingQueue]
+              : [to as PlayerStatus];
+          }
+        } else if (isToQueue) {
+          // ADVANCED QUEUEING: If player is on court and dragged to queue from player list
+          if (existingCourt) {
+            newStatus = [existingCourt, to as PlayerStatus]; // TEAL status!
+          } else {
+            // Not on court, just add to queue
+            newStatus = [to as PlayerStatus];
+          }
+        }
+      }
+      // RULE 6: Moving back to rest - only remove the specific status being moved FROM
+      else if (to === "rest" || to === "all") {
+        if (isFromCourt) {
+          // Remove only court status, keep queue if exists
+          newStatus = existingQueue ? [existingQueue] : [];
+        } else if (isFromQueue) {
+          // Remove only queue status, keep court if exists
+          newStatus = existingCourt ? [existingCourt] : [];
+        } else {
+          // If moving from "all" zone (player list), clear all statuses
+          newStatus = [];
+        }
+      }
+
+      // ✨ AUTOMATIC POSITION ASSIGNMENT for quick moves
+      let assignedPosition: number | null = null;
+      if (isToCourt || isToQueue) {
+        // Get players currently in the target zone (BEFORE this move) and exclude the moving player
+        const currentTargetZonePlayers = state.players.filter(
+          (p: Player) => p.status.includes(to as PlayerStatus) && p.id !== id
+        );
+        assignedPosition = getNextAvailablePosition(
+          currentTargetZonePlayers,
+          to
+        );
+        console.log(
+          `📍 Auto-assigned position ${assignedPosition} for ${playerToMove.name} in ${to} (${currentTargetZonePlayers.length} existing players)`
+        );
+      }
 
       let updatedPlayer: Player = {
         ...playerToMove,
@@ -542,23 +750,18 @@ export default function reducer(state: any, action: Action) {
         console.log(`🧹 Cleared queue order for ${updatedPlayer.name}`);
       }
 
-      // // ✨ Assign new position if moving to a zone
-      // if (isToCourt && assignedPosition !== null) {
-      //   updatedPlayer.courtOrder = assignedPosition;
-      //   console.log(
-      //     `📍 Assigned court position ${assignedPosition} to ${updatedPlayer.name}`
-      //   );
-      // } else if (isToQueue && assignedPosition !== null) {
-      //   updatedPlayer.queueOrder = assignedPosition;
-      //   console.log(
-      //     `📍 Assigned queue position ${assignedPosition} to ${updatedPlayer.name}`
-      //   );
-      // }
-
-      // ✨ No automatic position assignment - positions handled by DroppableZone with position prop
-      console.log(
-        `🎯 Player ${updatedPlayer.name} moved to ${to} - position will be set by position-specific drop`
-      );
+      // ✨ Assign new position if moving to a zone
+      if (isToCourt && assignedPosition !== null) {
+        updatedPlayer.courtOrder = assignedPosition;
+        console.log(
+          `📍 Assigned court position ${assignedPosition} to ${updatedPlayer.name}`
+        );
+      } else if (isToQueue && assignedPosition !== null) {
+        updatedPlayer.queueOrder = assignedPosition;
+        console.log(
+          `📍 Assigned queue position ${assignedPosition} to ${updatedPlayer.name}`
+        );
+      }
 
       // ✨ Handle order updates for zone-to-zone moves
       if (isFromQueue && isToQueue && from !== to) {
@@ -600,7 +803,7 @@ export default function reducer(state: any, action: Action) {
         Object.keys(state.queue.playersByQueue)
       );
 
-      // Check if we should auto-create a new queue after this move
+      // ✨ Check if we should auto-create a new queue after this move
       const tempState = {
         ...state,
         players: updatedPlayers,
@@ -614,10 +817,11 @@ export default function reducer(state: any, action: Action) {
       if (isToQueue && shouldAutoCreateQueue(tempState)) {
         const newQueueId = getNextQueueId(tempState);
         finalPlayersByQueue = { ...playersByQueue, [newQueueId]: [] };
+        console.log(`🆕 Auto-created new queue: ${newQueueId}`);
       }
 
       console.log(
-        `✅ Move completed: ${updatedPlayer.name} status=${JSON.stringify(
+        `✅ Quick move completed: ${updatedPlayer.name} status=${JSON.stringify(
           updatedPlayer.status
         )} court=${updatedPlayer.courtOrder} queue=${updatedPlayer.queueOrder}`
       );

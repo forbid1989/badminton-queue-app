@@ -143,21 +143,22 @@ const DroppableZone: React.FC<DroppableZoneProps> = React.memo(({ zone, players,
         return;
       }
 
-      // ✨ Handle position-specific drops
+      // ✨ Handle position-specific drops (P1, P2, P3, P4 grid boxes)
       if (positionRef.current !== undefined) {
         console.log(`🎯 Position-specific drop: Moving ${player.name} to ${zoneRef.current} position ${positionRef.current}`);
         dispatch(Action.movePlayerToPosition(player.id, zoneRef.current, positionRef.current));
         return;
       }
 
-      // Regular zone drops
+      // ✨ FIXED: Regular zone drops should use quickMovePlayer for auto-positioning
       if (from === zoneRef.current) {
         console.log(`❌ No-op: Same zone ${from} === ${zoneRef.current}`);
         return; // no-op if dropped into same zone
       }
 
-      console.log(`🎯 Zone drop: Moving ${player.name} from "${from}" to "${zoneRef.current}"`);
-      dispatch(Action.movePlayer(player.id, from, zoneRef.current));
+      console.log(`🎯 Zone drop with auto-positioning: Moving ${player.name} from "${from}" to "${zoneRef.current}"`);
+      // ✨ Use quickMovePlayer instead of movePlayer for automatic position assignment
+      dispatch(Action.quickMovePlayer(player.id, from, zoneRef.current));
     } catch (error) {
       console.error('Error parsing player data:', error);
     }
