@@ -8,25 +8,38 @@ type DroppableZoneProps = {
   zone: string;
   players: Player[];
   children?: React.ReactNode;
-  sx?: object
+  sx?: object;
+  position?: number; // ✨ Optional position for position-specific zones
 };
 
-const DroppableZone: React.FC<DroppableZoneProps> = React.memo(({ zone, players, children, sx }) => {
+const DroppableZone: React.FC<DroppableZoneProps> = React.memo(({ zone, players, children, sx, position }) => {
   const { dispatch } = useContext(AppContext);
   const [isHovered, setIsHovered] = useState(false);
   
   // Use refs to store current values for event handlers
   const zoneRef = useRef(zone);
+  const positionRef = useRef(position);
   const isFullRef = useRef(false);
   
   // Memoize isFull calculation
-  const isFull = useMemo(() => players.length >= 4, [players.length]);
+  const isFull = useMemo(() => {
+    // For position-specific zones, they can only hold 1 player
+    if (position !== undefined) {
+      return players.length >= 1;
+    }
+    // For main zones, max 4 players
+    return players.length >= 4;
+  }, [players.length, position]);
   
   // Update refs when values change
   useEffect(() => {
     zoneRef.current = zone;
+    positionRef.current = position;
     isFullRef.current = isFull;
-  }, [zone, isFull]);
+  }, [zone, position, isFull]);
+
+  // Determine if this is a position-specific zone
+  const isPositionZone = position !== undefined;
 
   // Memoized zone background calculation
   const zoneBackground = useMemo(() => {
@@ -36,37 +49,71 @@ const DroppableZone: React.FC<DroppableZoneProps> = React.memo(({ zone, players,
     return '#FAFAFA';
   }, [zone]);
 
-  // Memoized border color calculation
+  // Memoized border color calculation - Enhanced for position-specific zones
   const borderColor = useMemo(() => {
+    if (isPositionZone) {
+      // Position-specific zones get more prominent hover effects
+      if (isFull) return '#D5C96A';
+      if (isHovered) return '#FF6B35'; // More vibrant orange for position drops
+      return players.length > 0 ? 'rgba(255,255,255,0.6)' : 'rgba(255,255,255,0.3)';
+    }
+    
     if (isFull) return '#D5C96A';
     if (isHovered) return '#4CAF50';
     return '#CAD4CC';
-  }, [isFull, isHovered]);
+  }, [isFull, isHovered, isPositionZone, players.length]);
 
-  // Memoized background color calculation
+  // Memoized background color calculation - Enhanced for position-specific zones
   const backgroundColor = useMemo(() => {
+    if (isPositionZone) {
+      if (isHovered) return 'rgba(255, 107, 53, 0.2)'; // Orange tint for position drops
+      return players.length > 0 ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.1)';
+    }
+    
     return isHovered ? '#E8F5E9' : zoneBackground;
-  }, [isHovered, zoneBackground]);
+  }, [isHovered, zoneBackground, isPositionZone, players.length]);
 
-  // Memoized transform calculation
+  // Memoized transform calculation - Enhanced for position-specific zones
   const transform = useMemo(() => {
+    if (isPositionZone) {
+      return isHovered ? 'scale(1.08)' : 'scale(1)'; // Bigger scale for position zones
+    }
     return isHovered ? 'scale(1.02)' : 'scale(1)';
-  }, [isHovered]);
+  }, [isHovered, isPositionZone]);
+
+  // Memoized box shadow for enhanced visual feedback
+  const boxShadow = useMemo(() => {
+    if (isPositionZone && isHovered) {
+      return '0 4px 12px rgba(255, 107, 53, 0.4)'; // Orange glow for position drops
+    }
+    if (isHovered) {
+      return '0 2px 8px rgba(76, 175, 80, 0.3)'; // Green glow for regular zones
+    }
+    return 'none';
+  }, [isHovered, isPositionZone]);
 
   // Memoized combined styles
   const combinedSx = useMemo(() => ({
-    border: `2px dashed ${borderColor}`,
-    borderRadius: 2,
-    padding: 2,
-    marginBottom: 3,
+    border: `2px ${isPositionZone ? 'solid' : 'dashed'} ${borderColor}`,
+    borderRadius: isPositionZone ? 1 : 2,
+    padding: isPositionZone ? 0.5 : 2,
+    marginBottom: isPositionZone ? 0 : 3,
     backgroundColor,
-    minHeight: 80,
-    transition: 'all 0.2s ease',
+    minHeight: isPositionZone ? 35 : 80,
+    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)', // Smoother transition
     transform,
+    boxShadow,
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
     '&.touch-hover': {
-      backgroundColor: '#E8F5E9',
-      borderColor: '#4CAF50',
-      transform: 'scale(1.02)',
+      backgroundColor: isPositionZone ? 'rgba(255, 107, 53, 0.2)' : '#E8F5E9',
+      borderColor: isPositionZone ? '#FF6B35' : '#4CAF50',
+      transform: isPositionZone ? 'scale(1.08)' : 'scale(1.02)',
+      boxShadow: isPositionZone 
+        ? '0 4px 12px rgba(255, 107, 53, 0.4)' 
+        : '0 2px 8px rgba(76, 175, 80, 0.3)',
     },
     // Add CSS for touch swap targets
     '& [data-player-id].touch-swap-target': {
@@ -75,7 +122,7 @@ const DroppableZone: React.FC<DroppableZoneProps> = React.memo(({ zone, players,
       transform: 'scale(1.05)',
     },
     ...sx
-  }), [borderColor, backgroundColor, transform, sx]);
+  }), [borderColor, backgroundColor, transform, boxShadow, isPositionZone, sx]);
 
   // Optimized drag handlers with useCallback
   const handleDrop = useCallback((e: React.DragEvent) => {
@@ -96,9 +143,20 @@ const DroppableZone: React.FC<DroppableZoneProps> = React.memo(({ zone, players,
         return;
       }
 
-      // Regular move operation
-      if (from === zoneRef.current) return; // no-op if dropped into same zone
+      // ✨ Handle position-specific drops
+      if (positionRef.current !== undefined) {
+        console.log(`🎯 Position-specific drop: Moving ${player.name} to ${zoneRef.current} position ${positionRef.current}`);
+        dispatch(Action.movePlayerToPosition(player.id, zoneRef.current, positionRef.current));
+        return;
+      }
 
+      // Regular zone drops
+      if (from === zoneRef.current) {
+        console.log(`❌ No-op: Same zone ${from} === ${zoneRef.current}`);
+        return; // no-op if dropped into same zone
+      }
+
+      console.log(`🎯 Zone drop: Moving ${player.name} from "${from}" to "${zoneRef.current}"`);
       dispatch(Action.movePlayer(player.id, from, zoneRef.current));
     } catch (error) {
       console.error('Error parsing player data:', error);
@@ -107,13 +165,18 @@ const DroppableZone: React.FC<DroppableZoneProps> = React.memo(({ zone, players,
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
-    if (!isFullRef.current) {
+    
+    // For position-specific zones or non-full regular zones, allow hover
+    if (isPositionZone || !isFullRef.current) {
       setIsHovered(true);
     }
-  }, []);
+  }, [isPositionZone]);
 
-  const handleDragLeave = useCallback(() => {
-    setIsHovered(false);
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    // Only clear hover if we're actually leaving this element
+    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+      setIsHovered(false);
+    }
   }, []);
 
   // Enhanced touch handlers to support swap operations
@@ -136,12 +199,13 @@ const DroppableZone: React.FC<DroppableZoneProps> = React.memo(({ zone, players,
       // Hovering over a player in the same zone - potential swap
       playerCard.classList.add('touch-swap-target');
     } else if (droppableZone && 
-               droppableZone.getAttribute('data-droppable-zone') === zoneRef.current && 
-               !isFullRef.current) {
-      // Hovering over the zone itself - regular move
-      droppableZone.classList.add('touch-hover');
+               droppableZone.getAttribute('data-droppable-zone') === zoneRef.current) {
+      // For position-specific zones or non-full regular zones
+      if (isPositionZone || !isFullRef.current) {
+        droppableZone.classList.add('touch-hover');
+      }
     }
-  }, []);
+  }, [isPositionZone]);
 
   const handleTouchEnd = useCallback(() => {
     // Remove all hover states
@@ -169,6 +233,7 @@ const DroppableZone: React.FC<DroppableZoneProps> = React.memo(({ zone, players,
   return (
     <Box
       data-droppable-zone={zone}
+      data-position={position}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}

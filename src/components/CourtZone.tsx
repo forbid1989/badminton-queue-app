@@ -109,76 +109,6 @@ const BadmintonCourtBackground = React.memo(() => (
 
 BadmintonCourtBackground.displayName = 'BadmintonCourtBackground';
 
-// Team display component
-const TeamDisplay = React.memo<{
-  players: Player[];
-  courtId: string;
-  teamLabel: string;
-  isLeftSide?: boolean;
-}>(({ players, courtId, teamLabel, isLeftSide = false }) => (
-  <Box
-    sx={{
-      flex: 1,
-      minHeight: '60px',
-      backgroundColor: 'rgba(255,255,255,0.1)',
-      borderRadius: 1,
-      border: '2px dashed rgba(255,255,255,0.3)',
-      p: 0.5,
-      display: 'flex',
-      flexDirection: 'column',
-      gap: 0.5,
-      position: 'relative',
-    }}
-  >
-    <Typography
-      variant="caption"
-      sx={{
-        fontSize: '0.6rem',
-        color: 'rgba(255,255,255,0.8)',
-        textAlign: 'center',
-        fontWeight: 'bold',
-        textTransform: 'uppercase',
-        letterSpacing: '0.5px',
-      }}
-    >
-      {teamLabel}
-    </Typography>
-    
-    {players.length === 0 ? (
-      <Box
-        sx={{
-          flex: 1,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        <Typography
-          variant="body2"
-          sx={{
-            fontSize: '0.6rem',
-            color: 'rgba(255,255,255,0.6)',
-            textAlign: 'center',
-            fontStyle: 'italic',
-          }}
-        >
-          Drop players here
-        </Typography>
-      </Box>
-    ) : (
-      <Grid container spacing={0.25}>
-        {players.map((player, index) => (
-          <Grid key={player.id} size={{ xs: 12 }}>
-            <PlayerCard player={player} zone={courtId} />
-          </Grid>
-        ))}
-      </Grid>
-    )}
-  </Box>
-));
-
-TeamDisplay.displayName = 'TeamDisplay';
-
 // Match format chip component
 const MatchFormatChip = React.memo<{ format: string; playerCount: number }>(
   ({ format, playerCount }) => {
@@ -215,6 +145,9 @@ const MatchFormatChip = React.memo<{ format: string; playerCount: number }>(
 );
 
 MatchFormatChip.displayName = 'MatchFormatChip';
+
+// Position labels for court grid
+const POSITION_LABELS = ['P1', 'P2', 'P3', 'P4'];
 
 // Memoized Court Item Component
 const CourtItem = React.memo<{
@@ -270,72 +203,53 @@ const CourtItem = React.memo<{
     onEndGame(courtId);
   }, [courtId, onEndGame]);
 
-  // Memoized empty state
-  const emptyState = useMemo(() => (
+  // Memoized 2x2 position grid for court
+  const courtPositionGrid = useMemo(() => (
     <Box
       sx={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
+        display: 'grid',
+        gridTemplateColumns: '1fr 1fr',
+        gridTemplateRows: '1fr 1fr',
+        gap: 0.5,
         height: '80px',
-        backgroundColor: 'rgba(255,255,255,0.1)',
-        borderRadius: 1,
-        border: '2px dashed rgba(255,255,255,0.3)',
+        width: '100%',
       }}
     >
-      <Typography 
-        variant="body2" 
-        sx={{ 
-          fontSize: '0.7rem', 
-          color: 'rgba(255,255,255,0.8)',
-          textAlign: 'center',
-        }}
-      >
-        🏸 Court Available
-        <br />
-        <Box component="span" sx={{ fontSize: '0.6rem', opacity: 0.8 }}>
-          Drag players to start a match
-        </Box>
-      </Typography>
-    </Box>
-  ), []);
-
-  // Memoized match display
-  const matchDisplay = useMemo(() => {
-    if (matchFormat.format === 'Empty') {
-      return emptyState;
-    }
-
-    if (matchFormat.format === 'Waiting' || matchFormat.format === 'Overflow') {
-      return (
-        <Grid container spacing={1}>
-          {players.map((player) => (
-            <Grid size={{ xs: 12, sm: 6 }} key={player.id}>
-              <PlayerCard player={player} zone={courtId} />
-            </Grid>
-          ))}
-        </Grid>
-      );
-    }
-
-    // For organized matches (1v1, 2v1, 2v2) - Remove VS label
-    return (
-      <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'stretch' }}>
-        <TeamDisplay
-          players={matchFormat.teams[0] || []}
-          courtId={courtId}
-          teamLabel="Team A"
-          isLeftSide={true}
-        />
+      {[0, 1, 2, 3].map((position) => {
+        // Find player assigned to this position based on courtOrder
+        const playerInPosition = players.find(p => p.courtOrder === position);
         
-        <TeamDisplay
-          players={matchFormat.teams[1] || []}
-          courtId={courtId}
-          teamLabel="Team B"
-        />
-      </Box>
-    );
-  }, [matchFormat, players, courtId, emptyState]);
+        console.log(`🔍 Court ${courtId} Position ${position}:`, playerInPosition ? `${playerInPosition.name} (order: ${playerInPosition.courtOrder})` : 'Empty');
+        
+        return (
+          <DroppableZone
+            key={`${courtId}-position-${position}`}
+            zone={courtId} // ✨ Use regular zone name, not "court-0-pos-2"
+            position={position} // ✨ Pass position as prop
+            players={playerInPosition ? [playerInPosition] : []}
+          >
+            {playerInPosition ? (
+              <PlayerCard player={playerInPosition} zone={courtId} />
+            ) : (
+              <Typography 
+                variant="body2" 
+                sx={{ 
+                  fontSize: '0.5rem', 
+                  color: 'rgba(255,255,255,0.6)',
+                  textAlign: 'center',
+                  fontWeight: 'bold',
+                  userSelect: 'none',
+                  pointerEvents: 'none',
+                }}
+              >
+                {POSITION_LABELS[position]}
+              </Typography>
+            )}
+          </DroppableZone>
+        );
+      })}
+    </Box>
+  ), [courtId, players]);
 
   return (
     <Grid size={{ xs: 12, sm: 6 }}>
@@ -357,6 +271,7 @@ const CourtItem = React.memo<{
             position: 'relative',
             zIndex: 2,
             height: '100%',
+            width: '100%',
           }}
         >
           {/* Header with court name, format chip, and end game button */}
@@ -457,8 +372,8 @@ const CourtItem = React.memo<{
             </Box>
           </Box>
 
-          {/* Match display area */}
-          {matchDisplay}
+          {/* Court Position Grid - Always show the 2x2 grid */}
+          {courtPositionGrid}
         </Box>
       </DroppableZone>
     </Grid>
@@ -489,6 +404,10 @@ const CourtZone: React.FC<CourtZoneProps> = ({ courtCount }) => {
       
       // Use the pre-calculated zone mapping instead of filtering players
       const courtPlayers = state.courts.playersByCourt[courtId] || [];
+      
+      // Debug: Log court players and their order
+      console.log(`🏟️ Court ${courtId} players:`, courtPlayers.map(p => `${p.name} (order: ${p.courtOrder})`));
+      
       courts.push({ courtId, players: courtPlayers, index });
     }
     

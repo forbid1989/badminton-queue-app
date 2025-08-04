@@ -1,7 +1,6 @@
 import React, { useContext, useMemo, useCallback } from 'react';
 import Grid from '@mui/material/Grid';
 import { Typography, Button, Box, Chip, IconButton } from '@mui/material';
-import { Flipper, Flipped } from 'react-flip-toolkit';
 import AddIcon from '@mui/icons-material/Add';
 import CloseIcon from '@mui/icons-material/Close';
 import { Player } from '../types/Player';
@@ -65,6 +64,7 @@ const QueueFormatChip = React.memo<{ format: string; playerCount: number }>(
           height: '20px',
           fontWeight: 'bold',
           border: '1px solid rgba(0,0,0,0.2)',
+          backdropFilter: 'blur(4px)',
         }}
       />
     );
@@ -73,73 +73,61 @@ const QueueFormatChip = React.memo<{ format: string; playerCount: number }>(
 
 QueueFormatChip.displayName = 'QueueFormatChip';
 
-// Team display component for queues
-const QueueTeamDisplay = React.memo<{
-  players: Player[];
-  queueId: string;
-  teamLabel: string;
-}>(({ players, queueId, teamLabel }) => (
-  <Box
-    sx={{
-      flex: 1,
-      minHeight: '50px',
-      backgroundColor: 'rgba(255,255,255,0.2)',
-      borderRadius: 1,
-      border: '2px dashed rgba(0,0,0,0.2)',
-      p: 0.5,
-      display: 'flex',
-      flexDirection: 'column',
-      gap: 0.5,
+// Position labels for queue grid
+const QUEUE_POSITION_LABELS = ['P1', 'P2', 'P3', 'P4'];
+
+// ✨ Memoized Queue Background SVG Component (similar to court)
+const QueueBackground = React.memo(() => (
+  <svg
+    width="100%"
+    height="100%"
+    viewBox="0 0 300 100"
+    style={{
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      zIndex: 0,
+      opacity: 0.2,
     }}
+    preserveAspectRatio="none"
   >
-    <Typography
-      variant="caption"
-      sx={{
-        fontSize: '0.55rem',
-        color: 'rgba(0,0,0,0.7)',
-        textAlign: 'center',
-        fontWeight: 'bold',
-        textTransform: 'uppercase',
-        letterSpacing: '0.5px',
-      }}
-    >
-      {teamLabel}
-    </Typography>
+    {/* Queue waiting area outline */}
+    <rect
+      x="20"
+      y="20"
+      width="260"
+      height="60"
+      fill="none"
+      stroke="rgba(0,0,0,0.3)"
+      strokeWidth="2"
+      strokeDasharray="8,4"
+      rx="8"
+    />
     
-    {players.length === 0 ? (
-      <Box
-        sx={{
-          flex: 1,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        <Typography
-          variant="body2"
-          sx={{
-            fontSize: '0.55rem',
-            color: 'rgba(0,0,0,0.5)',
-            textAlign: 'center',
-            fontStyle: 'italic',
-          }}
-        >
-          Waiting
-        </Typography>
-      </Box>
-    ) : (
-      <Grid container spacing={0.25}>
-        {players.map((player) => (
-          <Grid key={player.id} size={{ xs: 12 }}>
-            <PlayerCard player={player} zone={queueId} />
-          </Grid>
-        ))}
-      </Grid>
-    )}
-  </Box>
+    {/* Queue direction arrow */}
+    <path
+      d="M 40 50 L 80 50 M 70 40 L 80 50 L 70 60"
+      stroke="rgba(0,0,0,0.3)"
+      strokeWidth="2"
+      fill="none"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+    
+    {/* Waiting positions indicators */}
+    <circle cx="120" cy="35" r="3" fill="rgba(0,0,0,0.2)" />
+    <circle cx="160" cy="35" r="3" fill="rgba(0,0,0,0.2)" />
+    <circle cx="120" cy="65" r="3" fill="rgba(0,0,0,0.2)" />
+    <circle cx="160" cy="65" r="3" fill="rgba(0,0,0,0.2)" />
+    
+    {/* Queue text */}
+    <text x="220" y="55" fontSize="12" fill="rgba(0,0,0,0.3)" fontFamily="Arial, sans-serif">
+      QUEUE
+    </text>
+  </svg>
 ));
 
-QueueTeamDisplay.displayName = 'QueueTeamDisplay';
+QueueBackground.displayName = 'QueueBackground';
 
 // Memoized queue item component
 const QueueItem = React.memo<{
@@ -187,81 +175,53 @@ const QueueItem = React.memo<{
     onRemoveQueue(queueId);
   }, [queueId, onRemoveQueue]);
 
-  // Memoized the flip key for animations
-  const flipKey = useMemo(() => 
-    players.map(p => p.id).join(','), 
-    [players]
-  );
-
-  // Memoized the empty message
-  const emptyMessage = useMemo(() => (
+  // Memoized 2x2 position grid for queue
+  const queuePositionGrid = useMemo(() => (
     <Box
       sx={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
+        display: 'grid',
+        gridTemplateColumns: '1fr 1fr',
+        gridTemplateRows: '1fr 1fr',
+        gap: 0.5,
         height: '60px',
-        backgroundColor: 'rgba(255,255,255,0.1)',
-        borderRadius: 1,
-        border: '2px dashed rgba(0,0,0,0.2)',
+        width: '100%',
       }}
     >
-      <Typography 
-        variant="body2" 
-        sx={{ 
-          fontSize: '0.7rem', 
-          color: 'rgba(0,0,0,0.6)',
-          textAlign: 'center',
-        }}
-      >
-        ⏳ Queue Available
-        <br />
-        <Box component="span" sx={{ fontSize: '0.6rem', opacity: 0.8 }}>
-          Drag players to queue for next game
-        </Box>
-      </Typography>
-    </Box>
-  ), []);
-
-  // Memoized the queue display
-  const queueDisplay = useMemo(() => {
-    if (queueFormat.format === 'Empty') {
-      return emptyMessage;
-    }
-
-    if (queueFormat.format === 'Solo' || queueFormat.format === 'Overflow') {
-      return (
-        <Flipper flipKey={flipKey}>
-          <Grid container spacing={1}>
-            {players.map((player) => (
-              <Flipped key={player.id} flipId={player.id}>
-                <Grid size={{ xs: 12, sm: 6 }}>
-                  <PlayerCard player={player} zone={queueId} />
-                </Grid>
-              </Flipped>
-            ))}
-          </Grid>
-        </Flipper>
-      );
-    }
-
-    // For organized queues (1v1 Ready, 2v1 Ready, 2v2 Ready) - Remove VS label
-    return (
-      <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'stretch' }}>
-        <QueueTeamDisplay
-          players={queueFormat.teams[0] || []}
-          queueId={queueId}
-          teamLabel="Team A"
-        />
+      {[0, 1, 2, 3].map((position) => {
+        // Find player assigned to this position based on queueOrder
+        const playerInPosition = players.find(p => p.queueOrder === position);
         
-        <QueueTeamDisplay
-          players={queueFormat.teams[1] || []}
-          queueId={queueId}
-          teamLabel="Team B"
-        />
-      </Box>
-    );
-  }, [queueFormat, players, queueId, flipKey, emptyMessage]);
+        console.log(`🔍 Queue ${queueId} Position ${position}:`, playerInPosition ? `${playerInPosition.name} (order: ${playerInPosition.queueOrder})` : 'Empty');
+        
+        return (
+          <DroppableZone
+            key={`${queueId}-position-${position}`}
+            zone={queueId} // ✨ Use regular zone name, not "queue-0-pos-2"
+            position={position} // ✨ Pass position as prop
+            players={playerInPosition ? [playerInPosition] : []}
+          >
+            {playerInPosition ? (
+              <PlayerCard player={playerInPosition} zone={queueId} />
+            ) : (
+              <Typography 
+                variant="body2" 
+                sx={{ 
+                  fontSize: '0.45rem', 
+                  color: 'rgba(0,0,0,0.5)',
+                  textAlign: 'center',
+                  fontWeight: 'bold',
+                  userSelect: 'none',
+                  pointerEvents: 'none',
+                }}
+              >
+                {QUEUE_POSITION_LABELS[position]}
+              </Typography>
+            )}
+          </DroppableZone>
+        );
+      })}
+    </Box>
+  ), [queueId, players]);
 
   return (
     <Grid size={{ xs: 12, sm: 6 }}>
@@ -270,90 +230,106 @@ const QueueItem = React.memo<{
         players={players}
         sx={{ 
           backgroundColor: '#FBC02D',
+          color: '#333',
+          position: 'relative',
           minHeight: '120px',
           background: 'linear-gradient(135deg, #FBC02D 0%, #F9A825 100%)',
         }}
       >
-        {/* Header: Queue title, format chip, remove button, and transfer button */}
+        <QueueBackground />
+        
         <Box
-          display="flex"
-          justifyContent="space-between"
-          alignItems="center"
-          mb={1}
-          flexWrap="wrap"
-          gap={0.5}
+          sx={{
+            position: 'relative',
+            zIndex: 2,
+            height: '100%',
+            width: '100%',
+          }}
         >
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flex: 1 }}>
-            <Typography
-              variant="h6"
-              sx={{
-                fontSize: 'clamp(0.65rem, 0.9vw, 0.85rem)',
-                fontWeight: 'bold',
-                color: '#333',
-                padding: '2px 4px',
-              }}
-            >
-              ⏳ Queue {index + 1}
-            </Typography>
-            
-            {/* Remove queue button - only show if we can remove */}
-            {canRemove && (
-              <IconButton
-                size="small"
-                onClick={handleRemove}
+          {/* Header: Queue title, format chip, remove button, and transfer button */}
+          <Box
+            display="flex"
+            justifyContent="space-between"
+            alignItems="center"
+            mb={1}
+            flexWrap="wrap"
+            gap={0.5}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flex: 1 }}>
+              <Typography
+                variant="h6"
                 sx={{
-                  padding: '2px',
-                  backgroundColor: 'rgba(244,67,54,0.8)',
-                  color: 'white',
-                  '&:hover': {
-                    backgroundColor: 'rgba(244,67,54,0.9)',
-                  },
+                  fontSize: 'clamp(0.65rem, 0.9vw, 0.85rem)',
+                  fontWeight: 'bold',
+                  color: '#333',
+                  padding: '2px 4px',
+                  textShadow: '1px 1px 2px rgba(255,255,255,0.3)',
                 }}
-                title="Remove this queue"
               >
-                <CloseIcon sx={{ fontSize: '0.7rem' }} />
-              </IconButton>
-            )}
+                ⏳ Queue {index + 1}
+              </Typography>
+              
+              {/* Remove queue button - only show if we can remove */}
+              {canRemove && (
+                <IconButton
+                  size="small"
+                  onClick={handleRemove}
+                  sx={{
+                    padding: '2px',
+                    backgroundColor: 'rgba(244,67,54,0.8)',
+                    color: 'white',
+                    '&:hover': {
+                      backgroundColor: 'rgba(244,67,54,0.9)',
+                    },
+                  }}
+                  title="Remove this queue"
+                >
+                  <CloseIcon sx={{ fontSize: '0.7rem' }} />
+                </IconButton>
+              )}
+            </Box>
+
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              <QueueFormatChip format={queueFormat.format} playerCount={players.length} />
+              
+              {players.length > 0 && (
+                <Button
+                  variant="contained"
+                  size="small"
+                  disabled={isTransferDisabled}
+                  onClick={handleTransfer}
+                  sx={{
+                    fontSize: '0.65rem',
+                    padding: '2px 6px',
+                    backgroundColor: 'rgba(74, 63, 28, 0.8)',
+                    textTransform: 'none',
+                    backdropFilter: 'blur(4px)',
+                    border: '1px solid rgba(0,0,0,0.2)',
+                    '&:hover': {
+                      backgroundColor: 'rgba(58, 50, 26, 0.9)',
+                    },
+                    '&:disabled': {
+                      backgroundColor: 'rgba(0,0,0,0.12)',
+                      color: 'rgba(0,0,0,0.26)',
+                    },
+                  }}
+                  title={
+                    isTransferDisabled
+                      ? players.some(p => p.status.some(s => s.startsWith('court-')))
+                        ? "Players already on court"
+                        : "All courts are full"
+                      : `Transfer to available court (${Object.values(courtOccupancy).filter(count => count < MAX_PLAYERS_PER_COURT).length} courts available)`
+                  }
+                >
+                  Transfer to Court
+                </Button>
+              )}
+            </Box>
           </Box>
 
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-            <QueueFormatChip format={queueFormat.format} playerCount={players.length} />
-            
-            {players.length > 0 && (
-              <Button
-                variant="contained"
-                size="small"
-                disabled={isTransferDisabled}
-                onClick={handleTransfer}
-                sx={{
-                  fontSize: '0.65rem',
-                  padding: '2px 6px',
-                  backgroundColor: '#4A3F1C',
-                  textTransform: 'none',
-                  '&:hover': {
-                    backgroundColor: '#3A321A',
-                  },
-                  '&:disabled': {
-                    backgroundColor: 'rgba(0,0,0,0.12)',
-                    color: 'rgba(0,0,0,0.26)',
-                  },
-                }}
-                title={
-                  isTransferDisabled
-                    ? players.some(p => p.status.some(s => s.startsWith('court-')))
-                      ? "Players already on court"
-                      : "All courts are full"
-                    : `Transfer to available court (${Object.values(courtOccupancy).filter(count => count < MAX_PLAYERS_PER_COURT).length} courts available)`
-                }
-              >
-                Transfer to Court
-              </Button>
-            )}
-          </Box>
+          {/* Queue Position Grid - Always show the 2x2 grid */}
+          {queuePositionGrid}
         </Box>
-
-        {/* Queue display area */}
-        {queueDisplay}
       </DroppableZone>
     </Grid>
   );
@@ -434,6 +410,10 @@ const QueueZone: React.FC<QueueZoneProps> = ({ courtCount }) => {
     queueIds.forEach((queueId) => {
       // Use the pre-calculated zone mapping instead of filtering players
       const queuePlayers = state.queue.playersByQueue[queueId] || [];
+      
+      // Debug: Log queue players and their order
+      console.log(`⏳ Queue ${queueId} players:`, queuePlayers.map(p => `${p.name} (order: ${p.queueOrder})`));
+      
       queues.push({ queueId, players: queuePlayers });
     });
     
