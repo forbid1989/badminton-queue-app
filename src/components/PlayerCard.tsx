@@ -50,6 +50,16 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
   const queueCount = useMemo(() => state.queue.count, [state.queue.count]);
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   
+  // 🔧 Mobile device detection
+  const isMobileDevice = useMemo(() => {
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+           window.innerWidth <= 768;
+  }, []);
+
+  const isTouchDevice = useMemo(() => {
+    return 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+  }, []);
+  
   // Determine if this card is in a team zone (smaller layout needed)
   const isInTeamZone = useMemo(() => {
     return zone.startsWith('court-') || zone.startsWith('queue-');
@@ -66,7 +76,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [name, setName] = useState(player.name);
-  const [isDropTarget, setIsDropTarget] = useState(false); // For visual feedback when being a drop target
+  const [isDropTarget, setIsDropTarget] = useState(false);
   const [isSwapping, setIsSwapping] = useState(false);
   const [dragStarted, setDragStarted] = useState(false);
 
@@ -186,7 +196,6 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
     }
   }, [availableZone, zone, player.id, dispatch]);
 
-
   const handleGamesChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setGamesPlayed(e.target.value);
   }, []);
@@ -260,16 +269,6 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
     
     const { playerId: draggedPlayerId, playerZone: draggedPlayerZone } = currentDragData;
     
-    console.log('🔍 Drag over check:', {
-      draggedPlayerId,
-      draggedPlayerZone,
-      currentPlayerId: player.id,
-      currentZone: zone,
-      isDifferentPlayer: draggedPlayerId !== player.id,
-      isSameZone: draggedPlayerZone === zone,
-      isValidZone: zone.startsWith('court-') || zone.startsWith('queue-')
-    });
-    
     // Only allow swap if conditions are met
     if (
       draggedPlayerId !== player.id && 
@@ -307,34 +306,13 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
     
     const { playerId: draggedPlayerId, playerZone: draggedPlayerZone } = currentDragData;
     
-    console.log('🔍 Drop validation:', {
-      draggedPlayerId,
-      draggedPlayerZone,
-      targetPlayerId: player.id,
-      targetPlayerName: player.name,
-      targetZone: zone,
-      condition1_DifferentPlayer: draggedPlayerId !== player.id,
-      condition2_SameZone: draggedPlayerZone === zone,
-      condition3_ValidZone: zone.startsWith('court-') || zone.startsWith('queue-'),
-      allConditionsMet: (
-        draggedPlayerId !== player.id && 
-        draggedPlayerZone === zone &&
-        (zone.startsWith('court-') || zone.startsWith('queue-'))
-      )
-    });
-    
     // Perform swap if conditions are met
     if (
       draggedPlayerId !== player.id && 
       draggedPlayerZone === zone &&
       (zone.startsWith('court-') || zone.startsWith('queue-'))
     ) {
-      console.log('🔄 Dispatching swap action:', {
-        from: draggedPlayerId,
-        to: player.id,
-        zone: zone,
-        actionType: 'SWAP_PLAYERS'
-      });
+      console.log('🔄 Dispatching swap action');
       
       try {
         setIsSwapping(true);
@@ -352,101 +330,178 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
     }
   }, [player.id, player.name, zone, dispatch]);
 
-  const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    e.preventDefault(); // Prevent any default touch behavior
+  // 🔧 Mobile-optimized drag clone creation
+  const createMobileDragClone = useCallback((touch: React.Touch, offset: { x: number, y: number }, rect: DOMRect) => {
+    if (!cardRef.current) return;
     
+    // Remove any existing clone
+    const existingClone = document.getElementById('dragging-clone');
+    if (existingClone) {
+      existingClone.remove();
+    }
+    
+    const clone = cardRef.current.cloneNode(true) as HTMLElement;
+    clone.id = 'dragging-clone';
+    
+    // Mobile-optimized styling
+    clone.style.position = 'fixed';
+    clone.style.pointerEvents = 'none';
+    clone.style.zIndex = '10000';
+    clone.style.opacity = '0.9';
+    clone.style.transition = 'none';
+    clone.style.willChange = 'transform';
+    clone.style.backfaceVisibility = 'hidden';
+    clone.style.transform = 'translate3d(0, 0, 0)';
+    
+    // Mobile-specific: Account for viewport scaling and larger visual feedback
+    const viewportScale = window.visualViewport ? window.visualViewport.scale : 1;
+    const x = touch.clientX - offset.x * viewportScale;
+    const y = touch.clientY - offset.y * viewportScale;
+    
+    clone.style.transform = `translate3d(${x}px, ${y}px, 0) rotate(2deg) scale(1.15)`;
+    clone.style.boxShadow = '0 20px 40px rgba(0,0,0,0.5)';
+    clone.style.border = '3px solid #E91E63';
+    clone.style.borderRadius = isInTeamZone ? '12px' : '20px';
+    
+    // Mobile: Enhanced visual feedback
+    clone.style.filter = 'brightness(1.2) contrast(1.1)';
+    
+    document.body.appendChild(clone);
+    console.log('✅ Mobile drag clone created at:', { x, y, scale: viewportScale });
+  }, [isInTeamZone]);
+
+  // 🔧 Enhanced mobile touch start with proper drag detection
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
     const touch = e.touches[0];
     const rect = cardRef.current?.getBoundingClientRect();
     
-    console.log('🎯 Touch start - IMMEDIATE DRAG:', { x: touch.clientX, y: touch.clientY });
+    if (!rect) return;
+
+    console.log('🎯 Touch start - analyzing gesture');
     
-    // Calculate offset immediately
-    const currentOffset = rect ? {
-      x: touch.clientX - rect.left,
-      y: touch.clientY - rect.top
-    } : { x: 0, y: 0 };
+    // Store initial touch for drag detection
+    const initialTouch = {
+      x: touch.clientX,
+      y: touch.clientY,
+      time: Date.now()
+    };
+
+    // Calculate offset with mobile viewport considerations
+    const viewportScale = window.visualViewport ? window.visualViewport.scale : 1;
+    const currentOffset = {
+      x: (touch.clientX - rect.left) / viewportScale,
+      y: (touch.clientY - rect.top) / viewportScale
+    };
     
     setDragOffset(currentOffset);
-    setIsDragging(true);
-    setDragStarted(true);
     
-    // Set global drag data
+    // Set drag data but don't start drag immediately
     draggedElement = cardRef.current;
     draggedData = { player, zone };
     
-    // Create visual clone IMMEDIATELY (dnd-kit style)
-    if (cardRef.current) {
-      console.log('📋 Creating immediate drag clone (dnd-kit style)');
-      
-      // Remove any existing clone first
-      const existingClone = document.getElementById('dragging-clone');
-      if (existingClone) {
-        existingClone.remove();
+    // Mobile-specific: Add delay to distinguish between tap and drag
+    const touchStartTimer = setTimeout(() => {
+      if (!dragStarted) {
+        console.log('🚀 Starting mobile drag after delay');
+        
+        // Only prevent default after confirming drag intent
+        e.preventDefault();
+        setIsDragging(true);
+        setDragStarted(true);
+        
+        // Add haptic feedback if available
+        if ('vibrate' in navigator) {
+          navigator.vibrate(50);
+        }
+        
+        createMobileDragClone(touch, currentOffset, rect);
       }
-      
-      const clone = cardRef.current.cloneNode(true) as HTMLElement;
-      clone.id = 'dragging-clone';
-      
-      // dnd-kit style: High-performance overlay styling
-      clone.style.position = 'fixed';
-      clone.style.pointerEvents = 'none';
-      clone.style.zIndex = '10000';
-      clone.style.opacity = '0.9';
-      clone.style.transition = 'none';
-      clone.style.willChange = 'transform';
-      clone.style.backfaceVisibility = 'hidden';
-      clone.style.transform = 'translate3d(0, 0, 0)'; // Force GPU layer
-      
-      // Position it at current touch location
-      const x = touch.clientX - currentOffset.x;
-      const y = touch.clientY - currentOffset.y;
-      clone.style.transform = `translate3d(${x}px, ${y}px, 0) rotate(2deg) scale(1.05)`;
-      
-      // Enhanced visual feedback (like dnd-kit DragOverlay)
-      clone.style.boxShadow = '0 10px 25px rgba(0,0,0,0.3)';
-      clone.style.border = '2px solid #E91E63';
-      clone.style.borderRadius = '20px'; // Match your card styling
-      
-      document.body.appendChild(clone);
-      console.log('✅ Immediate clone added to DOM at position:', { x, y });
-    }
-    
-    console.log('📏 Drag offset calculated:', currentOffset);
-  }, [player, zone]);
+    }, isMobileDevice ? 150 : 0); // 150ms delay on mobile, immediate on desktop
 
+    // Store references for cleanup
+    (cardRef.current as any)._touchStartTimer = touchStartTimer;
+    (cardRef.current as any)._initialTouch = initialTouch;
+    
+  }, [player, zone, dragStarted, isMobileDevice, createMobileDragClone]);
+
+  // 🔧 Enhanced mobile touch move with drag threshold detection
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    if (!isDragging || !dragStarted) return;
-    
-    e.preventDefault(); // CRITICAL: Prevent scrolling
-    
     const touch = e.touches[0];
-    const clone = document.getElementById('dragging-clone');
+    const initialTouch = (cardRef.current as any)?._initialTouch;
     
-    if (clone) {
-      // dnd-kit style: Smooth GPU-accelerated movement
-      const x = touch.clientX - dragOffset.x;
-      const y = touch.clientY - dragOffset.y;
-      clone.style.transform = `translate3d(${x}px, ${y}px, 0) rotate(2deg) scale(1.05)`;
-      // console.log('📍 Updating clone position:', { x, y }); // Comment out for performance
-    } else {
-      console.log('❌ Clone not found during move - should exist!');
+    if (!initialTouch || !dragStarted) {
+      // Check if touch moved enough to be considered a drag
+      if (initialTouch) {
+        const deltaX = Math.abs(touch.clientX - initialTouch.x);
+        const deltaY = Math.abs(touch.clientY - initialTouch.y);
+        const deltaTime = Date.now() - initialTouch.time;
+        
+        // Mobile drag threshold (larger for touch)
+        const MOBILE_DRAG_THRESHOLD = isMobileDevice ? 15 : 5;
+        
+        if ((deltaX > MOBILE_DRAG_THRESHOLD || deltaY > MOBILE_DRAG_THRESHOLD) && deltaTime > 100) {
+          // Clear the delay timer and start drag immediately
+          if ((cardRef.current as any)?._touchStartTimer) {
+            clearTimeout((cardRef.current as any)._touchStartTimer);
+          }
+          
+          e.preventDefault();
+          setIsDragging(true);
+          setDragStarted(true);
+          
+          // Add haptic feedback
+          if ('vibrate' in navigator) {
+            navigator.vibrate(50);
+          }
+          
+          const rect = cardRef.current?.getBoundingClientRect();
+          if (rect) {
+            createMobileDragClone(touch, dragOffset, rect);
+          }
+        }
+      }
+      return;
     }
-  }, [isDragging, dragOffset, dragStarted]);
+    
+    // Prevent scrolling during drag
+    e.preventDefault();
+    
+    const clone = document.getElementById('dragging-clone');
+    if (clone) {
+      // Mobile-optimized positioning with viewport scale
+      const viewportScale = window.visualViewport ? window.visualViewport.scale : 1;
+      const x = touch.clientX - dragOffset.x * viewportScale;
+      const y = touch.clientY - dragOffset.y * viewportScale;
+      
+      clone.style.transform = `translate3d(${x}px, ${y}px, 0) rotate(2deg) scale(1.15)`;
+    }
+  }, [isDragging, dragOffset, dragStarted, isMobileDevice, createMobileDragClone]);
 
-  // Enhanced touch end handler with swap support
+  // 🔧 Enhanced mobile touch end with better drop detection
   const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+    // Clear any pending timers
+    if ((cardRef.current as any)?._touchStartTimer) {
+      clearTimeout((cardRef.current as any)._touchStartTimer);
+    }
+    
     console.log('🏁 Touch end - dragStarted:', dragStarted, 'isDragging:', isDragging);
     
-    // Clean up clone FIRST (dnd-kit style cleanup)
+    // Clean up clone with mobile-friendly animation
     const clone = document.getElementById('dragging-clone');
     if (clone) {
-      console.log('🗑️ Removing drag clone');
-      clone.remove();
+      if (isMobileDevice) {
+        // Mobile: Add fade-out animation
+        clone.style.transition = 'opacity 0.2s ease-out, transform 0.2s ease-out';
+        clone.style.opacity = '0';
+        clone.style.transform = clone.style.transform + ' scale(0.8)';
+        setTimeout(() => clone.remove(), 200);
+      } else {
+        clone.remove();
+      }
     }
     
     // Only process drop if we actually started dragging
     if (!dragStarted || !isDragging) {
-      console.log('❌ Not processing drop - resetting states');
       setIsDragging(false);
       setDragStarted(false);
       draggedElement = null;
@@ -455,11 +510,30 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
     }
     
     const touch = e.changedTouches[0];
-    console.log('👆 Final touch coordinates:', { x: touch.clientX, y: touch.clientY });
     
-    // Drop detection (similar to dnd-kit collision detection)
-    const elementBelow = document.elementFromPoint(touch.clientX, touch.clientY);
+    // Mobile-specific: Account for viewport scaling and scroll position
+    const viewportScale = window.visualViewport ? window.visualViewport.scale : 1;
+    const scrollX = window.pageXOffset || document.documentElement.scrollLeft;
+    const scrollY = window.pageYOffset || document.documentElement.scrollTop;
+    
+    const adjustedX = (touch.clientX / viewportScale) + scrollX;
+    const adjustedY = (touch.clientY / viewportScale) + scrollY;
+    
+    console.log('👆 Final touch coordinates (mobile-adjusted):', { 
+      x: adjustedX, 
+      y: adjustedY, 
+      scale: viewportScale,
+      scroll: { x: scrollX, y: scrollY }
+    });
+    
+    // Enhanced element detection for mobile
+    const elementBelow = document.elementFromPoint(adjustedX, adjustedY);
     console.log('🎯 Element below finger:', elementBelow);
+    
+    // Success haptic feedback
+    if ('vibrate' in navigator) {
+      navigator.vibrate([30, 50, 30]); // Success pattern
+    }
     
     // Check for player card first (swap operation)
     const playerCard = elementBelow?.closest('[data-player-id]');
@@ -479,25 +553,32 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
         dispatch(Action.swapPlayers(player.id, targetPlayerId, zone));
       }
     } else {
-      // Check for droppable zone (dnd-kit style zone detection)
+      // Check for droppable zone
       const droppableZone = elementBelow?.closest('[data-droppable-zone]');
       if (droppableZone && draggedData) {
         const targetZone = droppableZone.getAttribute('data-droppable-zone');
+        const targetPosition = droppableZone.getAttribute('data-position');
         
         if (targetZone && targetZone !== zone) {
           console.log('✅ Performing zone move');
-          dispatch(Action.movePlayer(player.id, zone, targetZone));
+          
+          // Check if it's a position-specific drop
+          if (targetPosition !== null && targetPosition !== 'null') {
+            dispatch(Action.movePlayerToPosition(player.id, targetZone, parseInt(targetPosition)));
+          } else {
+            dispatch(Action.quickMovePlayer(player.id, zone, targetZone));
+          }
         }
       }
     }
     
-    // Reset all states (dnd-kit style cleanup)
+    // Reset all states
     console.log('🔄 Resetting all drag states');
     setIsDragging(false);
     setDragStarted(false);
     draggedElement = null;
     draggedData = null;
-  }, [isDragging, player.id, zone, dispatch, dragStarted, dragOffset]);
+  }, [isDragging, player.id, zone, dispatch, dragStarted, dragOffset, isMobileDevice]);
 
   // Optimized timer effect
   useEffect(() => {
@@ -553,14 +634,17 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
       if (nameUpdateTimeoutRef.current) {
         clearTimeout(nameUpdateTimeoutRef.current);
       }
+      // Clean up any pending touch timers
+      if ((cardRef.current as any)?._touchStartTimer) {
+        clearTimeout((cardRef.current as any)._touchStartTimer);
+      }
     };
   }, []);
 
   // Memoized formatted time
   const formattedTime = useMemo(() => formatElapsedTime(elapsedSeconds), [elapsedSeconds]);
 
-  // Enhanced card styles with drop target indication
-  // Enhanced card styles with drop target indication and swap animation
+  // 🔧 Enhanced card styles with mobile optimizations
   const enhancedCardStyles = useMemo(() => ({
     display: 'flex',
     width: '100%',
@@ -569,50 +653,61 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
       : isMobile 
         ? '90vw' 
         : '200px',
-    minWidth: isInTeamZone ? '120px' : '160px', // Ensure minimum readable size
+    minWidth: isMobileDevice 
+      ? (isInTeamZone ? '140px' : '180px')  // Larger on mobile
+      : (isInTeamZone ? '120px' : '160px'),
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: isInTeamZone 
-      ? '2px 4px'  // Tighter padding for team zones
-      : isMobile 
-        ? '4px 6px' 
-        : '6px 8px',
+    padding: isMobileDevice 
+      ? (isInTeamZone ? '4px 6px' : '8px 10px')  // More padding on mobile
+      : (isInTeamZone ? '2px 4px' : '6px 8px'),
     backgroundColor: isDropTarget 
-      ? '#E8F5E9'  // Light green when drop target
+      ? '#E8F5E9'
       : cardColors.backgroundColor,
     borderRadius: isInTeamZone ? '12px' : '20px',
     boxShadow: isDropTarget 
-    ? '0 4px 12px rgba(233, 30, 99, 0.3)'  // Magenta shadow when drop target
+    ? '0 4px 12px rgba(233, 30, 99, 0.3)'
     : isSwapping
-      ? '0 0 20px rgba(233, 30, 99, 0.8)'  // Magenta glow when swapping
+      ? '0 0 20px rgba(233, 30, 99, 0.8)'
       : '0 1px 3px rgba(0,0,0,0.1)',
     cursor: 'grab',
     margin: '0 auto 2px',
     color: cardColors.textColor,
     border: isSwapping
-    ? '3px solid #E91E63'  // Bright magenta border when swapping
+    ? '3px solid #E91E63'
     : isDropTarget 
-      ? '2px solid #E91E63'  // Magenta border when drop target
+      ? '2px solid #E91E63'
       : '1px solid rgba(0, 0, 0, 0.06)',
     opacity: isDragging ? 0.5 : 1,
     transform: isDropTarget 
-      ? 'scale(1.08)'  // Larger scale when drop target (more noticeable)
+      ? (isMobileDevice ? 'scale(1.12)' : 'scale(1.08)')  // More prominent on mobile
       : (isDragging ? 'scale(0.95)' : 'scale(1)'),
     transition: isSwapping 
-      ? 'border-color 0.15s ease-in-out, border-width 0.15s ease-in-out, box-shadow 0.15s ease-in-out'  // Quick flash transition for swap
-      : 'all 0.2s ease-in-out',  // Normal transition for other states
+      ? 'border-color 0.15s ease-in-out, border-width 0.15s ease-in-out, box-shadow 0.15s ease-in-out'
+      : 'all 0.2s ease-in-out',
     animation: isSwapping 
-      ? 'swapFlash 0.6s ease-in-out'  // Flash animation when swapping - references CSS keyframes
+      ? 'swapFlash 0.6s ease-in-out'
       : 'none',
     touchAction: 'none',
     userSelect: 'none',
     WebkitUserSelect: 'none',
+    WebkitTapHighlightColor: 'transparent',
+    WebkitTouchCallout: 'none',
     '&:active': {
       cursor: 'grabbing',
+      transform: isMobileDevice ? 'scale(0.98)' : 'scale(0.95)',
+      backgroundColor: isMobileDevice 
+        ? 'rgba(233, 30, 99, 0.1)' 
+        : cardColors.backgroundColor,
     },
     willChange: 'transform, opacity',
     backfaceVisibility: 'hidden',
-  }), [isInTeamZone, isMobile, cardColors, isDragging, isDropTarget, isSwapping]);
+    // Enhanced mobile touch targets
+    minHeight: isMobileDevice 
+      ? (isInTeamZone ? '40px' : '50px') 
+      : (isInTeamZone ? '35px' : '45px'),
+  }), [isInTeamZone, isMobile, isMobileDevice, cardColors, isDragging, isDropTarget, isSwapping]);
+
   return (
     <div className="flipped">
       <Card
@@ -665,7 +760,9 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
                 slotProps={{
                   input: {
                     style: {
-                      fontSize: isInTeamZone ? '0.55rem' : '0.65rem',
+                      fontSize: isMobileDevice 
+                        ? (isInTeamZone ? '0.6rem' : '0.7rem')  // Larger on mobile
+                        : (isInTeamZone ? '0.55rem' : '0.65rem'),
                       fontWeight: 'bold',
                       padding: 0,
                     },
@@ -674,7 +771,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
                 sx={{
                   '& .MuiInputBase-root': {
                     lineHeight: 1,
-                    height: '1rem',
+                    height: isMobileDevice ? '1.2rem' : '1rem',
                   },
                 }}
               />
@@ -683,12 +780,18 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
                 variant="body2"
                 sx={{
                   fontWeight: 'bold',
-                  fontSize: isInTeamZone ? '0.55rem' : '0.65rem',
+                  fontSize: isMobileDevice 
+                    ? (isInTeamZone ? '0.6rem' : '0.7rem')  // Larger on mobile
+                    : (isInTeamZone ? '0.55rem' : '0.65rem'),
                   whiteSpace: 'nowrap',
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
-                  maxWidth: isInTeamZone ? '60px' : '80px',
+                  maxWidth: isMobileDevice 
+                    ? (isInTeamZone ? '70px' : '90px')  // More space on mobile
+                    : (isInTeamZone ? '60px' : '80px'),
                   cursor: 'pointer',
+                  // Mobile: Add text shadow for better visibility
+                  textShadow: isMobileDevice ? '1px 1px 2px rgba(0,0,0,0.1)' : 'none',
                 }}
                 title={player.name}
                 onClick={handleEditToggle}
@@ -703,7 +806,9 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
             sx={{
               display: 'flex',
               alignItems: 'center',
-              gap: isInTeamZone ? 0.15 : 0.25,
+              gap: isMobileDevice 
+                ? (isInTeamZone ? 0.25 : 0.4)  // More spacing on mobile
+                : (isInTeamZone ? 0.15 : 0.25),
               flexShrink: 0,
             }}
           >
@@ -713,7 +818,9 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
               sx={{
                 display: 'flex',
                 alignItems: 'center',
-                fontSize: isInTeamZone ? '0.5rem' : '0.6rem',
+                fontSize: isMobileDevice 
+                  ? (isInTeamZone ? '0.55rem' : '0.65rem')  // Larger on mobile
+                  : (isInTeamZone ? '0.5rem' : '0.6rem'),
                 gap: 0.1,
               }}
             >
@@ -727,7 +834,9 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
               sx={{
                 fontWeight: elapsedSeconds > 900 ? 'bold' : 'normal',
                 color: elapsedSeconds > 900 ? '#8B0000' : cardColors.textColor,
-                fontSize: isInTeamZone ? '0.5rem' : '0.6rem',
+                fontSize: isMobileDevice 
+                  ? (isInTeamZone ? '0.55rem' : '0.65rem')  // Larger on mobile
+                  : (isInTeamZone ? '0.5rem' : '0.6rem'),
               }}
             >
               {formattedTime}
@@ -745,19 +854,20 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
                     : "Quick Add"
                 }
                 sx={{
-                  padding: '1px',
+                  padding: isMobileDevice ? '2px' : '1px',  // Larger touch target on mobile
                   borderRadius: '8px',
                   border: `1px solid ${isQuickAddDisabled ? '#ccc' : '#2E7D32'}`,
                   backgroundColor: isQuickAddDisabled ? '#f2f2f2' : '#E8F5E9',
                   color: isQuickAddDisabled ? '#aaa' : '#2E7D32',
                   minWidth: 'auto',
+                  minHeight: isMobileDevice ? '28px' : 'auto',  // Larger touch target
                   '&:hover': {
                     backgroundColor: isQuickAddDisabled ? '#f2f2f2' : '#C8E6C9',
                   },
                 }}
               >
                 <BadmintonIcon
-                  size={10}
+                  size={isMobileDevice ? 12 : 10}  // Larger on mobile
                   playerSeed={player.name}
                   isDisabled={isQuickAddDisabled}
                 />
@@ -771,14 +881,19 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
                 onClick={handleReturnToRest}
                 title="Return to Rest"
                 sx={{
-                  padding: '1px',
+                  padding: isMobileDevice ? '2px' : '1px',
                   color: '#6D4C41',
+                  minHeight: isMobileDevice ? '28px' : 'auto',  // Larger touch target
                   '&:hover': {
                     color: '#3E2723',
                   },
                 }}
               >
-                <KeyboardReturnIcon sx={{ fontSize: isInTeamZone ? '0.6rem' : '0.75rem' }} />
+                <KeyboardReturnIcon sx={{ 
+                  fontSize: isMobileDevice 
+                    ? (isInTeamZone ? '0.7rem' : '0.8rem')  // Larger on mobile
+                    : (isInTeamZone ? '0.6rem' : '0.75rem')
+                }} />
               </IconButton>
             )}
 
@@ -788,9 +903,12 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
               onClick={handleHistoryOpen}
               title="View Match History"
               sx={{ 
-                padding: '1px',
+                padding: isMobileDevice ? '2px' : '1px',
+                minHeight: isMobileDevice ? '28px' : 'auto',  // Larger touch target
                 '& .MuiSvgIcon-root': {
-                  fontSize: isInTeamZone ? '0.6rem' : '0.75rem',
+                  fontSize: isMobileDevice 
+                    ? (isInTeamZone ? '0.7rem' : '0.8rem')  // Larger on mobile
+                    : (isInTeamZone ? '0.6rem' : '0.75rem'),
                 },
               }}
             >
@@ -802,9 +920,12 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
               size="small" 
               onClick={openPopover} 
               sx={{ 
-                padding: '1px',
+                padding: isMobileDevice ? '2px' : '1px',
+                minHeight: isMobileDevice ? '28px' : 'auto',  // Larger touch target
                 '& .MuiSvgIcon-root': {
-                  fontSize: isInTeamZone ? '0.6rem' : '0.75rem',
+                  fontSize: isMobileDevice 
+                    ? (isInTeamZone ? '0.7rem' : '0.8rem')  // Larger on mobile
+                    : (isInTeamZone ? '0.6rem' : '0.75rem'),
                 },
               }}
             >
@@ -824,13 +945,20 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
         slotProps={{
           paper: {
             sx: {
-              minWidth: 280,
+              minWidth: isMobileDevice ? 320 : 280,  // Wider on mobile
               p: 2,
+              // Mobile: Add border radius and shadow
+              borderRadius: isMobileDevice ? 2 : 1,
+              boxShadow: isMobileDevice 
+                ? '0 8px 24px rgba(0,0,0,0.15)' 
+                : theme.shadows[8],
             },
           },
         }}
       >
-        <Typography variant="subtitle2" gutterBottom>
+        <Typography variant="subtitle2" gutterBottom sx={{
+          fontSize: isMobileDevice ? '0.9rem' : '0.8rem',  // Larger on mobile
+        }}>
           {player.name}&apos;s Match History
         </Typography>
 
@@ -846,7 +974,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
               <Typography
                 key={i}
                 variant="body2"
-                fontSize="0.75rem"
+                fontSize={isMobileDevice ? '0.8rem' : '0.75rem'}  // Larger on mobile
                 sx={{ mb: 0.5 }}
               >
                 <strong>Played with:</strong> {entry.opponents.join(', ')} at {timestamp}
@@ -854,7 +982,10 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
             );
           })
         ) : (
-          <Typography variant="body2" fontSize="0.75rem">
+          <Typography 
+            variant="body2" 
+            fontSize={isMobileDevice ? '0.8rem' : '0.75rem'}  // Larger on mobile
+          >
             No match history
           </Typography>
         )}
@@ -866,14 +997,24 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
         anchorEl={anchorEl}
         onClose={closePopover}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+        slotProps={{
+          paper: {
+            sx: {
+              minWidth: isMobileDevice ? 160 : 140,  // Wider on mobile
+              p: isMobileDevice ? 1.5 : 1,  // More padding on mobile
+              borderRadius: isMobileDevice ? 2 : 1,
+              boxShadow: isMobileDevice 
+                ? '0 8px 24px rgba(0,0,0,0.15)' 
+                : theme.shadows[8],
+            },
+          },
+        }}
       >
         <Box 
-          p={1} 
           display="flex" 
           flexDirection="column" 
-          gap={1.2} 
-          minWidth={140}
-          sx={{ fontSize: '0.65rem' }}
+          gap={isMobileDevice ? 1.5 : 1.2}  // More spacing on mobile
+          sx={{ fontSize: isMobileDevice ? '0.7rem' : '0.65rem' }}
         >
           <TextField
             label="Games"
@@ -884,12 +1025,12 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
             slotProps={{
               input: {
                 style: {
-                  fontSize: '0.65rem',
-                  padding: '0 4px',
+                  fontSize: isMobileDevice ? '0.7rem' : '0.65rem',
+                  padding: isMobileDevice ? '2px 6px' : '0 4px',  // More padding on mobile
                 },
               },
               inputLabel: {
-                sx: { fontSize: '0.65rem' }
+                sx: { fontSize: isMobileDevice ? '0.7rem' : '0.65rem' }
               }
             }}
           />
@@ -900,13 +1041,17 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
                 variant="text"
                 size="small"
                 onClick={handleHistoryOpen}
-                sx={{ fontSize: '0.65rem', padding: '2px 4px' }}
+                sx={{ 
+                  fontSize: isMobileDevice ? '0.7rem' : '0.65rem', 
+                  padding: isMobileDevice ? '4px 6px' : '2px 4px',  // Larger touch target on mobile
+                  minHeight: isMobileDevice ? '36px' : 'auto',
+                }}
               >
                 View History
               </Button>
 
               <FormControl size="small" fullWidth>
-                <InputLabel sx={{ fontSize: '0.65rem' }}>Court</InputLabel>
+                <InputLabel sx={{ fontSize: isMobileDevice ? '0.7rem' : '0.65rem' }}>Court</InputLabel>
                 <Select
                   label="Court"
                   value=""
@@ -916,7 +1061,10 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
                     closePopover();
                   }}
                   size='small'
-                  sx={{ fontSize: '0.65rem' }}
+                  sx={{ 
+                    fontSize: isMobileDevice ? '0.7rem' : '0.65rem',
+                    minHeight: isMobileDevice ? '36px' : 'auto',  // Larger touch target
+                  }}
                 >
                   {Array.from({ length: courtCount }, (_, i) => {
                     const courtKey = `court-${i}`;
@@ -927,7 +1075,10 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
                       <MenuItem
                         key={courtKey}
                         value={courtKey}
-                        sx={{ fontSize: '0.65rem' }}
+                        sx={{ 
+                          fontSize: isMobileDevice ? '0.7rem' : '0.65rem',
+                          minHeight: isMobileDevice ? '36px' : 'auto',  // Larger touch target
+                        }}
                         disabled={isCourtFull}
                       >
                         Court {i + 1}
@@ -938,7 +1089,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
               </FormControl>
 
               <FormControl size="small" fullWidth>
-                <InputLabel sx={{ fontSize: '0.65rem' }}>Queue</InputLabel>
+                <InputLabel sx={{ fontSize: isMobileDevice ? '0.7rem' : '0.65rem' }}>Queue</InputLabel>
                 <Select
                   label="Queue"
                   value=""
@@ -948,10 +1099,20 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
                     closePopover();
                   }}
                   size="small"
-                  sx={{ fontSize: '0.65rem' }}
+                  sx={{ 
+                    fontSize: isMobileDevice ? '0.7rem' : '0.65rem',
+                    minHeight: isMobileDevice ? '36px' : 'auto',  // Larger touch target
+                  }}
                 >
                   {Object.keys(state.queue.playersByQueue).map((queueId, index) => (
-                    <MenuItem key={queueId} value={queueId} sx={{ fontSize: '0.65rem' }}>
+                    <MenuItem 
+                      key={queueId} 
+                      value={queueId} 
+                      sx={{ 
+                        fontSize: isMobileDevice ? '0.7rem' : '0.65rem',
+                        minHeight: isMobileDevice ? '36px' : 'auto',  // Larger touch target
+                      }}
+                    >
                       Queue {index + 1}
                     </MenuItem>
                   ))}
@@ -965,8 +1126,12 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
             color="error"
             size="small"
             onClick={handleDeletePlayer}
-            startIcon={<DeleteIcon sx={{ fontSize: '0.75rem' }} />}
-            sx={{ fontSize: '0.65rem', padding: '4px 6px' }}
+            startIcon={<DeleteIcon sx={{ fontSize: isMobileDevice ? '0.8rem' : '0.75rem' }} />}
+            sx={{ 
+              fontSize: isMobileDevice ? '0.7rem' : '0.65rem', 
+              padding: isMobileDevice ? '6px 8px' : '4px 6px',  // Larger touch target on mobile
+              minHeight: isMobileDevice ? '36px' : 'auto',
+            }}
           >
             Delete Player
           </Button>
