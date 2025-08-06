@@ -25,14 +25,29 @@ let dropLock: {
 
 const DROP_LOCK_TIMEOUT = 100; // 100ms lock duration
 
+// 📱 Mobile-specific constants
+const MOBILE_HOVER_THRESHOLD = 20; // px threshold for mobile hover detection
+const MOBILE_SCROLL_PREVENTION_DELAY = 150; // ms delay before preventing scroll
+
 const DroppableZone: React.FC<DroppableZoneProps> = React.memo(({ zone, players, children, sx, position }) => {
   const { dispatch } = useContext(AppContext);
   const [isHovered, setIsHovered] = useState(false);
+  const [isMobileHovered, setIsMobileHovered] = useState(false);
+  
+  // 📱 Mobile device detection
+  const isMobileDevice = useMemo(() => {
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+           window.innerWidth <= 768 ||
+           'ontouchstart' in window;
+  }, []);
   
   // Use refs to store current values for event handlers
   const zoneRef = useRef(zone);
   const positionRef = useRef(position);
   const isFullRef = useRef(false);
+  const elementRef = useRef<HTMLDivElement>(null);
+  const lastTouchPositionRef = useRef<{ x: number; y: number } | null>(null);
+  const scrollPreventionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   // Memoize isFull calculation
   const isFull = useMemo(() => {
@@ -54,15 +69,104 @@ const DroppableZone: React.FC<DroppableZoneProps> = React.memo(({ zone, players,
   // Determine if this is a position-specific zone
   const isPositionZone = position !== undefined;
 
-  // Add debugging for ref updates
+  // 📱 Enhanced mobile touch detection within zone
+  const checkIfTouchIsInZone = useCallback((touch: Touch): boolean => {
+    if (!elementRef.current) return false;
+    
+    const rect = elementRef.current.getBoundingClientRect();
+    const buffer = MOBILE_HOVER_THRESHOLD;
+    
+    return (
+      touch.clientX >= rect.left - buffer &&
+      touch.clientX <= rect.right + buffer &&
+      touch.clientY >= rect.top - buffer &&
+      touch.clientY <= rect.bottom + buffer
+    );
+  }, []);
+
+  // 📱 Mobile-optimized global touch move handler
+  const handleGlobalTouchMove = useCallback((e: TouchEvent) => {
+    if (!isMobileDevice) return;
+    
+    const touch = e.touches[0];
+    if (!touch) return;
+    
+    // Store last touch position
+    lastTouchPositionRef.current = { x: touch.clientX, y: touch.clientY };
+    
+    // Check if touch is within this zone
+    const isInZone = checkIfTouchIsInZone(touch);
+    
+    if (isInZone && !isFullRef.current) {
+      if (!isMobileHovered) {
+        setIsMobileHovered(true);
+        console.log('📱 Mobile hover activated for zone:', zoneRef.current);
+        
+        // Add haptic feedback for zone entry
+        if ('vibrate' in navigator) {
+          navigator.vibrate(20);
+        }
+      }
+    } else {
+      if (isMobileHovered) {
+        setIsMobileHovered(false);
+        console.log('📱 Mobile hover deactivated for zone:', zoneRef.current);
+      }
+    }
+  }, [isMobileDevice, checkIfTouchIsInZone, isMobileHovered]);
+
+  // 📱 Mobile-optimized global touch end handler
+  const handleGlobalTouchEnd = useCallback((e: TouchEvent) => {
+    if (!isMobileDevice) return;
+    
+    // Clear mobile hover state
+    setIsMobileHovered(false);
+    
+    // Clear scroll prevention timeout
+    if (scrollPreventionTimeoutRef.current) {
+      clearTimeout(scrollPreventionTimeoutRef.current);
+      scrollPreventionTimeoutRef.current = null;
+    }
+    
+    // Re-enable scroll
+    document.body.style.overflow = '';
+    document.body.style.position = '';
+    document.body.style.width = '';
+    
+    const touch = e.changedTouches[0];
+    if (!touch || !lastTouchPositionRef.current) return;
+    
+    // Check if final touch position is within this zone
+    const isInZone = checkIfTouchIsInZone(touch);
+    
+    if (isInZone) {
+      console.log('📱 Touch ended in zone:', zoneRef.current, 'Position:', positionRef.current);
+      
+      // The actual drop handling will be done by the PlayerCard's touch end handler
+      // This just provides visual feedback and logging
+    }
+    
+    lastTouchPositionRef.current = null;
+  }, [isMobileDevice, checkIfTouchIsInZone]);
+
+  // 📱 Set up global touch event listeners for mobile
   useEffect(() => {
-    console.log('🔍 DroppableZone refs updated:', {
-      zone: zoneRef.current,
-      position: positionRef.current,
-      componentId: `${zone}-${position}`,
-      isPositionZone
-    });
-  }, [zone, position, isPositionZone]);
+    if (!isMobileDevice) return;
+    
+    const touchMoveHandler = handleGlobalTouchMove;
+    const touchEndHandler = handleGlobalTouchEnd;
+    
+    // Use passive listeners for better performance
+    document.addEventListener('touchmove', touchMoveHandler, { passive: true });
+    document.addEventListener('touchend', touchEndHandler, { passive: true });
+    document.addEventListener('touchcancel', touchEndHandler, { passive: true });
+    
+    return () => {
+      document.removeEventListener('touchmove', touchMoveHandler);
+      document.removeEventListener('touchend', touchEndHandler);
+      document.removeEventListener('touchcancel', touchEndHandler);
+    };
+  }, [handleGlobalTouchMove, handleGlobalTouchEnd, isMobileDevice]);
 
   // Memoized zone background calculation
   const zoneBackground = useMemo(() => {
@@ -72,80 +176,68 @@ const DroppableZone: React.FC<DroppableZoneProps> = React.memo(({ zone, players,
     return '#FAFAFA';
   }, [zone]);
 
-  // Memoized border color calculation - Enhanced for position-specific zones
+  // Enhanced border color calculation for mobile
   const borderColor = useMemo(() => {
+    const mobileHover = isMobileDevice && isMobileHovered;
+    const regularHover = !isMobileDevice && isHovered;
+    const anyHover = mobileHover || regularHover;
+    
     if (isPositionZone) {
-      // Position-specific zones get more prominent hover effects
       if (isFull) return '#D5C96A';
-      if (isHovered) return '#FF6B35'; // More vibrant orange for position drops
+      if (anyHover) return '#FF6B35'; // More vibrant orange for position drops
       return players.length > 0 ? 'rgba(255,255,255,0.6)' : 'rgba(255,255,255,0.3)';
     }
     
     if (isFull) return '#D5C96A';
-    if (isHovered) return '#4CAF50';
+    if (anyHover) return '#4CAF50';
     return '#CAD4CC';
-  }, [isFull, isHovered, isPositionZone, players.length]);
+  }, [isFull, isHovered, isMobileHovered, isMobileDevice, isPositionZone, players.length]);
 
-  // Memoized background color calculation - Enhanced for position-specific zones
+  // Enhanced background color calculation for mobile
   const backgroundColor = useMemo(() => {
+    const mobileHover = isMobileDevice && isMobileHovered;
+    const regularHover = !isMobileDevice && isHovered;
+    const anyHover = mobileHover || regularHover;
+    
     if (isPositionZone) {
-      if (isHovered) return 'rgba(255, 107, 53, 0.2)'; // Orange tint for position drops
+      if (anyHover) return 'rgba(255, 107, 53, 0.3)'; // More pronounced on mobile
       return players.length > 0 ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.1)';
     }
     
-    return isHovered ? '#E8F5E9' : zoneBackground;
-  }, [isHovered, zoneBackground, isPositionZone, players.length]);
+    if (anyHover) return '#E8F5E9';
+    return zoneBackground;
+  }, [isHovered, isMobileHovered, isMobileDevice, zoneBackground, isPositionZone, players.length]);
 
-  // Memoized transform calculation - Enhanced for position-specific zones
+  // Enhanced transform calculation for mobile
   const transform = useMemo(() => {
+    const mobileHover = isMobileDevice && isMobileHovered;
+    const regularHover = !isMobileDevice && isHovered;
+    const anyHover = mobileHover || regularHover;
+    
     if (isPositionZone) {
-      return isHovered ? 'scale(1.08)' : 'scale(1)'; // Bigger scale for position zones
+      return anyHover ? 'scale(1.12)' : 'scale(1)'; // Bigger scale for mobile
     }
-    return isHovered ? 'scale(1.02)' : 'scale(1)';
-  }, [isHovered, isPositionZone]);
+    return anyHover ? 'scale(1.03)' : 'scale(1)';
+  }, [isHovered, isMobileHovered, isMobileDevice, isPositionZone]);
 
-  // Memoized box shadow for enhanced visual feedback
+  // Enhanced box shadow for mobile
   const boxShadow = useMemo(() => {
-    if (isPositionZone && isHovered) {
-      return '0 4px 12px rgba(255, 107, 53, 0.4)'; // Orange glow for position drops
+    const mobileHover = isMobileDevice && isMobileHovered;
+    const regularHover = !isMobileDevice && isHovered;
+    const anyHover = mobileHover || regularHover;
+    
+    if (isPositionZone && anyHover) {
+      return isMobileDevice 
+        ? '0 6px 20px rgba(255, 107, 53, 0.5)' // Stronger shadow on mobile
+        : '0 4px 12px rgba(255, 107, 53, 0.4)';
     }
-    if (isHovered) {
-      return '0 2px 8px rgba(76, 175, 80, 0.3)'; // Green glow for regular zones
+    if (anyHover) {
+      return isMobileDevice
+        ? '0 4px 16px rgba(76, 175, 80, 0.4)' // Stronger shadow on mobile
+        : '0 2px 8px rgba(76, 175, 80, 0.3)';
     }
     return 'none';
-  }, [isHovered, isPositionZone]);
-
-  // Memoized combined styles
-  const combinedSx = useMemo(() => ({
-    border: `2px ${isPositionZone ? 'solid' : 'dashed'} ${borderColor}`,
-    borderRadius: isPositionZone ? 1 : 2,
-    padding: isPositionZone ? 0.5 : 2,
-    marginBottom: isPositionZone ? 0 : 3,
-    backgroundColor,
-    minHeight: isPositionZone ? 35 : 80,
-    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)', // Smoother transition
-    transform,
-    boxShadow,
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    '&.touch-hover': {
-      backgroundColor: isPositionZone ? 'rgba(255, 107, 53, 0.2)' : '#E8F5E9',
-      borderColor: isPositionZone ? '#FF6B35' : '#4CAF50',
-      transform: isPositionZone ? 'scale(1.08)' : 'scale(1.02)',
-      boxShadow: isPositionZone 
-        ? '0 4px 12px rgba(255, 107, 53, 0.4)' 
-        : '0 2px 8px rgba(76, 175, 80, 0.3)',
-    },
-    // Add CSS for touch swap targets
-    '& [data-player-id].touch-swap-target': {
-      backgroundColor: '#E8F5E9',
-      borderColor: '#4CAF50',
-      transform: 'scale(1.05)',
-    },
-    ...sx
-  }), [borderColor, backgroundColor, transform, boxShadow, isPositionZone, sx]);
+  }, [isHovered, isMobileHovered, isMobileDevice, isPositionZone]);
 
   // ✨ FIXED: Enhanced handleDrop with priority lock system
   const handleDrop = useCallback((e: React.DragEvent) => {
@@ -239,77 +331,105 @@ const DroppableZone: React.FC<DroppableZoneProps> = React.memo(({ zone, players,
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     
-    // For position-specific zones or non-full regular zones, allow hover
-    if (isPositionZone || !isFullRef.current) {
+    // Only set hover for desktop - mobile uses separate system
+    if (!isMobileDevice && (isPositionZone || !isFullRef.current)) {
       setIsHovered(true);
     }
-  }, [isPositionZone]);
+  }, [isPositionZone, isMobileDevice]);
 
   const handleDragLeave = useCallback((e: React.DragEvent) => {
-    // Only clear hover if we're actually leaving this element
-    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+    // Only clear hover if we're actually leaving this element and not on mobile
+    if (!isMobileDevice && !e.currentTarget.contains(e.relatedTarget as Node)) {
       setIsHovered(false);
     }
-  }, []);
+  }, [isMobileDevice]);
 
-  // Enhanced touch handlers to support swap operations
-  const handleTouchMove = useCallback((e: TouchEvent) => {
-    const touch = e.touches[0];
-    const elementBelow = document.elementFromPoint(touch.clientX, touch.clientY);
+  // 📱 Mobile-specific touch handlers for the zone itself
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    if (!isMobileDevice) return;
     
-    // Check if we're over another player card for potential swap
-    const playerCard = elementBelow?.closest('[data-player-id]');
-    const droppableZone = elementBelow?.closest('[data-droppable-zone]');
-    
-    // Remove hover from all zones and player cards
-    const allZones = document.querySelectorAll('[data-droppable-zone]');
-    const allPlayerCards = document.querySelectorAll('[data-player-id]');
-    
-    allZones.forEach(el => el.classList.remove('touch-hover'));
-    allPlayerCards.forEach(el => el.classList.remove('touch-swap-target'));
-    
-    if (playerCard && playerCard.getAttribute('data-zone') === zoneRef.current) {
-      // Hovering over a player in the same zone - potential swap
-      playerCard.classList.add('touch-swap-target');
-    } else if (droppableZone && 
-               droppableZone.getAttribute('data-droppable-zone') === zoneRef.current) {
-      // For position-specific zones or non-full regular zones
-      if (isPositionZone || !isFullRef.current) {
-        droppableZone.classList.add('touch-hover');
-      }
-    }
-  }, [isPositionZone]);
+    // Prevent default touch behavior on zones to avoid conflicts
+    // but allow it to bubble up to player cards
+  }, [isMobileDevice]);
 
-  const handleTouchEnd = useCallback(() => {
-    // Remove all hover states
-    const allZones = document.querySelectorAll('[data-droppable-zone]');
-    const allPlayerCards = document.querySelectorAll('[data-player-id]');
+  // 📱 Prevent scroll during active drag operations
+  const preventScrollDuringDrag = useCallback(() => {
+    if (!isMobileDevice) return;
     
-    allZones.forEach(el => el.classList.remove('touch-hover'));
-    allPlayerCards.forEach(el => el.classList.remove('touch-swap-target'));
-  }, []);
+    // Prevent scroll with a delay to avoid interfering with normal scrolling
+    scrollPreventionTimeoutRef.current = setTimeout(() => {
+      document.body.style.overflow = 'hidden';
+      document.body.style.position = 'fixed';
+      document.body.style.width = '100%';
+    }, MOBILE_SCROLL_PREVENTION_DELAY);
+  }, [isMobileDevice]);
 
-  // Optimized effect with proper cleanup and memoized handlers
+  // Memoized combined styles with mobile optimizations
+  const combinedSx = useMemo(() => ({
+    border: `2px ${isPositionZone ? 'solid' : 'dashed'} ${borderColor}`,
+    borderRadius: isPositionZone ? 1 : 2,
+    padding: isPositionZone ? 0.5 : 2,
+    marginBottom: isPositionZone ? 0 : 3,
+    backgroundColor,
+    minHeight: isPositionZone 
+      ? (isMobileDevice ? 40 : 35)  // Larger touch targets on mobile
+      : (isMobileDevice ? 90 : 80),
+    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+    transform,
+    boxShadow,
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    // 📱 Mobile-specific touch optimizations
+    touchAction: isMobileDevice ? 'none' : 'auto',
+    WebkitTapHighlightColor: 'transparent',
+    WebkitTouchCallout: 'none',
+    userSelect: 'none',
+    WebkitUserSelect: 'none',
+    // Enhanced hover states for both mobile and desktop
+    '&.touch-hover, &.mobile-hover': {
+      backgroundColor: isPositionZone ? 'rgba(255, 107, 53, 0.3)' : '#E8F5E9',
+      borderColor: isPositionZone ? '#FF6B35' : '#4CAF50',
+      transform: isPositionZone 
+        ? (isMobileDevice ? 'scale(1.12)' : 'scale(1.08)') 
+        : (isMobileDevice ? 'scale(1.03)' : 'scale(1.02)'),
+      boxShadow: isPositionZone 
+        ? (isMobileDevice ? '0 6px 20px rgba(255, 107, 53, 0.5)' : '0 4px 12px rgba(255, 107, 53, 0.4)')
+        : (isMobileDevice ? '0 4px 16px rgba(76, 175, 80, 0.4)' : '0 2px 8px rgba(76, 175, 80, 0.3)'),
+    },
+    // CSS for touch swap targets
+    '& [data-player-id].touch-swap-target': {
+      backgroundColor: '#E8F5E9',
+      borderColor: '#4CAF50',
+      transform: isMobileDevice ? 'scale(1.08)' : 'scale(1.05)',
+    },
+    ...sx
+  }), [
+    borderColor, backgroundColor, transform, boxShadow, isPositionZone, 
+    isMobileDevice, sx
+  ]);
+
+  // Apply mobile hover class when needed
   useEffect(() => {
-    const touchMoveHandler = handleTouchMove;
-    const touchEndHandler = handleTouchEnd;
-
-    document.addEventListener('touchmove', touchMoveHandler, { passive: true });
-    document.addEventListener('touchend', touchEndHandler, { passive: true });
+    if (!elementRef.current || !isMobileDevice) return;
     
-    return () => {
-      document.removeEventListener('touchmove', touchMoveHandler);
-      document.removeEventListener('touchend', touchEndHandler);
-    };
-  }, [handleTouchMove, handleTouchEnd]);
+    if (isMobileHovered) {
+      elementRef.current.classList.add('mobile-hover');
+    } else {
+      elementRef.current.classList.remove('mobile-hover');
+    }
+  }, [isMobileHovered, isMobileDevice]);
 
   return (
     <Box
+      ref={elementRef}
       data-droppable-zone={zone}
       data-position={position}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
+      onTouchStart={handleTouchStart}
       sx={combinedSx}
     >
       {children}
