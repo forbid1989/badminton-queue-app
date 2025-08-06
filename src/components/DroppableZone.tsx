@@ -12,6 +12,19 @@ type DroppableZoneProps = {
   position?: number; // ✨ Optional position for position-specific zones
 };
 
+// Global drop lock to prevent duplicate drops in the same event cycle
+let dropLock: {
+  playerId: string | null;
+  timestamp: number;
+  isPositionSpecific: boolean;
+} = {
+  playerId: null,
+  timestamp: 0,
+  isPositionSpecific: false
+};
+
+const DROP_LOCK_TIMEOUT = 100; // 100ms lock duration
+
 const DroppableZone: React.FC<DroppableZoneProps> = React.memo(({ zone, players, children, sx, position }) => {
   const { dispatch } = useContext(AppContext);
   const [isHovered, setIsHovered] = useState(false);
@@ -40,6 +53,16 @@ const DroppableZone: React.FC<DroppableZoneProps> = React.memo(({ zone, players,
 
   // Determine if this is a position-specific zone
   const isPositionZone = position !== undefined;
+
+  // Add debugging for ref updates
+  useEffect(() => {
+    console.log('🔍 DroppableZone refs updated:', {
+      zone: zoneRef.current,
+      position: positionRef.current,
+      componentId: `${zone}-${position}`,
+      isPositionZone
+    });
+  }, [zone, position, isPositionZone]);
 
   // Memoized zone background calculation
   const zoneBackground = useMemo(() => {
@@ -124,7 +147,7 @@ const DroppableZone: React.FC<DroppableZoneProps> = React.memo(({ zone, players,
     ...sx
   }), [borderColor, backgroundColor, transform, boxShadow, isPositionZone, sx]);
 
-  // Optimized drag handlers with useCallback
+  // ✨ FIXED: Enhanced handleDrop with priority lock system
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setIsHovered(false);
@@ -137,28 +160,77 @@ const DroppableZone: React.FC<DroppableZoneProps> = React.memo(({ zone, players,
     try {
       const player: Player = JSON.parse(json);
       const from = e.dataTransfer.getData('player/source');
+      const currentTime = Date.now();
+
+      // Get current ref values to avoid stale closure issues
+      const currentZone = zoneRef.current;
+      const currentPosition = positionRef.current;
+      const isCurrentPositionSpecific = currentPosition !== undefined;
+      
+      console.log('🔍 Drop analysis:', {
+        player: player.name,
+        from,
+        targetZone: currentZone,
+        targetPosition: currentPosition,
+        isPositionSpecific: isCurrentPositionSpecific,
+        currentTime,
+        lockState: dropLock
+      });
 
       // If this was a swap operation that was handled by a PlayerCard, don't process it here
       if (isSwapOperation) {
+        console.log('🚫 Swap operation detected - skipping zone drop handling');
         return;
       }
 
-      // ✨ Handle position-specific drops (P1, P2, P3, P4 grid boxes)
-      if (positionRef.current !== undefined) {
-        console.log(`🎯 Position-specific drop: Moving ${player.name} to ${zoneRef.current} position ${positionRef.current}`);
-        dispatch(Action.movePlayerToPosition(player.id, zoneRef.current, positionRef.current));
-        return;
+      // ✨ CHECK DROP LOCK - Prevent duplicate drops
+      if (dropLock.playerId === player.id && 
+          currentTime - dropLock.timestamp < DROP_LOCK_TIMEOUT) {
+        
+        // If the current drop is position-specific but the locked one wasn't, allow override
+        if (isCurrentPositionSpecific && !dropLock.isPositionSpecific) {
+          console.log('🔓 Override: Position-specific drop overriding zone drop');
+        } else {
+          console.log('🔒 Drop blocked by lock - duplicate drop prevented');
+          return;
+        }
       }
 
-      // ✨ FIXED: Regular zone drops should use quickMovePlayer for auto-positioning
-      if (from === zoneRef.current) {
-        console.log(`❌ No-op: Same zone ${from} === ${zoneRef.current}`);
-        return; // no-op if dropped into same zone
+      // ✨ SET DROP LOCK with priority information
+      dropLock = {
+        playerId: player.id,
+        timestamp: currentTime,
+        isPositionSpecific: isCurrentPositionSpecific
+      };
+
+      // ✨ STOP EVENT PROPAGATION for position-specific drops
+      if (isCurrentPositionSpecific) {
+        e.stopPropagation();
+        console.log('🛑 Event propagation stopped for position-specific drop');
       }
 
-      console.log(`🎯 Zone drop with auto-positioning: Moving ${player.name} from "${from}" to "${zoneRef.current}"`);
-      // ✨ Use quickMovePlayer instead of movePlayer for automatic position assignment
-      dispatch(Action.quickMovePlayer(player.id, from, zoneRef.current));
+      // Process the drop with explicit if-else logic
+      if (isCurrentPositionSpecific) {
+        // Position-specific drop (P1, P2, P3, P4 grid boxes) - HIGHEST PRIORITY
+        console.log(`🎯 Position-specific drop: Moving ${player.name} to ${currentZone} position ${currentPosition}`);
+        dispatch(Action.movePlayerToPosition(player.id, currentZone, currentPosition));
+      } else if (from === currentZone) {
+        // Same zone - no operation needed
+        console.log(`❌ No-op: Same zone ${from} === ${currentZone}`);
+      } else {
+        // Regular zone drop with auto-positioning - LOWER PRIORITY
+        console.log(`🎯 Zone drop with auto-positioning: Moving ${player.name} from "${from}" to "${currentZone}"`);
+        dispatch(Action.quickMovePlayer(player.id, from, currentZone));
+      }
+
+      // Clear lock after timeout
+      setTimeout(() => {
+        if (dropLock.playerId === player.id && dropLock.timestamp === currentTime) {
+          console.log('🔓 Drop lock cleared for', player.name);
+          dropLock = { playerId: null, timestamp: 0, isPositionSpecific: false };
+        }
+      }, DROP_LOCK_TIMEOUT);
+      
     } catch (error) {
       console.error('Error parsing player data:', error);
     }
