@@ -644,43 +644,41 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
   // Memoized formatted time
   const formattedTime = useMemo(() => formatElapsedTime(elapsedSeconds), [elapsedSeconds]);
 
-  // 🔧 Enhanced card styles with mobile optimizations
+// 🍭 ACTUAL Popsicle stick card styles - wide and short like real popsicle sticks!
   const enhancedCardStyles = useMemo(() => ({
     display: 'flex',
-    width: '100%',
-    maxWidth: isInTeamZone 
-      ? '100%'  // Fill available space in teams
-      : isMobile 
-        ? '90vw' 
-        : '200px',
-    minWidth: isMobileDevice 
-      ? (isInTeamZone ? '140px' : '180px')  // Larger on mobile
-      : (isInTeamZone ? '120px' : '160px'),
+    flexDirection: 'row',  // Horizontal layout like a real popsicle stick
+    width: isInTeamZone 
+      ? '140px'  // Wide like actual popsicle stick in team zones
+      : '160px',  // Even wider in player list
+    maxWidth: isInTeamZone ? '140px' : '160px',
+    minWidth: isInTeamZone ? '140px' : '160px',
+    height: isInTeamZone 
+      ? (isMobileDevice ? '22px' : '20px')  // Short and flat like real popsicle stick
+      : (isMobileDevice ? '26px' : '24px'),
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: isMobileDevice 
-      ? (isInTeamZone ? '4px 6px' : '8px 10px')  // More padding on mobile
-      : (isInTeamZone ? '2px 4px' : '6px 8px'),
+    padding: '2px 6px',  // Horizontal padding for the wide stick
     backgroundColor: isDropTarget 
       ? '#E8F5E9'
       : cardColors.backgroundColor,
-    borderRadius: isInTeamZone ? '12px' : '20px',
+    borderRadius: '12px',  // Rounded ends like a wooden popsicle stick
     boxShadow: isDropTarget 
     ? '0 4px 12px rgba(233, 30, 99, 0.3)'
     : isSwapping
       ? '0 0 20px rgba(233, 30, 99, 0.8)'
-      : '0 1px 3px rgba(0,0,0,0.1)',
+      : '0 1px 3px rgba(0,0,0,0.2), inset 0 1px 1px rgba(255,255,255,0.2)',  // Wood-like shadow
     cursor: 'grab',
     margin: '0 auto 2px',
     color: cardColors.textColor,
     border: isSwapping
-    ? '3px solid #E91E63'
+    ? '2px solid #E91E63'
     : isDropTarget 
       ? '2px solid #E91E63'
-      : '1px solid rgba(0, 0, 0, 0.06)',
+      : `1px solid ${cardColors.backgroundColor}`,  // Subtle border
     opacity: isDragging ? 0.5 : 1,
     transform: isDropTarget 
-      ? (isMobileDevice ? 'scale(1.12)' : 'scale(1.08)')  // More prominent on mobile
+      ? 'scale(1.05)' 
       : (isDragging ? 'scale(0.95)' : 'scale(1)'),
     transition: isSwapping 
       ? 'border-color 0.15s ease-in-out, border-width 0.15s ease-in-out, box-shadow 0.15s ease-in-out'
@@ -695,18 +693,38 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
     WebkitTouchCallout: 'none',
     '&:active': {
       cursor: 'grabbing',
-      transform: isMobileDevice ? 'scale(0.98)' : 'scale(0.95)',
-      backgroundColor: isMobileDevice 
-        ? 'rgba(233, 30, 99, 0.1)' 
-        : cardColors.backgroundColor,
+      transform: 'scale(0.95)',
     },
     willChange: 'transform, opacity',
     backfaceVisibility: 'hidden',
-    // Enhanced mobile touch targets
-    minHeight: isMobileDevice 
-      ? (isInTeamZone ? '40px' : '50px') 
-      : (isInTeamZone ? '35px' : '45px'),
-  }), [isInTeamZone, isMobile, isMobileDevice, cardColors, isDragging, isDropTarget, isSwapping]);
+    // Real wood grain effect for popsicle stick - HORIZONTAL grain
+    backgroundImage: `
+      linear-gradient(0deg, 
+        ${cardColors.backgroundColor} 0%, 
+        ${cardColors.backgroundColor}f0 25%,
+        ${cardColors.backgroundColor}e0 50%, 
+        ${cardColors.backgroundColor}f0 75%,
+        ${cardColors.backgroundColor} 100%),
+      repeating-linear-gradient(0deg, 
+        transparent 0px, 
+        rgba(0,0,0,0.02) 0.5px, 
+        transparent 1px)`,
+    // Add subtle horizontal wood texture
+    position: 'relative',
+    '&::before': {
+      content: '""',
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      background: `repeating-linear-gradient(90deg, 
+        transparent 0px, 
+        rgba(0,0,0,0.03) 1px, 
+        transparent 2px)`,
+      pointerEvents: 'none',
+    },
+  }), [isInTeamZone, isMobileDevice, cardColors, isDragging, isDropTarget, isSwapping]);
 
   return (
     <div className="flipped">
