@@ -305,7 +305,8 @@ const DroppableZone: React.FC<DroppableZoneProps> = React.memo(({ zone, players,
       if (isCurrentPositionSpecific) {
         // Position-specific drop (P1, P2, P3, P4 grid boxes) - HIGHEST PRIORITY
         console.log(`🎯 Position-specific drop: Moving ${player.name} to ${currentZone} position ${currentPosition}`);
-        dispatch(Action.movePlayerToPosition(player.id, currentZone, currentPosition));
+        // dispatch(Action.movePlayerToPosition(player.id, currentZone, currentPosition));
+        dispatch(Action.movePlayerToPosition(player.id, from, currentZone, currentPosition));
       } else if (from === currentZone) {
         // Same zone - no operation needed
         console.log(`❌ No-op: Same zone ${from} === ${currentZone}`);

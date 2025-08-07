@@ -24,7 +24,12 @@ type Action =
   | { type: "removeQueue"; payload: { queueId: string } }
   | {
       type: "movePlayerToPosition";
-      payload: { playerId: string; zone: string; position: number };
+      payload: {
+        playerId: string;
+        from: string;
+        zone: string;
+        position: number;
+      };
     }
   | {
       type: "quickMovePlayer";
@@ -333,12 +338,12 @@ export default function reducer(state: any, action: Action) {
       };
     }
 
-    // ✨ FIXED: Handle position-specific moves with correct logic
+    // ✨ FINAL: MOVE_PLAYER_TO_POSITION using exact same logic as MOVE_PLAYER + position assignment
     case ActionType.MOVE_PLAYER_TO_POSITION: {
-      const { playerId, zone, position } = action.payload;
+      const { playerId, from, zone, position } = action.payload;
 
       console.log(
-        `🎯 MOVE_PLAYER_TO_POSITION: Player ${playerId} to ${zone} position ${position}`
+        `🎯 MOVE_PLAYER_TO_POSITION: Player ${playerId} from "${from}" to ${zone} position ${position}`
       );
 
       const playerToMove = state.players.find((p: Player) => p.id === playerId);
@@ -368,6 +373,9 @@ export default function reducer(state: any, action: Action) {
 
       const isToCourt = zone.startsWith("court-");
       const isToQueue = zone.startsWith("queue-");
+      const isFromCourt = from.startsWith("court-");
+      const isFromQueue = from.startsWith("queue-");
+      const isFromRest = from === "rest" || from === "all";
 
       // Get player's current statuses
       const existingCourt = playerToMove.status.find(
@@ -377,26 +385,75 @@ export default function reducer(state: any, action: Action) {
         (s: PlayerStatus): s is PlayerStatus => s.startsWith("queue-")
       );
 
-      // ✨ FIXED: Determine new status based on where player is moving TO
+      // ✨ EXACT SAME LOGIC AS MOVE_PLAYER - now we can distinguish drag sources!
       let newStatus: PlayerStatus[] = [];
 
-      if (isToCourt) {
-        // Moving to court
-        if (existingQueue && existingQueue !== zone) {
-          // Player has a queue - keep it (advanced queueing: court + queue)
-          newStatus = [zone as PlayerStatus, existingQueue];
-        } else {
-          // No queue or moving within same zone - just set court
-          newStatus = [zone as PlayerStatus];
-        }
-      } else if (isToQueue) {
-        // Moving to queue
-        if (existingCourt && existingCourt !== zone) {
-          // Player has a court - keep it (advanced queueing: court + queue)
+      // RULE 1: Moving between queue boxes - just replace the queue
+      if (isFromQueue && isToQueue) {
+        // If player has court status, keep it (advanced queue)
+        if (existingCourt) {
           newStatus = [existingCourt, zone as PlayerStatus];
         } else {
-          // No court or moving within same zone - just set queue
           newStatus = [zone as PlayerStatus];
+        }
+      }
+      // RULE 2: Moving between court boxes - just replace the court
+      else if (isFromCourt && isToCourt) {
+        // If player has queue status, keep it (advanced queue)
+        if (existingQueue) {
+          newStatus = [zone as PlayerStatus, existingQueue];
+        } else {
+          newStatus = [zone as PlayerStatus];
+        }
+      }
+      // RULE 3: Moving from queue to court - MOVE not duplicate (TRANSFER)
+      else if (isFromQueue && isToCourt) {
+        newStatus = [zone as PlayerStatus];
+        console.log(`🔄 Queue→Court TRANSFER: ${playerToMove.name}`);
+      }
+      // RULE 4: Moving from court to queue - MOVE not duplicate (TRANSFER)
+      else if (isFromCourt && isToQueue) {
+        newStatus = [zone as PlayerStatus];
+        console.log(`🔄 Court→Queue TRANSFER: ${playerToMove.name}`);
+      }
+      // RULE 5: Moving from rest/player list (ADVANCED QUEUEING POSSIBLE)
+      else if (isFromRest) {
+        if (isToCourt) {
+          // Check if player already has a court - if so, just update it
+          if (existingCourt) {
+            newStatus = existingQueue
+              ? [zone as PlayerStatus, existingQueue]
+              : [zone as PlayerStatus];
+          } else {
+            // No existing court, add court and keep queue if exists
+            newStatus = existingQueue
+              ? [zone as PlayerStatus, existingQueue]
+              : [zone as PlayerStatus];
+          }
+        } else if (isToQueue) {
+          // ADVANCED QUEUEING: If player is on court and dragged to queue from player list
+          if (existingCourt) {
+            newStatus = [existingCourt, zone as PlayerStatus]; // TEAL status!
+            console.log(
+              `🔥 ADVANCED QUEUEING: ${playerToMove.name} on court → queue`
+            );
+          } else {
+            // Not on court, just add to queue
+            newStatus = [zone as PlayerStatus];
+          }
+        }
+      }
+      // RULE 6: Moving back to rest - only remove the specific status being moved FROM
+      else if (zone === "rest" || zone === "all") {
+        if (isFromCourt) {
+          // Remove only court status, keep queue if exists
+          newStatus = existingQueue ? [existingQueue] : [];
+        } else if (isFromQueue) {
+          // Remove only queue status, keep court if exists
+          newStatus = existingCourt ? [existingCourt] : [];
+        } else {
+          // If moving from "all" zone (player list), clear all statuses
+          newStatus = [];
         }
       }
 
@@ -407,23 +464,49 @@ export default function reducer(state: any, action: Action) {
           isToCourt && !existingCourt ? Date.now() : playerToMove.timeEntered,
       };
 
-      // ✨ FIXED: Set the exact position that was requested
-      if (isToCourt) {
-        // Clear queue order if moving from different queue to court
-        if (existingQueue && existingQueue !== zone) {
-          updatedPlayer.queueOrder = null;
-        }
-        // Set the exact court position
+      // ✨ Handle order fields with EXACT POSITION assignment (the key difference from MOVE_PLAYER)
+      if (isFromQueue && isToCourt) {
+        // Queue to court TRANSFER - clear queue order, assign exact court position
+        updatedPlayer.queueOrder = null;
         updatedPlayer.courtOrder = position;
-        console.log(`✅ Set ${updatedPlayer.name} courtOrder to ${position}`);
-      } else if (isToQueue) {
-        // Clear court order if moving from different court to queue
-        if (existingCourt && existingCourt !== zone) {
-          updatedPlayer.courtOrder = null;
-        }
-        // Set the exact queue position
+        console.log(
+          `⬆️ Queue→Court transfer: ${updatedPlayer.name} → court position ${position}`
+        );
+      } else if (isFromCourt && isToQueue) {
+        // Court to queue TRANSFER - clear court order, assign exact queue position
+        updatedPlayer.courtOrder = null;
         updatedPlayer.queueOrder = position;
-        console.log(`✅ Set ${updatedPlayer.name} queueOrder to ${position}`);
+        console.log(
+          `⬇️ Court→Queue transfer: ${updatedPlayer.name} → queue position ${position}`
+        );
+      } else if (isFromRest && isToQueue && existingCourt) {
+        // ADVANCED QUEUEING: Player on court being added to queue from player list
+        // Keep court order, assign exact queue position
+        updatedPlayer.queueOrder = position;
+        console.log(
+          `🔥 Advanced queueing: ${updatedPlayer.name} → queue position ${position}, keeping court`
+        );
+      } else if (isFromRest && isToCourt && existingQueue) {
+        // ADVANCED QUEUEING: Player in queue being added to court from player list
+        // Keep queue order, assign exact court position
+        updatedPlayer.courtOrder = position;
+        console.log(
+          `🔥 Advanced queueing: ${updatedPlayer.name} → court position ${position}, keeping queue`
+        );
+      } else if (isToCourt) {
+        // Any other move to court - assign exact court position, clear queue if no existing queue
+        updatedPlayer.courtOrder = position;
+        if (!existingQueue) updatedPlayer.queueOrder = null;
+        console.log(
+          `📍 Court position ${position} assigned to ${updatedPlayer.name}`
+        );
+      } else if (isToQueue) {
+        // Any other move to queue - assign exact queue position, clear court if no existing court
+        updatedPlayer.queueOrder = position;
+        if (!existingCourt) updatedPlayer.courtOrder = null;
+        console.log(
+          `📍 Queue position ${position} assigned to ${updatedPlayer.name}`
+        );
       }
 
       const updatedPlayers = state.players.map((p: Player) =>
@@ -438,7 +521,7 @@ export default function reducer(state: any, action: Action) {
       );
 
       console.log(
-        `✅ Position move completed: ${updatedPlayer.name} → ${zone} position ${position}`
+        `✅ Position move completed: ${updatedPlayer.name} from "${from}" → ${zone} position ${position}`
       );
 
       return {
@@ -454,7 +537,6 @@ export default function reducer(state: any, action: Action) {
         },
       };
     }
-
     // ========================================
     // MOVE_PLAYER case (no automatic positioning)
     // ========================================

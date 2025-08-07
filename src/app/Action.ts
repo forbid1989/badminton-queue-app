@@ -59,10 +59,15 @@ const Action = {
   },
 
   // 🆕 New action for position-specific moves
-  movePlayerToPosition(playerId: string, zone: string, position: number) {
+  movePlayerToPosition(
+    playerId: string,
+    from: string,
+    zone: string,
+    position: number
+  ) {
     return {
       type: ActionType.MOVE_PLAYER_TO_POSITION,
-      payload: { playerId, zone, position },
+      payload: { playerId, from, zone, position },
     };
   },
 

@@ -564,7 +564,8 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
           
           // Check if it's a position-specific drop
           if (targetPosition !== null && targetPosition !== 'null') {
-            dispatch(Action.movePlayerToPosition(player.id, targetZone, parseInt(targetPosition)));
+            dispatch(Action.movePlayerToPosition(player.id, zone, targetZone, parseInt(targetPosition)));
+            // dispatch(Action.movePlayerToPosition(player.id, targetZone, parseInt(targetPosition)));
           } else {
             dispatch(Action.quickMovePlayer(player.id, zone, targetZone));
           }
