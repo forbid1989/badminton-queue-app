@@ -370,14 +370,14 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
     console.log('✅ Mobile drag clone created at:', { x, y, scale: viewportScale });
   }, [isInTeamZone]);
 
-  // 🔧 Enhanced mobile touch start with proper drag detection
+  // 🔧 Enhanced mobile touch start with responsive drag activation
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     const touch = e.touches[0];
     const rect = cardRef.current?.getBoundingClientRect();
     
     if (!rect) return;
 
-    console.log('🎯 Touch start - analyzing gesture');
+    console.log('🎯 Touch start on player card - preparing for potential drag');
     
     // Store initial touch for drag detection
     const initialTouch = {
@@ -399,13 +399,11 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
     draggedElement = cardRef.current;
     draggedData = { player, zone };
     
-    // Mobile-specific: Add delay to distinguish between tap and drag
+    // 🔧 Moderate delay to distinguish between tap and drag, but allow both vertical and horizontal drags
     const touchStartTimer = setTimeout(() => {
       if (!dragStarted) {
         console.log('🚀 Starting mobile drag after delay');
         
-        // Only prevent default after confirming drag intent
-        e.preventDefault();
         setIsDragging(true);
         setDragStarted(true);
         
@@ -416,7 +414,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
         
         createMobileDragClone(touch, currentOffset, rect);
       }
-    }, isMobileDevice ? 150 : 0); // 150ms delay on mobile, immediate on desktop
+    }, isMobileDevice ? 200 : 0); // Balanced 200ms delay - not too fast, not too slow
 
     // Store references for cleanup
     (cardRef.current as any)._touchStartTimer = touchStartTimer;

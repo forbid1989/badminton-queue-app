@@ -345,12 +345,14 @@ const DroppableZone: React.FC<DroppableZoneProps> = React.memo(({ zone, players,
     }
   }, [isMobileDevice]);
 
-  // 📱 Mobile-specific touch handlers for the zone itself
+  // 1. Update the handleTouchStart function (around line 200):
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     if (!isMobileDevice) return;
     
-    // Prevent default touch behavior on zones to avoid conflicts
-    // but allow it to bubble up to player cards
+    // 🔧 IMPORTANT: Don't prevent default on zone touch start
+    // This allows natural scrolling to work when touching empty areas
+    // Only player cards should handle drag operations
+    console.log('📱 Zone touch start - allowing natural behavior');
   }, [isMobileDevice]);
 
   // 📱 Prevent scroll during active drag operations
@@ -365,7 +367,7 @@ const DroppableZone: React.FC<DroppableZoneProps> = React.memo(({ zone, players,
     }, MOBILE_SCROLL_PREVENTION_DELAY);
   }, [isMobileDevice]);
 
-  // Memoized combined styles with mobile optimizations
+    // 2. Update the combinedSx styles (around line 280):
   const combinedSx = useMemo(() => ({
     border: `2px ${isPositionZone ? 'solid' : 'dashed'} ${borderColor}`,
     borderRadius: isPositionZone ? 1 : 2,
@@ -373,7 +375,7 @@ const DroppableZone: React.FC<DroppableZoneProps> = React.memo(({ zone, players,
     marginBottom: isPositionZone ? 0 : 3,
     backgroundColor,
     minHeight: isPositionZone 
-      ? (isMobileDevice ? 40 : 35)  // Larger touch targets on mobile
+      ? (isMobileDevice ? 40 : 35)
       : (isMobileDevice ? 90 : 80),
     transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
     transform,
@@ -382,8 +384,10 @@ const DroppableZone: React.FC<DroppableZoneProps> = React.memo(({ zone, players,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    // 📱 Mobile-specific touch optimizations
-    touchAction: isMobileDevice ? 'none' : 'auto',
+    // 📱 Mobile-specific touch optimizations - IMPROVED
+    touchAction: isMobileDevice 
+      ? (isPositionZone ? 'none' : 'pan-y') // Allow scrolling in main zones, prevent in position zones
+      : 'auto',
     WebkitTapHighlightColor: 'transparent',
     WebkitTouchCallout: 'none',
     userSelect: 'none',
@@ -405,10 +409,16 @@ const DroppableZone: React.FC<DroppableZoneProps> = React.memo(({ zone, players,
       borderColor: '#4CAF50',
       transform: isMobileDevice ? 'scale(1.08)' : 'scale(1.05)',
     },
+    // 🔧 Improve scrolling for main player list zone
+    ...(zone === 'all' && {
+      overflowY: 'auto',
+      WebkitOverflowScrolling: 'touch',
+      scrollBehavior: 'smooth',
+    }),
     ...sx
   }), [
     borderColor, backgroundColor, transform, boxShadow, isPositionZone, 
-    isMobileDevice, sx
+    isMobileDevice, sx, zone
   ]);
 
   // Apply mobile hover class when needed

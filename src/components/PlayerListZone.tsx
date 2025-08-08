@@ -156,7 +156,7 @@ const PlayerListZone: React.FC<PlayerListZoneProps> = ({ state }) => {
         )}
       </Box>
 
-      {/* Player List */}
+      {/* Player List with improved touch scrolling */}
       <DroppableZone
         zone="all"
         players={filteredAndSortedPlayers}
@@ -167,9 +167,36 @@ const PlayerListZone: React.FC<PlayerListZoneProps> = ({ state }) => {
           py: 1,
           boxShadow: 'inset 0 0 4px rgba(0,0,0,0.04)',
           borderTop: '2px dashed #d8c9aa',
+          // 🔧 Enhanced mobile scrolling
+          overflowY: 'auto',
+          WebkitOverflowScrolling: 'touch', // Smooth iOS scrolling
+          touchAction: 'pan-y', // Allow vertical panning (scrolling) but prevent horizontal
+          // Add scroll padding for better mobile experience
+          '&::-webkit-scrollbar': {
+            width: '6px',
+          },
+          '&::-webkit-scrollbar-track': {
+            background: 'rgba(0,0,0,0.1)',
+            borderRadius: '3px',
+          },
+          '&::-webkit-scrollbar-thumb': {
+            background: 'rgba(0,0,0,0.3)',
+            borderRadius: '3px',
+            '&:hover': {
+              background: 'rgba(0,0,0,0.5)',
+            },
+          },
         }}
       >
-        {filteredAndSortedPlayers.length === 0 ? emptyMessage : playerGrid}
+        {/* Add padding wrapper for better touch targets around cards */}
+        <Box sx={{ 
+          py: 1,
+          // 🔧 This ensures there are scrollable areas around cards
+          minHeight: '200px',
+          position: 'relative',
+        }}>
+          {filteredAndSortedPlayers.length === 0 ? emptyMessage : playerGrid}
+        </Box>
       </DroppableZone>
     </Box>
   );
