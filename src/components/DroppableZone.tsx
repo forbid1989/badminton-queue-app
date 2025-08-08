@@ -345,15 +345,21 @@ const DroppableZone: React.FC<DroppableZoneProps> = React.memo(({ zone, players,
     }
   }, [isMobileDevice]);
 
-  // 1. Update the handleTouchStart function (around line 200):
-  const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    if (!isMobileDevice) return;
+  // // 1. Update the handleTouchStart function (around line 200):
+  // const handleTouchStart = useCallback((e: React.TouchEvent) => {
+  //   if (!isMobileDevice) return;
     
-    // 🔧 IMPORTANT: Don't prevent default on zone touch start
-    // This allows natural scrolling to work when touching empty areas
-    // Only player cards should handle drag operations
+  //   // 🔧 IMPORTANT: Don't prevent default on zone touch start
+  //   // This allows natural scrolling to work when touching empty areas
+  //   // Only player cards should handle drag operations
+  //   console.log('📱 Zone touch start - allowing natural behavior');
+  // }, [isMobileDevice]);
+
+    // 📱 SIMPLIFIED mobile touch handlers
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    // Don't interfere with drag operations
     console.log('📱 Zone touch start - allowing natural behavior');
-  }, [isMobileDevice]);
+  }, []);
 
   // 📱 Prevent scroll during active drag operations
   const preventScrollDuringDrag = useCallback(() => {

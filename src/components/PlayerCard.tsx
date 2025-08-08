@@ -370,23 +370,23 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
     console.log('✅ Mobile drag clone created at:', { x, y, scale: viewportScale });
   }, [isInTeamZone]);
 
-  // 🔧 Enhanced mobile touch start with responsive drag activation
+  // 🔧 SIMPLIFIED mobile touch start - more reliable
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     const touch = e.touches[0];
     const rect = cardRef.current?.getBoundingClientRect();
     
     if (!rect) return;
 
-    console.log('🎯 Touch start on player card - preparing for potential drag');
+    console.log('🎯 Touch start on player card');
     
-    // Store initial touch for drag detection
+    // Store initial touch
     const initialTouch = {
       x: touch.clientX,
       y: touch.clientY,
       time: Date.now()
     };
 
-    // Calculate offset with mobile viewport considerations
+    // Calculate offset
     const viewportScale = window.visualViewport ? window.visualViewport.scale : 1;
     const currentOffset = {
       x: (touch.clientX - rect.left) / viewportScale,
@@ -395,28 +395,26 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
     
     setDragOffset(currentOffset);
     
-    // Set drag data but don't start drag immediately
+    // Set drag data immediately
     draggedElement = cardRef.current;
     draggedData = { player, zone };
     
-    // 🔧 Moderate delay to distinguish between tap and drag, but allow both vertical and horizontal drags
+    // Much shorter delay - 100ms max
     const touchStartTimer = setTimeout(() => {
       if (!dragStarted) {
-        console.log('🚀 Starting mobile drag after delay');
-        
+        console.log('🚀 Starting drag operation');
         setIsDragging(true);
         setDragStarted(true);
         
-        // Add haptic feedback if available
         if ('vibrate' in navigator) {
-          navigator.vibrate(50);
+          navigator.vibrate(30);
         }
         
         createMobileDragClone(touch, currentOffset, rect);
       }
-    }, isMobileDevice ? 200 : 0); // Balanced 200ms delay - not too fast, not too slow
+    }, isMobileDevice ? 100 : 0); // Much shorter delay
 
-    // Store references for cleanup
+    // Store references
     (cardRef.current as any)._touchStartTimer = touchStartTimer;
     (cardRef.current as any)._initialTouch = initialTouch;
     
@@ -475,7 +473,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
     }
   }, [isDragging, dragOffset, dragStarted, isMobileDevice, createMobileDragClone]);
 
-  // 🔧 Enhanced mobile touch end with better drop detection
+  // Replace your existing handleTouchEnd function with this updated version:
   const handleTouchEnd = useCallback((e: React.TouchEvent) => {
     // Clear any pending timers
     if ((cardRef.current as any)?._touchStartTimer) {
@@ -524,8 +522,15 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
       scroll: { x: scrollX, y: scrollY }
     });
     
-    // Enhanced element detection for mobile
-    const elementBelow = document.elementFromPoint(adjustedX, adjustedY);
+    // 🔧 IMPROVED: Enhanced element detection for mobile - try multiple methods
+    let elementBelow = document.elementFromPoint(adjustedX, adjustedY);
+    
+    // If first attempt doesn't work, try with original coordinates
+    if (!elementBelow) {
+      elementBelow = document.elementFromPoint(touch.clientX, touch.clientY);
+      console.log('🔍 Fallback element detection used');
+    }
+    
     console.log('🎯 Element below finger:', elementBelow);
     
     // Success haptic feedback
@@ -551,21 +556,80 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
         dispatch(Action.swapPlayers(player.id, targetPlayerId, zone));
       }
     } else {
-      // Check for droppable zone
-      const droppableZone = elementBelow?.closest('[data-droppable-zone]');
+      // 🔧 IMPROVED: Better droppable zone detection for mobile
+      let droppableZone = elementBelow?.closest('[data-droppable-zone]');
+      
+      // If we can't find a droppable zone, search in parent elements more aggressively
+      if (!droppableZone && elementBelow) {
+        let searchElement = elementBelow.parentElement;
+        let attempts = 0;
+        while (searchElement && attempts < 5) {
+          droppableZone = searchElement.closest('[data-droppable-zone]');
+          if (droppableZone) break;
+          searchElement = searchElement.parentElement;
+          attempts++;
+        }
+      }
+      
       if (droppableZone && draggedData) {
         const targetZone = droppableZone.getAttribute('data-droppable-zone');
         const targetPosition = droppableZone.getAttribute('data-position');
         
-        if (targetZone && targetZone !== zone) {
-          console.log('✅ Performing zone move');
-          
-          // Check if it's a position-specific drop
-          if (targetPosition !== null && targetPosition !== 'null') {
-            dispatch(Action.movePlayerToPosition(player.id, zone, targetZone, parseInt(targetPosition)));
-            // dispatch(Action.movePlayerToPosition(player.id, targetZone, parseInt(targetPosition)));
+        console.log('🎯 Found droppable zone:', targetZone, 'position:', targetPosition);
+        
+        if (targetZone) {
+          // 🔧 KEY FIX: Handle same-zone position moves properly
+          if (targetZone === zone && targetPosition !== null && targetPosition !== 'null') {
+            const positionNum = parseInt(targetPosition);
+            console.log('✅ Same-zone position move:', player.name, 'to position', positionNum);
+            dispatch(Action.movePlayerToPosition(player.id, zone, targetZone, positionNum));
+          } else if (targetZone !== zone) {
+            console.log('✅ Cross-zone move');
+            // Check if it's a position-specific drop
+            if (targetPosition !== null && targetPosition !== 'null') {
+              dispatch(Action.movePlayerToPosition(player.id, zone, targetZone, parseInt(targetPosition)));
+            } else {
+              dispatch(Action.quickMovePlayer(player.id, zone, targetZone));
+            }
           } else {
-            dispatch(Action.quickMovePlayer(player.id, zone, targetZone));
+            console.log('🚫 No valid move detected');
+          }
+        }
+      } else {
+        console.log('❌ No droppable zone found');
+        
+        // 🔧 FALLBACK: Try to find any zone element in the vicinity
+        const allZones = document.querySelectorAll('[data-droppable-zone]');
+        let closestZone: HTMLElement | null = null;
+        let minDistance = Infinity;
+        
+        allZones.forEach(zoneElement => {
+          if (!(zoneElement instanceof HTMLElement)) return; // Type guard
+          
+          const rect = zoneElement.getBoundingClientRect();
+          const centerX = rect.left + rect.width / 2;
+          const centerY = rect.top + rect.height / 2;
+          const distance = Math.sqrt(
+            Math.pow(touch.clientX - centerX, 2) + 
+            Math.pow(touch.clientY - centerY, 2)
+          );
+          
+          if (distance < minDistance && distance < 100) { // Within 100px
+            minDistance = distance;
+            closestZone = zoneElement;
+          }
+        });
+        
+        if (closestZone) {
+          const targetZone = (closestZone as HTMLElement).getAttribute('data-droppable-zone');
+          const targetPosition = (closestZone as HTMLElement).getAttribute('data-position');
+          
+          console.log('🎯 Found closest zone:', targetZone, 'position:', targetPosition, 'distance:', minDistance);
+          
+          if (targetZone && targetZone === zone && targetPosition !== null && targetPosition !== 'null') {
+            const positionNum = parseInt(targetPosition);
+            console.log('✅ Fallback same-zone position move:', player.name, 'to position', positionNum);
+            dispatch(Action.movePlayerToPosition(player.id, zone, targetZone, positionNum));
           }
         }
       }
