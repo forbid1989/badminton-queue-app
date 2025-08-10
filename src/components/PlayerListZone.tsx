@@ -89,9 +89,9 @@ const PlayerListZone: React.FC<PlayerListZoneProps> = ({ state }) => {
   ), [filteredAndSortedPlayers]);
 
   return (
-    <Box sx={{ px: 1 }}>
+    <Box sx={{ px: { xs: 0.5, lg: 1 } }}> 
       {/* Search Filter */}
-      <Box sx={{ mb: 1.5, px: 1 }}>
+      <Box sx={{ mb: 1.5, px: { xs: 0.5, lg: 1 } }}> 
         <TextField
           size="small"
           placeholder="Search players..."

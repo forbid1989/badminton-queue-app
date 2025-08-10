@@ -713,18 +713,18 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
     const getCardDimensions = () => {
       if (isInTeamZone) {
         return {
-          width: isMobileDevice ? '145px' : '140px',
-          height: isMobileDevice ? '24px' : '22px',
+          width: '170px', // Fixed generous width for all team zones
+          height: isMobileDevice ? '30px' : '28px',
           fontSize: isMobileDevice ? '0.62rem' : '0.58rem',
-          nameMaxWidth: isMobileDevice ? '75px' : '70px',
+          nameMaxWidth: '100px', // Generous space for names
         };
       } else {
-        // Player list - responsive sizing that adapts to container
+        // Player list - keep full sizing for readability
         return {
-          width: '100%', // Use full container width instead of fixed pixels
+          width: '170px',
           height: isMobileDevice ? '28px' : '26px', 
           fontSize: isMobileDevice ? '0.72rem' : '0.68rem',
-          nameMaxWidth: isMobileDevice ? '110px' : '100px',
+          nameMaxWidth: isMobileDevice ? '130px' : '120px',
         };
       }
     };
@@ -881,14 +881,14 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
                   fontSize: isInTeamZone 
                     ? (isMobileDevice ? '0.62rem' : '0.58rem')
                     : (isMobileDevice ? '0.72rem' : '0.68rem'),
-                  lineHeight: 1.2,
+                  lineHeight: isInTeamZone ? 1.1 : 1.2,
                   cursor: 'pointer',
                   textShadow: isMobileDevice ? '1px 1px 2px rgba(0,0,0,0.1)' : 'none',
                   maxWidth: isInTeamZone 
                     ? (isMobileDevice ? '75px' : '70px')
                     : (isMobileDevice ? '110px' : '100px'),
                   display: '-webkit-box',
-                  WebkitLineClamp: isInTeamZone ? 1 : 2,
+                  WebkitLineClamp: 2,
                   WebkitBoxOrient: 'vertical',
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',

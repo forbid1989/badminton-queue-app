@@ -56,15 +56,15 @@ const Dashboard: React.FC = React.memo(() => {
   const leftSidebarSx = useMemo(() => ({
     width: { 
       xs: '100%', 
-      sm: '38%',  // Slightly wider on small tablets
-      md: '35%',  // Original width on medium+ screens
-      lg: '32%'   // Narrower on large screens
+      sm: '22%',  // Reduced from 38% to 30% to give more space to courts/queues
+      md: '23%',  // Reduced from 35% to 28%
+      lg: '32%'   // Reduced from 32% to 25%
     },
     maxHeight: { xs: '40vh', sm: '100%' }, // Limit height when stacked
     overflowY: 'auto',
     p: { xs: 0.5, sm: 1 }, // Less padding on smaller screens
     flexShrink: 0,
-    minWidth: { xs: 'auto', sm: 280, md: 300 }, // Responsive min width
+    minWidth: { xs: 'auto', sm: 240, md: 260 }, // Reduced min widths
     bgcolor: theme.palette.background.paper,
     borderRadius: 2,
     boxShadow: theme.shadows[2],
