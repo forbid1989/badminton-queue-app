@@ -99,37 +99,39 @@ const PlayerListZone: React.FC<PlayerListZoneProps> = ({ state }) => {
           onChange={(e) => setSearchQuery(e.target.value)}
           variant="outlined"
           fullWidth
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <SearchIcon sx={{ fontSize: '1rem', color: '#666' }} />
-              </InputAdornment>
-            ),
-            endAdornment: searchQuery && (
-              <InputAdornment position="end">
-                <ClearIcon
-                  sx={{ 
-                    fontSize: '1rem', 
-                    color: '#666', 
-                    cursor: 'pointer',
-                    '&:hover': { color: '#333' }
-                  }}
-                  onClick={handleClearSearch}
-                />
-              </InputAdornment>
-            ),
-            sx: {
-              fontSize: '0.8rem',
-              backgroundColor: '#fff',
-              '& .MuiOutlinedInput-notchedOutline': {
-                borderColor: '#ddd',
-              },
-              '&:hover .MuiOutlinedInput-notchedOutline': {
-                borderColor: '#bbb',
-              },
-              '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                borderColor: '#5C4033',
-              },
+          slotProps={{
+            input: {
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon sx={{ fontSize: '1rem', color: '#666' }} />
+                </InputAdornment>
+              ),
+              endAdornment: searchQuery && (
+                <InputAdornment position="end">
+                  <ClearIcon
+                    sx={{ 
+                      fontSize: '1rem', 
+                      color: '#666', 
+                      cursor: 'pointer',
+                      '&:hover': { color: '#333' }
+                    }}
+                    onClick={handleClearSearch}
+                  />
+                </InputAdornment>
+              ),
+              sx: {
+                fontSize: '0.8rem',
+                backgroundColor: '#fff',
+                '& .MuiOutlinedInput-notchedOutline': {
+                  borderColor: '#ddd',
+                },
+                '&:hover .MuiOutlinedInput-notchedOutline': {
+                  borderColor: '#bbb',
+                },
+                '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                  borderColor: '#5C4033',
+                },
+              }
             }
           }}
           sx={{
