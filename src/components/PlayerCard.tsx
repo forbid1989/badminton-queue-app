@@ -711,22 +711,12 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
   const enhancedCardStyles = useMemo(() => {
     // Responsive sizing based on screen size and zone
     const getCardDimensions = () => {
-      if (isInTeamZone) {
-        return {
-          width: '170px', // Fixed generous width for all team zones
-          height: isMobileDevice ? '30px' : '28px',
-          fontSize: isMobileDevice ? '0.62rem' : '0.58rem',
-          nameMaxWidth: '100px', // Generous space for names
-        };
-      } else {
-        // Player list - keep full sizing for readability
-        return {
-          width: '170px',
-          height: isMobileDevice ? '28px' : '26px', 
-          fontSize: isMobileDevice ? '0.72rem' : '0.68rem',
-          nameMaxWidth: isMobileDevice ? '130px' : '120px',
-        };
-      }
+      return {
+        width: '170px', // Same for ALL zones
+        height: isMobileDevice ? '28px' : '26px', // Same for ALL zones 
+        fontSize: isMobileDevice ? '0.72rem' : '0.68rem', // Same for ALL zones
+        nameMaxWidth: isMobileDevice ? '130px' : '120px', // Same for ALL zones
+      };
     };
 
     const dimensions = getCardDimensions();
@@ -735,8 +725,8 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
       display: 'flex',
       flexDirection: 'row' as const,
       width: dimensions.width,
-      maxWidth: isInTeamZone ? dimensions.width : (isMobileDevice ? '200px' : '180px'),
-      minWidth: isInTeamZone ? dimensions.width : (isMobileDevice ? '150px' : '140px'),
+      maxWidth: '170px', // Fixed for all zones
+      minWidth: '170px', // Fixed for all zones
       height: dimensions.height,
       justifyContent: 'space-between',
       alignItems: 'center',
