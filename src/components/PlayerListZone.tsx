@@ -76,11 +76,11 @@ const PlayerListZone: React.FC<PlayerListZoneProps> = ({ state }) => {
     );
   }, [searchQuery]);
 
-  // ✅ Memoize the player grid to avoid re-rendering when players haven't changed
+  // ✅ Memoize the player grid with better responsive sizing
   const playerGrid = useMemo(() => (
-    <Grid container spacing={1}>
+    <Grid container spacing={{ xs: 0.5, sm: 1 }}>
       {filteredAndSortedPlayers.map((player) => (
-        <Grid key={player.id} size={{ xs: 12, sm: 6 }}>
+        <Grid key={player.id} size={{ xs: 12, sm: 12, md: 12, lg: 6, xl: 4 }}>
           {/* IMPORTANT: Always pass "all" as the zone for cards in PlayerListZone */}
           <PlayerCard player={player} zone="all" />
         </Grid>
@@ -99,40 +99,43 @@ const PlayerListZone: React.FC<PlayerListZoneProps> = ({ state }) => {
           onChange={(e) => setSearchQuery(e.target.value)}
           variant="outlined"
           fullWidth
-          slotProps={{
-            input: {
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon sx={{ fontSize: '1rem', color: '#666' }} />
-                </InputAdornment>
-              ),
-              endAdornment: searchQuery && (
-                <InputAdornment position="end">
-                  <ClearIcon
-                    sx={{ 
-                      fontSize: '1rem', 
-                      color: '#666', 
-                      cursor: 'pointer',
-                      '&:hover': { color: '#333' }
-                    }}
-                    onClick={handleClearSearch}
-                  />
-                </InputAdornment>
-              ),
-              sx: {
-                fontSize: '0.8rem',
-                backgroundColor: '#fff',
-                '& .MuiOutlinedInput-notchedOutline': {
-                  borderColor: '#ddd',
-                },
-                '&:hover .MuiOutlinedInput-notchedOutline': {
-                  borderColor: '#bbb',
-                },
-                '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                  borderColor: '#5C4033',
-                },
-              }
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchIcon sx={{ fontSize: '1rem', color: '#666' }} />
+              </InputAdornment>
+            ),
+            endAdornment: searchQuery && (
+              <InputAdornment position="end">
+                <ClearIcon
+                  sx={{ 
+                    fontSize: '1rem', 
+                    color: '#666', 
+                    cursor: 'pointer',
+                    '&:hover': { color: '#333' }
+                  }}
+                  onClick={handleClearSearch}
+                />
+              </InputAdornment>
+            ),
+            sx: {
+              fontSize: '0.8rem',
+              backgroundColor: '#fff',
+              '& .MuiOutlinedInput-notchedOutline': {
+                borderColor: '#ddd',
+              },
+              '&:hover .MuiOutlinedInput-notchedOutline': {
+                borderColor: '#bbb',
+              },
+              '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                borderColor: '#5C4033',
+              },
             }
+          }}
+          sx={{
+            '& .MuiInputLabel-root': {
+              fontSize: '0.8rem',
+            },
           }}
         />
         
@@ -153,7 +156,7 @@ const PlayerListZone: React.FC<PlayerListZoneProps> = ({ state }) => {
         )}
       </Box>
 
-      {/* Player List with improved touch scrolling */}
+      {/* Player List */}
       <DroppableZone
         zone="all"
         players={filteredAndSortedPlayers}
@@ -164,36 +167,9 @@ const PlayerListZone: React.FC<PlayerListZoneProps> = ({ state }) => {
           py: 1,
           boxShadow: 'inset 0 0 4px rgba(0,0,0,0.04)',
           borderTop: '2px dashed #d8c9aa',
-          // 🔧 Enhanced mobile scrolling
-          overflowY: 'auto',
-          WebkitOverflowScrolling: 'touch', // Smooth iOS scrolling
-          touchAction: 'pan-y', // Allow vertical panning (scrolling) but prevent horizontal
-          // Add scroll padding for better mobile experience
-          '&::-webkit-scrollbar': {
-            width: '6px',
-          },
-          '&::-webkit-scrollbar-track': {
-            background: 'rgba(0,0,0,0.1)',
-            borderRadius: '3px',
-          },
-          '&::-webkit-scrollbar-thumb': {
-            background: 'rgba(0,0,0,0.3)',
-            borderRadius: '3px',
-            '&:hover': {
-              background: 'rgba(0,0,0,0.5)',
-            },
-          },
         }}
       >
-        {/* Add padding wrapper for better touch targets around cards */}
-        <Box sx={{ 
-          py: 1,
-          // 🔧 This ensures there are scrollable areas around cards
-          minHeight: '200px',
-          position: 'relative',
-        }}>
-          {filteredAndSortedPlayers.length === 0 ? emptyMessage : playerGrid}
-        </Box>
+        {filteredAndSortedPlayers.length === 0 ? emptyMessage : playerGrid}
       </DroppableZone>
     </Box>
   );

@@ -41,23 +41,30 @@ const Dashboard: React.FC = React.memo(() => {
     setAnchorEl(null);
   }, []);
 
-  // Memoized style objects
+  // Memoized style objects with responsive breakpoints
   const containerSx = useMemo(() => ({
     display: 'flex', 
     height: 'calc(100vh - 64px)', 
     overflow: 'hidden', 
-    p: 2, 
-    gap: 2,
+    p: { xs: 1, sm: 1.5, md: 2 }, // Responsive padding
+    gap: { xs: 1, sm: 1.5, md: 2 }, // Responsive gap
     bgcolor: theme.palette.background.default,
+    // Stack vertically on very small tablets
+    flexDirection: { xs: 'column', sm: 'row' },
   }), [theme.palette.background.default]);
 
   const leftSidebarSx = useMemo(() => ({
-    width: '35%',
-    maxHeight: '100%',
+    width: { 
+      xs: '100%', 
+      sm: '38%',  // Slightly wider on small tablets
+      md: '35%',  // Original width on medium+ screens
+      lg: '32%'   // Narrower on large screens
+    },
+    maxHeight: { xs: '40vh', sm: '100%' }, // Limit height when stacked
     overflowY: 'auto',
-    p: 1,
+    p: { xs: 0.5, sm: 1 }, // Less padding on smaller screens
     flexShrink: 0,
-    minWidth: 300,
+    minWidth: { xs: 'auto', sm: 280, md: 300 }, // Responsive min width
     bgcolor: theme.palette.background.paper,
     borderRadius: 2,
     boxShadow: theme.shadows[2],

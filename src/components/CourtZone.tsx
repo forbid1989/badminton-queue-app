@@ -256,7 +256,7 @@ const CourtItem = React.memo<{
   ), [courtId, players]);
 
   return (
-    <Grid size={{ xs: 12, sm: 6 }}>
+    <Grid size={{ xs: 12, sm: 6, md: 6, lg: 6, xl: 4 }}>
       <DroppableZone 
         zone={courtId} 
         players={players} 
@@ -477,7 +477,7 @@ const CourtZone: React.FC<CourtZoneProps> = ({ courtCount }) => {
   );
 
   return (
-    <Grid container spacing={2}>
+    <Grid container spacing={{ xs: 1, sm: 1.5, md: 2 }}>
       {courtItems}
     </Grid>
   );
