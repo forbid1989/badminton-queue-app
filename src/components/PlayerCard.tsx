@@ -48,13 +48,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
   // Memoize frequently used values
   const courtCount = useMemo(() => state.courts.count, [state.courts.count]);
   const queueCount = useMemo(() => state.queue.count, [state.queue.count]);
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-  
-  // 🔧 Mobile device detection
-  const isMobileDevice = useMemo(() => {
-    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
-           window.innerWidth <= 768;
-  }, []);
+  const isMobile = useMediaQuery('(max-width: 1110px)');
 
   const isTouchDevice = useMemo(() => {
     return 'ontouchstart' in window || navigator.maxTouchPoints > 0;
@@ -412,13 +406,13 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
         
         createMobileDragClone(touch, currentOffset, rect);
       }
-    }, isMobileDevice ? 100 : 0); // Much shorter delay
+    }, isMobile ? 100 : 0); // Much shorter delay
 
     // Store references
     (cardRef.current as any)._touchStartTimer = touchStartTimer;
     (cardRef.current as any)._initialTouch = initialTouch;
     
-  }, [player, zone, dragStarted, isMobileDevice, createMobileDragClone]);
+  }, [player, zone, dragStarted, isMobile, createMobileDragClone]);
 
   // 🔧 Enhanced mobile touch move with drag threshold detection
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
@@ -433,7 +427,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
         const deltaTime = Date.now() - initialTouch.time;
         
         // Mobile drag threshold (larger for touch)
-        const MOBILE_DRAG_THRESHOLD = isMobileDevice ? 15 : 5;
+        const MOBILE_DRAG_THRESHOLD = isMobile ? 15 : 5;
         
         if ((deltaX > MOBILE_DRAG_THRESHOLD || deltaY > MOBILE_DRAG_THRESHOLD) && deltaTime > 100) {
           // Clear the delay timer and start drag immediately
@@ -471,7 +465,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
       
       clone.style.transform = `translate3d(${x}px, ${y}px, 0) rotate(2deg) scale(1.15)`;
     }
-  }, [isDragging, dragOffset, dragStarted, isMobileDevice, createMobileDragClone]);
+  }, [isDragging, dragOffset, dragStarted, isMobile, createMobileDragClone]);
 
   // Replace your existing handleTouchEnd function with this updated version:
   const handleTouchEnd = useCallback((e: React.TouchEvent) => {
@@ -485,7 +479,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
     // Clean up clone with mobile-friendly animation
     const clone = document.getElementById('dragging-clone');
     if (clone) {
-      if (isMobileDevice) {
+      if (isMobile) {
         // Mobile: Add fade-out animation
         clone.style.transition = 'opacity 0.2s ease-out, transform 0.2s ease-out';
         clone.style.opacity = '0';
@@ -641,7 +635,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
     setDragStarted(false);
     draggedElement = null;
     draggedData = null;
-  }, [isDragging, player.id, zone, dispatch, dragStarted, dragOffset, isMobileDevice]);
+  }, [isDragging, player.id, zone, dispatch, dragStarted, dragOffset, isMobile]);
 
   // Optimized timer effect
   useEffect(() => {
@@ -707,15 +701,15 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
   // Memoized formatted time
   const formattedTime = useMemo(() => formatElapsedTime(elapsedSeconds), [elapsedSeconds]);
 
-  // 🍭 IMPROVED Popsicle stick card styles - responsive and better text handling
+  // 🍭 IMPROVED card styles with two-row name/stats layout
   const enhancedCardStyles = useMemo(() => {
     // Responsive sizing based on screen size and zone
     const getCardDimensions = () => {
       return {
-        width: '170px', // Same for ALL zones
-        height: isMobileDevice ? '28px' : '26px', // Same for ALL zones 
-        fontSize: isMobileDevice ? '0.72rem' : '0.68rem', // Same for ALL zones
-        nameMaxWidth: isMobileDevice ? '130px' : '120px', // Same for ALL zones
+        width: isMobile ? '140': '160px', // Same for ALL zones
+        height: isMobile ? '30px' : '28px', // Taller for two-row name/stats
+        fontSize: isMobile ? '0.72rem' : '0.68rem', // Same for ALL zones
+        nameMaxWidth: isMobile ? '130px' : '120px', // Same for ALL zones
       };
     };
 
@@ -723,14 +717,14 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
 
     return {
       display: 'flex',
-      flexDirection: 'row' as const,
+      flexDirection: 'row' as const, // Keep horizontal layout
       width: dimensions.width,
-      maxWidth: '170px', // Fixed for all zones
-      minWidth: '170px', // Fixed for all zones
+      // maxWidth: dimensions.width, // Fixed for all zones
+      // minWidth: dimensions.width, // Fixed for all zones
       height: dimensions.height,
       justifyContent: 'space-between',
       alignItems: 'center',
-      padding: '2px 8px',
+      padding: '3px 8px', // Slightly more padding for taller card
       backgroundColor: isDropTarget 
         ? '#E8F5E9'
         : cardColors.backgroundColor,
@@ -795,7 +789,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
         pointerEvents: 'none',
       },
     };
-  }, [isInTeamZone, isMobileDevice, cardColors, isDragging, isDropTarget, isSwapping]);
+  }, [isInTeamZone, isMobile, cardColors, isDragging, isDropTarget, isSwapping]);
 
   return (
     <div className="flipped">
@@ -824,136 +818,151 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
             pointerEvents: isDragging ? 'none' : 'auto',
           }}
         >
-          {/* Name Section - Improved display logic */}
+          {/* LEFT SECTION: Name and Stats in Two Rows */}
           <Box sx={{ 
             display: 'flex',
-            alignItems: 'center',
+            flexDirection: 'column', // Two-row layout for name/stats only
+            alignItems: 'flex-start',
             overflow: 'hidden',
-            gap: 0.3,
             minWidth: 0,
             flex: 1,
+            gap: 0.1,
           }}>
-            {isEditing ? (
-              <TextField
-                variant="standard"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                autoFocus
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    setIsEditing(false);
-                  }
-                }}
-                onBlur={() => setIsEditing(false)}
-                slotProps={{
-                  input: {
-                    style: {
-                      fontSize: isInTeamZone 
-                        ? (isMobileDevice ? '0.62rem' : '0.58rem')
-                        : (isMobileDevice ? '0.72rem' : '0.68rem'),
-                      fontWeight: 'bold',
-                      padding: 0,
+            {/* TOP ROW: Player Name */}
+            <Box sx={{ 
+              width: '100%',
+              overflow: 'hidden',
+            }}>
+              {isEditing ? (
+                <TextField
+                  variant="standard"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      setIsEditing(false);
+                    }
+                  }}
+                  onBlur={() => setIsEditing(false)}
+                  slotProps={{
+                    input: {
+                      style: {
+                        fontSize: isInTeamZone 
+                          ? (isMobile ? '0.62rem' : '0.58rem')
+                          : (isMobile ? '0.72rem' : '0.68rem'),
+                        fontWeight: 'bold',
+                        padding: 0,
+                      },
                     },
-                  },
-                }}
+                  }}
+                  sx={{
+                    '& .MuiInputBase-root': {
+                      lineHeight: 1.1,
+                      height: 'auto',
+                    },
+                  }}
+                />
+              ) : (
+                <Typography
+                  component="div"
+                  sx={{
+                    fontWeight: 'bold',
+                    fontSize: isInTeamZone 
+                      ? (isMobile ? '0.62rem' : '0.58rem')
+                      : (isMobile ? '0.72rem' : '0.68rem'),
+                    lineHeight: 1.1,
+                    cursor: 'pointer',
+                    textShadow: isMobile ? '1px 1px 2px rgba(0,0,0,0.1)' : 'none',
+                    maxWidth: isInTeamZone 
+                      ? (isMobile ? '75px' : '70px')
+                      : (isMobile ? '110px' : '100px'),
+                    display: '-webkit-box',
+                    WebkitLineClamp: 1, // Single line for name
+                    WebkitBoxOrient: 'vertical',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    wordBreak: 'break-word',
+                    '&:hover': {
+                      '&::after': {
+                        content: `"${player.name}"`,
+                        position: 'absolute',
+                        bottom: '100%',
+                        left: '50%',
+                        transform: 'translateX(-50%)',
+                        backgroundColor: 'rgba(0,0,0,0.8)',
+                        color: 'white',
+                        padding: '4px 8px',
+                        borderRadius: '4px',
+                        fontSize: '0.7rem',
+                        whiteSpace: 'nowrap',
+                        zIndex: 1000,
+                        pointerEvents: 'none',
+                        visibility: player.name.length > 12 ? 'visible' : 'hidden',
+                      },
+                    },
+                  }}
+                  title={player.name.length > 12 ? player.name : undefined}
+                  onClick={handleEditToggle}
+                >
+                  {player.name}
+                </Typography>
+              )}
+            </Box>
+
+            {/* BOTTOM ROW: Games and Timer */}
+            <Box sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 0.75,
+              width: '100%',
+            }}>
+              {/* Games played indicator */}
+              <Typography 
+                variant="body2" 
                 sx={{
-                  '& .MuiInputBase-root': {
-                    lineHeight: 1.2,
-                    height: 'auto',
-                  },
-                }}
-              />
-            ) : (
-              <Typography
-                component="div"
-                sx={{
-                  fontWeight: 'bold',
+                  display: 'flex',
+                  alignItems: 'center',
                   fontSize: isInTeamZone 
-                    ? (isMobileDevice ? '0.62rem' : '0.58rem')
-                    : (isMobileDevice ? '0.72rem' : '0.68rem'),
-                  lineHeight: isInTeamZone ? 1.1 : 1.2,
-                  cursor: 'pointer',
-                  textShadow: isMobileDevice ? '1px 1px 2px rgba(0,0,0,0.1)' : 'none',
-                  maxWidth: isInTeamZone 
-                    ? (isMobileDevice ? '75px' : '70px')
-                    : (isMobileDevice ? '110px' : '100px'),
-                  display: '-webkit-box',
-                  WebkitLineClamp: 2,
-                  WebkitBoxOrient: 'vertical',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  wordBreak: 'break-word',
-                  '&:hover': {
-                    '&::after': {
-                      content: `"${player.name}"`,
-                      position: 'absolute',
-                      bottom: '100%',
-                      left: '50%',
-                      transform: 'translateX(-50%)',
-                      backgroundColor: 'rgba(0,0,0,0.8)',
-                      color: 'white',
-                      padding: '4px 8px',
-                      borderRadius: '4px',
-                      fontSize: '0.7rem',
-                      whiteSpace: 'nowrap',
-                      zIndex: 1000,
-                      pointerEvents: 'none',
-                      visibility: player.name.length > 12 ? 'visible' : 'hidden',
-                    },
-                  },
+                    ? (isMobile ? '0.54rem' : '0.5rem')
+                    : (isMobile ? '0.62rem' : '0.58rem'),
+                  gap: 0.1,
+                  fontWeight: 500,
                 }}
-                title={player.name.length > 12 ? player.name : undefined}
-                onClick={handleEditToggle}
               >
-                {player.name}
+                {player.gamesPlayed}
+                <Box component="span" sx={{ fontSize: '0.85em' }}>🎮</Box>
               </Typography>
-            )}
+
+              {/* Timer */}
+              <Typography 
+                variant="body2" 
+                sx={{
+                  fontWeight: elapsedSeconds > 900 ? 'bold' : 'normal',
+                  color: elapsedSeconds > 900 ? '#8B0000' : cardColors.textColor,
+                  fontSize: isInTeamZone 
+                    ? (isMobile ? '0.54rem' : '0.5rem')
+                    : (isMobile ? '0.62rem' : '0.58rem'),
+                  minWidth: isInTeamZone ? '28px' : '32px',
+                  textAlign: 'left',
+                }}
+              >
+                {formattedTime}
+              </Typography>
+            </Box>
           </Box>
 
-          {/* Stats and Actions Section - Optimized spacing */}
+          {/* RIGHT SECTION: Action buttons - same as before */}
           <Box
             sx={{
               display: 'flex',
               alignItems: 'center',
               gap: isInTeamZone 
-                ? (isMobileDevice ? 0.3 : 0.25)
-                : (isMobileDevice ? 0.5 : 0.4),
+                ? (isMobile ? 0.3 : 0.25)
+                : (isMobile ? 0.5 : 0.4),
               flexShrink: 0,
             }}
           >
-            {/* Games played indicator */}
-            <Typography 
-              variant="body2" 
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                fontSize: isInTeamZone 
-                  ? (isMobileDevice ? '0.58rem' : '0.54rem')
-                  : (isMobileDevice ? '0.68rem' : '0.64rem'),
-                gap: 0.1,
-                fontWeight: 500,
-              }}
-            >
-              {player.gamesPlayed}
-              <Box component="span" sx={{ fontSize: '0.85em' }}>🎮</Box>
-            </Typography>
-
-            {/* Timer - More compact in team zones */}
-            <Typography 
-              variant="body2" 
-              sx={{
-                fontWeight: elapsedSeconds > 900 ? 'bold' : 'normal',
-                color: elapsedSeconds > 900 ? '#8B0000' : cardColors.textColor,
-                fontSize: isInTeamZone 
-                  ? (isMobileDevice ? '0.58rem' : '0.54rem')
-                  : (isMobileDevice ? '0.68rem' : '0.64rem'),
-                minWidth: isInTeamZone ? '28px' : '32px',
-                textAlign: 'center',
-              }}
-            >
-              {formattedTime}
-            </Typography>
-
             {/* Action buttons - only show essential ones in team zones */}
             {!isInTeamZone && showQuickAddIcon && (
               <IconButton
@@ -966,20 +975,20 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
                     : "Quick Add"
                 }
                 sx={{
-                  padding: isMobileDevice ? '2px' : '1px',
-                  borderRadius: '8px',
+                  padding: isMobile ? '2px' : '1px',
+                  borderRadius: '50%',
                   border: `1px solid ${isQuickAddDisabled ? '#ccc' : '#2E7D32'}`,
                   backgroundColor: isQuickAddDisabled ? '#f2f2f2' : '#E8F5E9',
                   color: isQuickAddDisabled ? '#aaa' : '#2E7D32',
                   minWidth: 'auto',
-                  minHeight: isMobileDevice ? '28px' : 'auto',
+                  minHeight: isMobile ? '28px' : 'auto',
                   '&:hover': {
                     backgroundColor: isQuickAddDisabled ? '#f2f2f2' : '#C8E6C9',
                   },
                 }}
               >
                 <BadmintonIcon
-                  size={isMobileDevice ? 12 : 10}
+                  size={isMobile ? 12 : 10}
                   playerSeed={player.name}
                   isDisabled={isQuickAddDisabled}
                 />
@@ -993,16 +1002,16 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
                 onClick={handleReturnToRest}
                 title="Return to Rest"
                 sx={{
-                  padding: isMobileDevice ? '2px' : '1px',
+                  padding: isMobile ? '2px' : '1px',
                   color: '#6D4C41',
-                  minHeight: isMobileDevice ? '28px' : 'auto',
+                  minHeight: isMobile ? '28px' : 'auto',
                   '&:hover': {
                     color: '#3E2723',
                   },
                 }}
               >
                 <KeyboardReturnIcon sx={{ 
-                  fontSize: isMobileDevice 
+                  fontSize: isMobile 
                     ? (isInTeamZone ? '0.7rem' : '0.8rem')
                     : (isInTeamZone ? '0.6rem' : '0.75rem')
                 }} />
@@ -1015,10 +1024,10 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
               onClick={handleHistoryOpen}
               title="View Match History"
               sx={{ 
-                padding: isMobileDevice ? '2px' : '1px',
-                minHeight: isMobileDevice ? '28px' : 'auto',
+                padding: isMobile ? '2px' : '1px',
+                minHeight: isMobile ? '28px' : 'auto',
                 '& .MuiSvgIcon-root': {
-                  fontSize: isMobileDevice 
+                  fontSize: isMobile 
                     ? (isInTeamZone ? '0.7rem' : '0.8rem')
                     : (isInTeamZone ? '0.6rem' : '0.75rem'),
                 },
@@ -1032,10 +1041,10 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
               size="small" 
               onClick={openPopover} 
               sx={{ 
-                padding: isMobileDevice ? '2px' : '1px',
-                minHeight: isMobileDevice ? '28px' : 'auto',
+                padding: isMobile ? '2px' : '1px',
+                minHeight: isMobile ? '28px' : 'auto',
                 '& .MuiSvgIcon-root': {
-                  fontSize: isMobileDevice 
+                  fontSize: isMobile 
                     ? (isInTeamZone ? '0.7rem' : '0.8rem')
                     : (isInTeamZone ? '0.6rem' : '0.75rem'),
                 },
@@ -1057,10 +1066,10 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
         slotProps={{
           paper: {
             sx: {
-              minWidth: isMobileDevice ? 320 : 280,
+              minWidth: isMobile ? 320 : 280,
               p: 2,
-              borderRadius: isMobileDevice ? 2 : 1,
-              boxShadow: isMobileDevice 
+              borderRadius: isMobile ? 2 : 1,
+              boxShadow: isMobile 
                 ? '0 8px 24px rgba(0,0,0,0.15)' 
                 : theme.shadows[8],
             },
@@ -1068,7 +1077,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
         }}
       >
         <Typography variant="subtitle2" gutterBottom sx={{
-          fontSize: isMobileDevice ? '0.9rem' : '0.8rem',
+          fontSize: isMobile ? '0.9rem' : '0.8rem',
         }}>
           {player.name}&apos;s Match History
         </Typography>
@@ -1085,7 +1094,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
               <Typography
                 key={i}
                 variant="body2"
-                fontSize={isMobileDevice ? '0.8rem' : '0.75rem'}
+                fontSize={isMobile ? '0.8rem' : '0.75rem'}
                 sx={{ mb: 0.5 }}
               >
                 <strong>Played with:</strong> {entry.opponents.join(', ')} at {timestamp}
@@ -1095,7 +1104,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
         ) : (
           <Typography 
             variant="body2" 
-            fontSize={isMobileDevice ? '0.8rem' : '0.75rem'}
+            fontSize={isMobile ? '0.8rem' : '0.75rem'}
           >
             No match history
           </Typography>
@@ -1111,10 +1120,10 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
         slotProps={{
           paper: {
             sx: {
-              minWidth: isMobileDevice ? 160 : 140,
-              p: isMobileDevice ? 1.5 : 1,
-              borderRadius: isMobileDevice ? 2 : 1,
-              boxShadow: isMobileDevice 
+              minWidth: isMobile ? 160 : 140,
+              p: isMobile ? 1.5 : 1,
+              borderRadius: isMobile ? 2 : 1,
+              boxShadow: isMobile 
                 ? '0 8px 24px rgba(0,0,0,0.15)' 
                 : theme.shadows[8],
             },
@@ -1124,8 +1133,8 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
         <Box 
           display="flex" 
           flexDirection="column" 
-          gap={isMobileDevice ? 1.5 : 1.2}
-          sx={{ fontSize: isMobileDevice ? '0.7rem' : '0.65rem' }}
+          gap={isMobile ? 1.5 : 1.2}
+          sx={{ fontSize: isMobile ? '0.7rem' : '0.65rem' }}
         >
           <TextField
             label="Games"
@@ -1136,12 +1145,12 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
             slotProps={{
               input: {
                 style: {
-                  fontSize: isMobileDevice ? '0.7rem' : '0.65rem',
-                  padding: isMobileDevice ? '2px 6px' : '0 4px',
+                  fontSize: isMobile ? '0.7rem' : '0.65rem',
+                  padding: isMobile ? '2px 6px' : '0 4px',
                 },
               },
               inputLabel: {
-                sx: { fontSize: isMobileDevice ? '0.7rem' : '0.65rem' }
+                sx: { fontSize: isMobile ? '0.7rem' : '0.65rem' }
               }
             }}
           />
@@ -1153,16 +1162,16 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
                 size="small"
                 onClick={handleHistoryOpen}
                 sx={{ 
-                  fontSize: isMobileDevice ? '0.7rem' : '0.65rem', 
-                  padding: isMobileDevice ? '4px 6px' : '2px 4px',
-                  minHeight: isMobileDevice ? '36px' : 'auto',
+                  fontSize: isMobile ? '0.7rem' : '0.65rem', 
+                  padding: isMobile ? '4px 6px' : '2px 4px',
+                  minHeight: isMobile ? '36px' : 'auto',
                 }}
               >
                 View History
               </Button>
 
               <FormControl size="small" fullWidth>
-                <InputLabel sx={{ fontSize: isMobileDevice ? '0.7rem' : '0.65rem' }}>Court</InputLabel>
+                <InputLabel sx={{ fontSize: isMobile ? '0.7rem' : '0.65rem' }}>Court</InputLabel>
                 <Select
                   label="Court"
                   value=""
@@ -1173,8 +1182,8 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
                   }}
                   size='small'
                   sx={{ 
-                    fontSize: isMobileDevice ? '0.7rem' : '0.65rem',
-                    minHeight: isMobileDevice ? '36px' : 'auto',
+                    fontSize: isMobile ? '0.7rem' : '0.65rem',
+                    minHeight: isMobile ? '36px' : 'auto',
                   }}
                 >
                   {Array.from({ length: courtCount }, (_, i) => {
@@ -1187,8 +1196,8 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
                         key={courtKey}
                         value={courtKey}
                         sx={{ 
-                          fontSize: isMobileDevice ? '0.7rem' : '0.65rem',
-                          minHeight: isMobileDevice ? '36px' : 'auto',
+                          fontSize: isMobile ? '0.7rem' : '0.65rem',
+                          minHeight: isMobile ? '36px' : 'auto',
                         }}
                         disabled={isCourtFull}
                       >
@@ -1200,7 +1209,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
               </FormControl>
 
               <FormControl size="small" fullWidth>
-                <InputLabel sx={{ fontSize: isMobileDevice ? '0.7rem' : '0.65rem' }}>Queue</InputLabel>
+                <InputLabel sx={{ fontSize: isMobile ? '0.7rem' : '0.65rem' }}>Queue</InputLabel>
                 <Select
                   label="Queue"
                   value=""
@@ -1211,8 +1220,8 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
                   }}
                   size="small"
                   sx={{ 
-                    fontSize: isMobileDevice ? '0.7rem' : '0.65rem',
-                    minHeight: isMobileDevice ? '36px' : 'auto',
+                    fontSize: isMobile ? '0.7rem' : '0.65rem',
+                    minHeight: isMobile ? '36px' : 'auto',
                   }}
                 >
                   {Object.keys(state.queue.playersByQueue).map((queueId, index) => (
@@ -1220,8 +1229,8 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
                       key={queueId} 
                       value={queueId} 
                       sx={{ 
-                        fontSize: isMobileDevice ? '0.7rem' : '0.65rem',
-                        minHeight: isMobileDevice ? '36px' : 'auto',
+                        fontSize: isMobile ? '0.7rem' : '0.65rem',
+                        minHeight: isMobile ? '36px' : 'auto',
                       }}
                     >
                       Queue {index + 1}
@@ -1237,11 +1246,11 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
             color="error"
             size="small"
             onClick={handleDeletePlayer}
-            startIcon={<DeleteIcon sx={{ fontSize: isMobileDevice ? '0.8rem' : '0.75rem' }} />}
+            startIcon={<DeleteIcon sx={{ fontSize: isMobile ? '0.8rem' : '0.75rem' }} />}
             sx={{ 
-              fontSize: isMobileDevice ? '0.7rem' : '0.65rem', 
-              padding: isMobileDevice ? '6px 8px' : '4px 6px',
-              minHeight: isMobileDevice ? '36px' : 'auto',
+              fontSize: isMobile ? '0.7rem' : '0.65rem', 
+              padding: isMobile ? '6px 8px' : '4px 6px',
+              minHeight: isMobile ? '36px' : 'auto',
             }}
           >
             Delete Player
