@@ -25,14 +25,9 @@ let dropLock: {
 
 const DROP_LOCK_TIMEOUT = 100; // 100ms lock duration
 
-// 📱 Mobile-specific constants
-const MOBILE_HOVER_THRESHOLD = 20; // px threshold for mobile hover detection
-const MOBILE_SCROLL_PREVENTION_DELAY = 150; // ms delay before preventing scroll
-
 const DroppableZone: React.FC<DroppableZoneProps> = React.memo(({ zone, players, children, sx, position }) => {
   const { dispatch } = useContext(AppContext);
   const [isHovered, setIsHovered] = useState(false);
-  const [isMobileHovered, setIsMobileHovered] = useState(false);
   
   // 📱 Mobile device detection
   const isMobileDevice = useMemo(() => {
@@ -46,8 +41,6 @@ const DroppableZone: React.FC<DroppableZoneProps> = React.memo(({ zone, players,
   const positionRef = useRef(position);
   const isFullRef = useRef(false);
   const elementRef = useRef<HTMLDivElement>(null);
-  const lastTouchPositionRef = useRef<{ x: number; y: number } | null>(null);
-  const scrollPreventionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   // Memoize isFull calculation
   const isFull = useMemo(() => {
@@ -69,105 +62,6 @@ const DroppableZone: React.FC<DroppableZoneProps> = React.memo(({ zone, players,
   // Determine if this is a position-specific zone
   const isPositionZone = position !== undefined;
 
-  // 📱 Enhanced mobile touch detection within zone
-  const checkIfTouchIsInZone = useCallback((touch: Touch): boolean => {
-    if (!elementRef.current) return false;
-    
-    const rect = elementRef.current.getBoundingClientRect();
-    const buffer = MOBILE_HOVER_THRESHOLD;
-    
-    return (
-      touch.clientX >= rect.left - buffer &&
-      touch.clientX <= rect.right + buffer &&
-      touch.clientY >= rect.top - buffer &&
-      touch.clientY <= rect.bottom + buffer
-    );
-  }, []);
-
-  // 📱 Mobile-optimized global touch move handler
-  const handleGlobalTouchMove = useCallback((e: TouchEvent) => {
-    if (!isMobileDevice) return;
-    
-    const touch = e.touches[0];
-    if (!touch) return;
-    
-    // Store last touch position
-    lastTouchPositionRef.current = { x: touch.clientX, y: touch.clientY };
-    
-    // Check if touch is within this zone
-    const isInZone = checkIfTouchIsInZone(touch);
-    
-    if (isInZone && !isFullRef.current) {
-      if (!isMobileHovered) {
-        setIsMobileHovered(true);
-        console.log('📱 Mobile hover activated for zone:', zoneRef.current);
-        
-        // Add haptic feedback for zone entry
-        if ('vibrate' in navigator) {
-          navigator.vibrate(20);
-        }
-      }
-    } else {
-      if (isMobileHovered) {
-        setIsMobileHovered(false);
-        console.log('📱 Mobile hover deactivated for zone:', zoneRef.current);
-      }
-    }
-  }, [isMobileDevice, checkIfTouchIsInZone, isMobileHovered]);
-
-  // 📱 Mobile-optimized global touch end handler
-  const handleGlobalTouchEnd = useCallback((e: TouchEvent) => {
-    if (!isMobileDevice) return;
-    
-    // Clear mobile hover state
-    setIsMobileHovered(false);
-    
-    // Clear scroll prevention timeout
-    if (scrollPreventionTimeoutRef.current) {
-      clearTimeout(scrollPreventionTimeoutRef.current);
-      scrollPreventionTimeoutRef.current = null;
-    }
-    
-    // Re-enable scroll
-    document.body.style.overflow = '';
-    document.body.style.position = '';
-    document.body.style.width = '';
-    
-    const touch = e.changedTouches[0];
-    if (!touch || !lastTouchPositionRef.current) return;
-    
-    // Check if final touch position is within this zone
-    const isInZone = checkIfTouchIsInZone(touch);
-    
-    if (isInZone) {
-      console.log('📱 Touch ended in zone:', zoneRef.current, 'Position:', positionRef.current);
-      
-      // The actual drop handling will be done by the PlayerCard's touch end handler
-      // This just provides visual feedback and logging
-    }
-    
-    lastTouchPositionRef.current = null;
-  }, [isMobileDevice, checkIfTouchIsInZone]);
-
-  // 📱 Set up global touch event listeners for mobile
-  useEffect(() => {
-    if (!isMobileDevice) return;
-    
-    const touchMoveHandler = handleGlobalTouchMove;
-    const touchEndHandler = handleGlobalTouchEnd;
-    
-    // Use passive listeners for better performance
-    document.addEventListener('touchmove', touchMoveHandler, { passive: true });
-    document.addEventListener('touchend', touchEndHandler, { passive: true });
-    document.addEventListener('touchcancel', touchEndHandler, { passive: true });
-    
-    return () => {
-      document.removeEventListener('touchmove', touchMoveHandler);
-      document.removeEventListener('touchend', touchEndHandler);
-      document.removeEventListener('touchcancel', touchEndHandler);
-    };
-  }, [handleGlobalTouchMove, handleGlobalTouchEnd, isMobileDevice]);
-
   // Memoized zone background calculation
   const zoneBackground = useMemo(() => {
     if (zone.startsWith('court')) return '#DFF0D8';
@@ -176,11 +70,9 @@ const DroppableZone: React.FC<DroppableZoneProps> = React.memo(({ zone, players,
     return '#FAFAFA';
   }, [zone]);
 
-  // Enhanced border color calculation for mobile
+  // Enhanced border color calculation
   const borderColor = useMemo(() => {
-    const mobileHover = isMobileDevice && isMobileHovered;
-    const regularHover = !isMobileDevice && isHovered;
-    const anyHover = mobileHover || regularHover;
+    const anyHover = isHovered;
     
     if (isPositionZone) {
       if (isFull) return '#D5C96A';
@@ -191,40 +83,34 @@ const DroppableZone: React.FC<DroppableZoneProps> = React.memo(({ zone, players,
     if (isFull) return '#D5C96A';
     if (anyHover) return '#4CAF50';
     return '#CAD4CC';
-  }, [isFull, isHovered, isMobileHovered, isMobileDevice, isPositionZone, players.length]);
+  }, [isFull, isHovered, isPositionZone, players.length]);
 
-  // Enhanced background color calculation for mobile
+  // Enhanced background color calculation
   const backgroundColor = useMemo(() => {
-    const mobileHover = isMobileDevice && isMobileHovered;
-    const regularHover = !isMobileDevice && isHovered;
-    const anyHover = mobileHover || regularHover;
+    const anyHover = isHovered;
     
     if (isPositionZone) {
-      if (anyHover) return 'rgba(255, 107, 53, 0.3)'; // More pronounced on mobile
+      if (anyHover) return 'rgba(255, 107, 53, 0.3)';
       return players.length > 0 ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.1)';
     }
     
     if (anyHover) return '#E8F5E9';
     return zoneBackground;
-  }, [isHovered, isMobileHovered, isMobileDevice, zoneBackground, isPositionZone, players.length]);
+  }, [isHovered, zoneBackground, isPositionZone, players.length]);
 
-  // Enhanced transform calculation for mobile
+  // Enhanced transform calculation
   const transform = useMemo(() => {
-    const mobileHover = isMobileDevice && isMobileHovered;
-    const regularHover = !isMobileDevice && isHovered;
-    const anyHover = mobileHover || regularHover;
+    const anyHover = isHovered;
     
     if (isPositionZone) {
-      return anyHover ? 'scale(1.12)' : 'scale(1)'; // Bigger scale for mobile
+      return anyHover ? 'scale(1.12)' : 'scale(1)';
     }
     return anyHover ? 'scale(1.03)' : 'scale(1)';
-  }, [isHovered, isMobileHovered, isMobileDevice, isPositionZone]);
+  }, [isHovered, isPositionZone]);
 
-  // Enhanced box shadow for mobile
+  // Enhanced box shadow
   const boxShadow = useMemo(() => {
-    const mobileHover = isMobileDevice && isMobileHovered;
-    const regularHover = !isMobileDevice && isHovered;
-    const anyHover = mobileHover || regularHover;
+    const anyHover = isHovered;
     
     if (isPositionZone && anyHover) {
       return isMobileDevice 
@@ -237,9 +123,9 @@ const DroppableZone: React.FC<DroppableZoneProps> = React.memo(({ zone, players,
         : '0 2px 8px rgba(76, 175, 80, 0.3)';
     }
     return 'none';
-  }, [isHovered, isMobileHovered, isMobileDevice, isPositionZone]);
+  }, [isHovered, isMobileDevice, isPositionZone]);
 
-  // ✨ FIXED: Enhanced handleDrop with priority lock system
+  // ✨ SIMPLIFIED Enhanced handleDrop with priority lock system
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setIsHovered(false);
@@ -305,7 +191,6 @@ const DroppableZone: React.FC<DroppableZoneProps> = React.memo(({ zone, players,
       if (isCurrentPositionSpecific) {
         // Position-specific drop (P1, P2, P3, P4 grid boxes) - HIGHEST PRIORITY
         console.log(`🎯 Position-specific drop: Moving ${player.name} to ${currentZone} position ${currentPosition}`);
-        // dispatch(Action.movePlayerToPosition(player.id, currentZone, currentPosition));
         dispatch(Action.movePlayerToPosition(player.id, from, currentZone, currentPosition));
       } else if (from === currentZone) {
         // Same zone - no operation needed
@@ -332,7 +217,7 @@ const DroppableZone: React.FC<DroppableZoneProps> = React.memo(({ zone, players,
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     
-    // Only set hover for desktop - mobile uses separate system
+    // Only set hover for desktop
     if (!isMobileDevice && (isPositionZone || !isFullRef.current)) {
       setIsHovered(true);
     }
@@ -345,35 +230,13 @@ const DroppableZone: React.FC<DroppableZoneProps> = React.memo(({ zone, players,
     }
   }, [isMobileDevice]);
 
-  // // 1. Update the handleTouchStart function (around line 200):
-  // const handleTouchStart = useCallback((e: React.TouchEvent) => {
-  //   if (!isMobileDevice) return;
-    
-  //   // 🔧 IMPORTANT: Don't prevent default on zone touch start
-  //   // This allows natural scrolling to work when touching empty areas
-  //   // Only player cards should handle drag operations
-  //   console.log('📱 Zone touch start - allowing natural behavior');
-  // }, [isMobileDevice]);
-
-    // 📱 SIMPLIFIED mobile touch handlers
+  // 📱 SIMPLIFIED mobile touch handlers - Let PlayerCard handle all touch logic
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    // Don't interfere with drag operations
-    console.log('📱 Zone touch start - allowing natural behavior');
+    // Don't interfere with PlayerCard touch handling
+    console.log('📱 Zone touch start - allowing PlayerCard to handle');
   }, []);
 
-  // 📱 Prevent scroll during active drag operations
-  const preventScrollDuringDrag = useCallback(() => {
-    if (!isMobileDevice) return;
-    
-    // Prevent scroll with a delay to avoid interfering with normal scrolling
-    scrollPreventionTimeoutRef.current = setTimeout(() => {
-      document.body.style.overflow = 'hidden';
-      document.body.style.position = 'fixed';
-      document.body.style.width = '100%';
-    }, MOBILE_SCROLL_PREVENTION_DELAY);
-  }, [isMobileDevice]);
-
-    // 2. Update the combinedSx styles (around line 280):
+  // Memoized combined styles
   const combinedSx = useMemo(() => ({
     border: `2px ${isPositionZone ? 'solid' : 'dashed'} ${borderColor}`,
     borderRadius: isPositionZone ? 1 : 2,
@@ -390,31 +253,12 @@ const DroppableZone: React.FC<DroppableZoneProps> = React.memo(({ zone, players,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    // 📱 Mobile-specific touch optimizations - IMPROVED
-    touchAction: isMobileDevice 
-      ? (isPositionZone ? 'none' : 'pan-y') // Allow scrolling in main zones, prevent in position zones
-      : 'auto',
+    // 📱 SIMPLIFIED Mobile-specific touch optimizations
+    touchAction: isMobileDevice ? 'pan-y' : 'auto', // Allow vertical scrolling
     WebkitTapHighlightColor: 'transparent',
     WebkitTouchCallout: 'none',
     userSelect: 'none',
     WebkitUserSelect: 'none',
-    // Enhanced hover states for both mobile and desktop
-    '&.touch-hover, &.mobile-hover': {
-      backgroundColor: isPositionZone ? 'rgba(255, 107, 53, 0.3)' : '#E8F5E9',
-      borderColor: isPositionZone ? '#FF6B35' : '#4CAF50',
-      transform: isPositionZone 
-        ? (isMobileDevice ? 'scale(1.12)' : 'scale(1.08)') 
-        : (isMobileDevice ? 'scale(1.03)' : 'scale(1.02)'),
-      boxShadow: isPositionZone 
-        ? (isMobileDevice ? '0 6px 20px rgba(255, 107, 53, 0.5)' : '0 4px 12px rgba(255, 107, 53, 0.4)')
-        : (isMobileDevice ? '0 4px 16px rgba(76, 175, 80, 0.4)' : '0 2px 8px rgba(76, 175, 80, 0.3)'),
-    },
-    // CSS for touch swap targets
-    '& [data-player-id].touch-swap-target': {
-      backgroundColor: '#E8F5E9',
-      borderColor: '#4CAF50',
-      transform: isMobileDevice ? 'scale(1.08)' : 'scale(1.05)',
-    },
     // 🔧 Improve scrolling for main player list zone
     ...(zone === 'all' && {
       overflowY: 'auto',
@@ -426,17 +270,6 @@ const DroppableZone: React.FC<DroppableZoneProps> = React.memo(({ zone, players,
     borderColor, backgroundColor, transform, boxShadow, isPositionZone, 
     isMobileDevice, sx, zone
   ]);
-
-  // Apply mobile hover class when needed
-  useEffect(() => {
-    if (!elementRef.current || !isMobileDevice) return;
-    
-    if (isMobileHovered) {
-      elementRef.current.classList.add('mobile-hover');
-    } else {
-      elementRef.current.classList.remove('mobile-hover');
-    }
-  }, [isMobileHovered, isMobileDevice]);
 
   return (
     <Box

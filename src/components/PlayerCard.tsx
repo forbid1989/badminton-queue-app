@@ -37,7 +37,7 @@ type PlayerCardProps = {
   zone: string;
 };
 
-// Global variable to store the dragged element
+// Global variables for drag state
 let draggedElement: HTMLElement | null = null;
 let draggedData: { player: Player; zone: string } | null = null;
 
@@ -72,11 +72,13 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
   const [name, setName] = useState(player.name);
   const [isDropTarget, setIsDropTarget] = useState(false);
   const [isSwapping, setIsSwapping] = useState(false);
-  const [dragStarted, setDragStarted] = useState(false);
 
   const cardRef = useRef<HTMLDivElement>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const nameUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const touchStartTimeRef = useRef<number>(0);
+  const initialTouchRef = useRef<{ x: number, y: number } | null>(null);
+  const dragTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Memoized player status calculations
   const playerStatus = useMemo(() => {
@@ -324,217 +326,114 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
     }
   }, [player.id, player.name, zone, dispatch]);
 
-  // 🔧 Mobile-optimized drag clone creation
-  const createMobileDragClone = useCallback((touch: React.Touch, offset: { x: number, y: number }, rect: DOMRect) => {
-    if (!cardRef.current) return;
-    
-    // Remove any existing clone
-    const existingClone = document.getElementById('dragging-clone');
-    if (existingClone) {
-      existingClone.remove();
-    }
-    
-    const clone = cardRef.current.cloneNode(true) as HTMLElement;
-    clone.id = 'dragging-clone';
-    
-    // Mobile-optimized styling
-    clone.style.position = 'fixed';
-    clone.style.pointerEvents = 'none';
-    clone.style.zIndex = '10000';
-    clone.style.opacity = '0.9';
-    clone.style.transition = 'none';
-    clone.style.willChange = 'transform';
-    clone.style.backfaceVisibility = 'hidden';
-    clone.style.transform = 'translate3d(0, 0, 0)';
-    
-    // Mobile-specific: Account for viewport scaling and larger visual feedback
-    const viewportScale = window.visualViewport ? window.visualViewport.scale : 1;
-    const x = touch.clientX - offset.x * viewportScale;
-    const y = touch.clientY - offset.y * viewportScale;
-    
-    clone.style.transform = `translate3d(${x}px, ${y}px, 0) rotate(2deg) scale(1.15)`;
-    clone.style.boxShadow = '0 20px 40px rgba(0,0,0,0.5)';
-    clone.style.border = '3px solid #E91E63';
-    clone.style.borderRadius = isInTeamZone ? '12px' : '20px';
-    
-    // Mobile: Enhanced visual feedback
-    clone.style.filter = 'brightness(1.2) contrast(1.1)';
-    
-    document.body.appendChild(clone);
-    console.log('✅ Mobile drag clone created at:', { x, y, scale: viewportScale });
-  }, [isInTeamZone]);
-
-  // 🔧 SIMPLIFIED mobile touch start - more reliable
+  // 🔧 COMPLETELY REWRITTEN mobile touch handling - Much simpler and more reliable
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    if (!isTouchDevice) return;
+
     const touch = e.touches[0];
     const rect = cardRef.current?.getBoundingClientRect();
-    
     if (!rect) return;
 
-    console.log('🎯 Touch start on player card');
-    
-    // Store initial touch
-    const initialTouch = {
-      x: touch.clientX,
-      y: touch.clientY,
-      time: Date.now()
-    };
+    // Store initial touch data
+    touchStartTimeRef.current = Date.now();
+    initialTouchRef.current = { x: touch.clientX, y: touch.clientY };
+    setDragOffset({
+      x: touch.clientX - rect.left,
+      y: touch.clientY - rect.top
+    });
 
-    // Calculate offset
-    const viewportScale = window.visualViewport ? window.visualViewport.scale : 1;
-    const currentOffset = {
-      x: (touch.clientX - rect.left) / viewportScale,
-      y: (touch.clientY - rect.top) / viewportScale
-    };
-    
-    setDragOffset(currentOffset);
-    
-    // Set drag data immediately
+    // Set global drag data immediately
     draggedElement = cardRef.current;
     draggedData = { player, zone };
-    
-    // Much shorter delay - 100ms max
-    const touchStartTimer = setTimeout(() => {
-      if (!dragStarted) {
-        console.log('🚀 Starting drag operation');
-        setIsDragging(true);
-        setDragStarted(true);
-        
-        if ('vibrate' in navigator) {
-          navigator.vibrate(30);
-        }
-        
-        createMobileDragClone(touch, currentOffset, rect);
-      }
-    }, isMobile ? 100 : 0); // Much shorter delay
+    currentDragData = { playerId: player.id, playerZone: zone };
 
-    // Store references
-    (cardRef.current as any)._touchStartTimer = touchStartTimer;
-    (cardRef.current as any)._initialTouch = initialTouch;
-    
-  }, [player, zone, dragStarted, isMobile, createMobileDragClone]);
+    console.log('📱 Touch start - player:', player.name, 'zone:', zone);
 
-  // 🔧 Enhanced mobile touch move with drag threshold detection
-  const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    const touch = e.touches[0];
-    const initialTouch = (cardRef.current as any)?._initialTouch;
-    
-    if (!initialTouch || !dragStarted) {
-      // Check if touch moved enough to be considered a drag
-      if (initialTouch) {
-        const deltaX = Math.abs(touch.clientX - initialTouch.x);
-        const deltaY = Math.abs(touch.clientY - initialTouch.y);
-        const deltaTime = Date.now() - initialTouch.time;
-        
-        // Mobile drag threshold (larger for touch)
-        const MOBILE_DRAG_THRESHOLD = isMobile ? 15 : 5;
-        
-        if ((deltaX > MOBILE_DRAG_THRESHOLD || deltaY > MOBILE_DRAG_THRESHOLD) && deltaTime > 100) {
-          // Clear the delay timer and start drag immediately
-          if ((cardRef.current as any)?._touchStartTimer) {
-            clearTimeout((cardRef.current as any)._touchStartTimer);
-          }
-          
-          e.preventDefault();
-          setIsDragging(true);
-          setDragStarted(true);
-          
-          // Add haptic feedback
-          if ('vibrate' in navigator) {
-            navigator.vibrate(50);
-          }
-          
-          const rect = cardRef.current?.getBoundingClientRect();
-          if (rect) {
-            createMobileDragClone(touch, dragOffset, rect);
-          }
-        }
-      }
-      return;
-    }
-    
-    // Prevent scrolling during drag
-    e.preventDefault();
-    
-    const clone = document.getElementById('dragging-clone');
-    if (clone) {
-      // Mobile-optimized positioning with viewport scale
-      const viewportScale = window.visualViewport ? window.visualViewport.scale : 1;
-      const x = touch.clientX - dragOffset.x * viewportScale;
-      const y = touch.clientY - dragOffset.y * viewportScale;
+    // Very short delay for drag start (150ms)
+    dragTimeoutRef.current = setTimeout(() => {
+      console.log('🚀 Starting mobile drag');
+      setIsDragging(true);
       
-      clone.style.transform = `translate3d(${x}px, ${y}px, 0) rotate(2deg) scale(1.15)`;
-    }
-  }, [isDragging, dragOffset, dragStarted, isMobile, createMobileDragClone]);
-
-  // Replace your existing handleTouchEnd function with this updated version:
-  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
-    // Clear any pending timers
-    if ((cardRef.current as any)?._touchStartTimer) {
-      clearTimeout((cardRef.current as any)._touchStartTimer);
-    }
-    
-    console.log('🏁 Touch end - dragStarted:', dragStarted, 'isDragging:', isDragging);
-    
-    // Clean up clone with mobile-friendly animation
-    const clone = document.getElementById('dragging-clone');
-    if (clone) {
-      if (isMobile) {
-        // Mobile: Add fade-out animation
-        clone.style.transition = 'opacity 0.2s ease-out, transform 0.2s ease-out';
-        clone.style.opacity = '0';
-        clone.style.transform = clone.style.transform + ' scale(0.8)';
-        setTimeout(() => clone.remove(), 200);
-      } else {
-        clone.remove();
+      // Haptic feedback
+      if ('vibrate' in navigator) {
+        navigator.vibrate(50);
       }
+
+      // Prevent scrolling during drag
+      document.body.style.overflow = 'hidden';
+      document.body.style.position = 'fixed';
+      document.body.style.width = '100%';
+      
+    }, 150);
+
+  }, [isTouchDevice, player, zone]);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (!isTouchDevice || !initialTouchRef.current) return;
+
+    const touch = e.touches[0];
+    const deltaX = Math.abs(touch.clientX - initialTouchRef.current.x);
+    const deltaY = Math.abs(touch.clientY - initialTouchRef.current.y);
+    const deltaTime = Date.now() - touchStartTimeRef.current;
+
+    // If moving enough, consider it a drag
+    if ((deltaX > 10 || deltaY > 10) && deltaTime > 100) {
+      // Clear timeout and start drag immediately
+      if (dragTimeoutRef.current) {
+        clearTimeout(dragTimeoutRef.current);
+        dragTimeoutRef.current = null;
+      }
+
+      if (!isDragging) {
+        console.log('🚀 Touch move threshold exceeded - starting drag');
+        setIsDragging(true);
+        
+        // Prevent scrolling
+        document.body.style.overflow = 'hidden';
+        document.body.style.position = 'fixed';
+        document.body.style.width = '100%';
+      }
+
+      // Prevent default scrolling
+      e.preventDefault();
     }
-    
-    // Only process drop if we actually started dragging
-    if (!dragStarted || !isDragging) {
+  }, [isTouchDevice, isDragging]);
+
+  // 🔧 COMPLETELY REWRITTEN touch end - Much more reliable drop detection
+  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+    if (!isTouchDevice) return;
+
+    // Clear timeout
+    if (dragTimeoutRef.current) {
+      clearTimeout(dragTimeoutRef.current);
+      dragTimeoutRef.current = null;
+    }
+
+    // Restore scrolling
+    document.body.style.overflow = '';
+    document.body.style.position = '';
+    document.body.style.width = '';
+
+    // Only process if we were actually dragging
+    if (!isDragging || !draggedData) {
+      console.log('📱 Touch end - not dragging, ignoring');
       setIsDragging(false);
-      setDragStarted(false);
+      initialTouchRef.current = null;
       draggedElement = null;
       draggedData = null;
+      currentDragData = null;
       return;
     }
-    
+
     const touch = e.changedTouches[0];
+    console.log('📱 Touch end at:', touch.clientX, touch.clientY);
+
+    // 🔧 SIMPLIFIED element detection - try multiple approaches
+    let targetElement = document.elementFromPoint(touch.clientX, touch.clientY);
     
-    // Mobile-specific: Account for viewport scaling and scroll position
-    const viewportScale = window.visualViewport ? window.visualViewport.scale : 1;
-    const scrollX = window.pageXOffset || document.documentElement.scrollLeft;
-    const scrollY = window.pageYOffset || document.documentElement.scrollTop;
-    
-    const adjustedX = (touch.clientX / viewportScale) + scrollX;
-    const adjustedY = (touch.clientY / viewportScale) + scrollY;
-    
-    console.log('👆 Final touch coordinates (mobile-adjusted):', { 
-      x: adjustedX, 
-      y: adjustedY, 
-      scale: viewportScale,
-      scroll: { x: scrollX, y: scrollY }
-    });
-    
-    // 🔧 IMPROVED: Enhanced element detection for mobile - try multiple methods
-    let elementBelow = document.elementFromPoint(adjustedX, adjustedY);
-    
-    // If first attempt doesn't work, try with original coordinates
-    if (!elementBelow) {
-      elementBelow = document.elementFromPoint(touch.clientX, touch.clientY);
-      console.log('🔍 Fallback element detection used');
-    }
-    
-    console.log('🎯 Element below finger:', elementBelow);
-    
-    // Success haptic feedback
-    if ('vibrate' in navigator) {
-      navigator.vibrate([30, 50, 30]); // Success pattern
-    }
-    
-    // Check for player card first (swap operation)
-    const playerCard = elementBelow?.closest('[data-player-id]');
-    if (playerCard && draggedData) {
+    // Look for player card first (for swaps)
+    const playerCard = targetElement?.closest('[data-player-id]');
+    if (playerCard) {
       const targetPlayerId = playerCard.getAttribute('data-player-id');
       const targetZone = playerCard.getAttribute('data-zone');
       
@@ -544,98 +443,72 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
         targetPlayerId !== player.id &&
         (zone.startsWith('court-') || zone.startsWith('queue-'))
       ) {
-        console.log('✅ Performing player swap');
+        console.log('✅ Mobile swap detected');
         setIsSwapping(true);
         setTimeout(() => setIsSwapping(false), 600);
         dispatch(Action.swapPlayers(player.id, targetPlayerId, zone));
+        
+        // Success haptic
+        if ('vibrate' in navigator) {
+          navigator.vibrate([50, 100, 50]);
+        }
       }
     } else {
-      // 🔧 IMPROVED: Better droppable zone detection for mobile
-      let droppableZone = elementBelow?.closest('[data-droppable-zone]');
+      // Look for droppable zone
+      let droppableZone = targetElement?.closest('[data-droppable-zone]');
       
-      // If we can't find a droppable zone, search in parent elements more aggressively
-      if (!droppableZone && elementBelow) {
-        let searchElement = elementBelow.parentElement;
+      // If not found, search more aggressively
+      if (!droppableZone) {
+        let searchElement = targetElement?.parentElement;
         let attempts = 0;
-        while (searchElement && attempts < 5) {
+        while (searchElement && attempts < 3) {
           droppableZone = searchElement.closest('[data-droppable-zone]');
           if (droppableZone) break;
           searchElement = searchElement.parentElement;
           attempts++;
         }
       }
-      
-      if (droppableZone && draggedData) {
+
+      if (droppableZone) {
         const targetZone = droppableZone.getAttribute('data-droppable-zone');
         const targetPosition = droppableZone.getAttribute('data-position');
         
-        console.log('🎯 Found droppable zone:', targetZone, 'position:', targetPosition);
+        console.log('📱 Found drop zone:', targetZone, 'position:', targetPosition);
         
         if (targetZone) {
-          // 🔧 KEY FIX: Handle same-zone position moves properly
-          if (targetZone === zone && targetPosition !== null && targetPosition !== 'null') {
+          if (targetPosition !== null && targetPosition !== 'null') {
+            // Position-specific drop
             const positionNum = parseInt(targetPosition);
-            console.log('✅ Same-zone position move:', player.name, 'to position', positionNum);
+            console.log('✅ Mobile position drop:', player.name, 'to', targetZone, 'position', positionNum);
             dispatch(Action.movePlayerToPosition(player.id, zone, targetZone, positionNum));
           } else if (targetZone !== zone) {
-            console.log('✅ Cross-zone move');
-            // Check if it's a position-specific drop
-            if (targetPosition !== null && targetPosition !== 'null') {
-              dispatch(Action.movePlayerToPosition(player.id, zone, targetZone, parseInt(targetPosition)));
-            } else {
-              dispatch(Action.quickMovePlayer(player.id, zone, targetZone));
-            }
-          } else {
-            console.log('🚫 No valid move detected');
+            // Regular zone drop
+            console.log('✅ Mobile zone drop:', player.name, 'to', targetZone);
+            dispatch(Action.quickMovePlayer(player.id, zone, targetZone));
+          }
+          
+          // Success haptic
+          if ('vibrate' in navigator) {
+            navigator.vibrate(100);
           }
         }
       } else {
-        console.log('❌ No droppable zone found');
-        
-        // 🔧 FALLBACK: Try to find any zone element in the vicinity
-        const allZones = document.querySelectorAll('[data-droppable-zone]');
-        let closestZone: HTMLElement | null = null;
-        let minDistance = Infinity;
-        
-        allZones.forEach(zoneElement => {
-          if (!(zoneElement instanceof HTMLElement)) return; // Type guard
-          
-          const rect = zoneElement.getBoundingClientRect();
-          const centerX = rect.left + rect.width / 2;
-          const centerY = rect.top + rect.height / 2;
-          const distance = Math.sqrt(
-            Math.pow(touch.clientX - centerX, 2) + 
-            Math.pow(touch.clientY - centerY, 2)
-          );
-          
-          if (distance < minDistance && distance < 100) { // Within 100px
-            minDistance = distance;
-            closestZone = zoneElement;
-          }
-        });
-        
-        if (closestZone) {
-          const targetZone = (closestZone as HTMLElement).getAttribute('data-droppable-zone');
-          const targetPosition = (closestZone as HTMLElement).getAttribute('data-position');
-          
-          console.log('🎯 Found closest zone:', targetZone, 'position:', targetPosition, 'distance:', minDistance);
-          
-          if (targetZone && targetZone === zone && targetPosition !== null && targetPosition !== 'null') {
-            const positionNum = parseInt(targetPosition);
-            console.log('✅ Fallback same-zone position move:', player.name, 'to position', positionNum);
-            dispatch(Action.movePlayerToPosition(player.id, zone, targetZone, positionNum));
-          }
+        console.log('❌ No valid drop target found');
+        // Error haptic
+        if ('vibrate' in navigator) {
+          navigator.vibrate([100, 50, 100]);
         }
       }
     }
-    
-    // Reset all states
-    console.log('🔄 Resetting all drag states');
+
+    // Reset all drag states
     setIsDragging(false);
-    setDragStarted(false);
+    initialTouchRef.current = null;
     draggedElement = null;
     draggedData = null;
-  }, [isDragging, player.id, zone, dispatch, dragStarted, dragOffset, isMobile]);
+    currentDragData = null;
+    
+  }, [isTouchDevice, isDragging, player.id, zone, dispatch]);
 
   // Optimized timer effect
   useEffect(() => {
@@ -691,9 +564,8 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
       if (nameUpdateTimeoutRef.current) {
         clearTimeout(nameUpdateTimeoutRef.current);
       }
-      // Clean up any pending touch timers
-      if ((cardRef.current as any)?._touchStartTimer) {
-        clearTimeout((cardRef.current as any)._touchStartTimer);
+      if (dragTimeoutRef.current) {
+        clearTimeout(dragTimeoutRef.current);
       }
     };
   }, []);
@@ -701,15 +573,14 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
   // Memoized formatted time
   const formattedTime = useMemo(() => formatElapsedTime(elapsedSeconds), [elapsedSeconds]);
 
-  // 🍭 IMPROVED card styles with two-row name/stats layout
+  // Enhanced card styles with mobile optimizations
   const enhancedCardStyles = useMemo(() => {
-    // Responsive sizing based on screen size and zone
     const getCardDimensions = () => {
       return {
-        width: isMobile ? '140': '160px', // Same for ALL zones
-        height: isMobile ? '30px' : '28px', // Taller for two-row name/stats
-        fontSize: isMobile ? '0.72rem' : '0.68rem', // Same for ALL zones
-        nameMaxWidth: isMobile ? '130px' : '120px', // Same for ALL zones
+        width: isMobile ? '140': '160px',
+        height: isMobile ? '30px' : '28px',
+        fontSize: isMobile ? '0.72rem' : '0.68rem',
+        nameMaxWidth: isMobile ? '130px' : '120px',
       };
     };
 
@@ -717,14 +588,12 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
 
     return {
       display: 'flex',
-      flexDirection: 'row' as const, // Keep horizontal layout
+      flexDirection: 'row' as const,
       width: dimensions.width,
-      // maxWidth: dimensions.width, // Fixed for all zones
-      // minWidth: dimensions.width, // Fixed for all zones
       height: dimensions.height,
       justifyContent: 'space-between',
       alignItems: 'center',
-      padding: '3px 8px', // Slightly more padding for taller card
+      padding: '3px 8px',
       backgroundColor: isDropTarget 
         ? '#E8F5E9'
         : cardColors.backgroundColor,
@@ -752,7 +621,8 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
       animation: isSwapping 
         ? 'swapFlash 0.6s ease-in-out'
         : 'none',
-      touchAction: 'none',
+      // 🔧 SIMPLIFIED touch optimizations
+      touchAction: 'none', // Prevent all default touch behaviors
       userSelect: 'none',
       WebkitUserSelect: 'none',
       WebkitTapHighlightColor: 'transparent',
@@ -821,7 +691,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
           {/* LEFT SECTION: Name and Stats in Two Rows */}
           <Box sx={{ 
             display: 'flex',
-            flexDirection: 'column', // Two-row layout for name/stats only
+            flexDirection: 'column',
             alignItems: 'flex-start',
             overflow: 'hidden',
             minWidth: 0,
@@ -878,7 +748,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
                       ? (isMobile ? '75px' : '70px')
                       : (isMobile ? '110px' : '100px'),
                     display: '-webkit-box',
-                    WebkitLineClamp: 1, // Single line for name
+                    WebkitLineClamp: 1,
                     WebkitBoxOrient: 'vertical',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
@@ -952,7 +822,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
             </Box>
           </Box>
 
-          {/* RIGHT SECTION: Action buttons - same as before */}
+          {/* RIGHT SECTION: Action buttons */}
           <Box
             sx={{
               display: 'flex',
@@ -963,7 +833,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
               flexShrink: 0,
             }}
           >
-            {/* Action buttons - only show essential ones in team zones */}
+            {/* Quick add button */}
             {!isInTeamZone && showQuickAddIcon && (
               <IconButton
                 size="small"
@@ -995,7 +865,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
               </IconButton>
             )}
 
-            {/* Return button - essential for team zones */}
+            {/* Return button */}
             {!playerStatus.isUnassigned && (
               <IconButton
                 size="small"
@@ -1018,7 +888,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
               </IconButton>
             )}
 
-            {/* History button - essential for tracking matches */}
+            {/* History button */}
             <IconButton
               size="small"
               onClick={handleHistoryOpen}
@@ -1036,7 +906,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
               <HistoryIcon />
             </IconButton>
 
-            {/* Menu button - always available but smaller in teams */}
+            {/* Menu button */}
             <IconButton 
               size="small" 
               onClick={openPopover} 
@@ -1056,7 +926,6 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
         </Box>
       </Card>
 
-      {/* Popovers - Match History available in all zones */}
       {/* Match History Popover */}
       <Popover
         open={Boolean(historyAnchorEl)}
