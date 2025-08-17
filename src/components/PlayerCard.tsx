@@ -784,8 +784,11 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
             <Box sx={{
               display: 'flex',
               alignItems: 'center',
-              gap: 0.75,
-              width: '100%',
+              backgroundColor: 'rgba(255, 255, 255, 0.2)', // Subtle background
+              borderRadius: '8px',
+              padding: '1px 4px',
+              border: '1px solid rgba(255, 255, 255, 0.3)',
+              gap: 0.75, // Add consistent spacing between games and timer
             }}>
               {/* Games played indicator */}
               <Typography 
@@ -794,27 +797,38 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
                   display: 'flex',
                   alignItems: 'center',
                   fontSize: isInTeamZone 
-                    ? (isMobile ? '0.54rem' : '0.5rem')
-                    : (isMobile ? '0.62rem' : '0.58rem'),
-                  gap: 0.1,
-                  fontWeight: 500,
+                    ? (isMobile ? '0.65rem' : '0.6rem')   // Increased from 0.54/0.5
+                    : (isMobile ? '0.75rem' : '0.7rem'),  // Increased from 0.62/0.58
+                  gap: 0.3,
+                  fontWeight: 600, // Bolder
+                  color: cardColors.textColor,
+                  textShadow: '1px 1px 1px rgba(0,0,0,0.3)', // Better contrast
                 }}
               >
                 {player.gamesPlayed}
-                <Box component="span" sx={{ fontSize: '0.85em' }}>🎮</Box>
+                <Box 
+                  component="span" 
+                  sx={{ 
+                    fontSize: '1em', // Same size as number
+                    filter: 'brightness(1.2)', // Make emoji more vibrant
+                  }}
+                >
+                  🎮
+                </Box>
               </Typography>
 
               {/* Timer */}
               <Typography 
                 variant="body2" 
                 sx={{
-                  fontWeight: elapsedSeconds > 900 ? 'bold' : 'normal',
+                  fontWeight: elapsedSeconds > 900 ? 700 : 600, // Match the boldness of games
                   color: elapsedSeconds > 900 ? '#8B0000' : cardColors.textColor,
                   fontSize: isInTeamZone 
-                    ? (isMobile ? '0.54rem' : '0.5rem')
-                    : (isMobile ? '0.62rem' : '0.58rem'),
-                  minWidth: isInTeamZone ? '28px' : '32px',
+                    ? (isMobile ? '0.65rem' : '0.6rem')   // SAME AS GAMES - was 0.54/0.5
+                    : (isMobile ? '0.75rem' : '0.7rem'),  // SAME AS GAMES - was 0.62/0.58
+                  minWidth: isInTeamZone ? '32px' : '36px', // Slightly wider for larger text
                   textAlign: 'left',
+                  textShadow: '1px 1px 1px rgba(0,0,0,0.3)', // Same text shadow as games
                 }}
               >
                 {formattedTime}
