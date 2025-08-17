@@ -1,0 +1,144 @@
+/* responsive-scaling.css - Proper scaling that includes player cards */
+
+:root {
+  /* Default scaling values */
+  --app-font-scale: 1;
+  --app-base-font-size: 14px;
+  --app-small-font-size: 12px;
+  --app-large-font-size: 16px;
+}
+
+/* Base font scaling */
+body {
+  font-size: calc(14px * var(--app-font-scale)) !important;
+}
+
+/* Main headers and titles */
+.MuiAppBar-root .MuiTypography-h6 {
+  font-size: calc(1.25rem * var(--app-font-scale)) !important;
+}
+
+/* Sidebar headers */
+.MuiTypography-subtitle1 {
+  font-size: calc(0.95rem * var(--app-font-scale)) !important;
+}
+
+/* Court and queue titles */
+h6:not(.MuiTypography-root) {
+  font-size: calc(0.85rem * var(--app-font-scale)) !important;
+}
+
+/* General body text in non-card areas */
+.MuiBox-root > .MuiTypography-body2:not([data-player-card]) {
+  font-size: calc(0.8rem * var(--app-font-scale)) !important;
+}
+
+/* Button text scaling - only for larger buttons */
+.MuiButton-root:not(.MuiButton-small) {
+  font-size: calc(0.875rem * var(--app-font-scale)) !important;
+}
+
+/* Modal and dialog text */
+.MuiModal-root .MuiTypography-h6 {
+  font-size: calc(1.1rem * var(--app-font-scale)) !important;
+}
+
+.MuiModal-root .MuiTypography-body2 {
+  font-size: calc(0.8rem * var(--app-font-scale)) !important;
+}
+
+.MuiModal-root .MuiTypography-subtitle2 {
+  font-size: calc(0.9rem * var(--app-font-scale)) !important;
+}
+
+/* Form labels and inputs in modals */
+.MuiModal-root .MuiInputLabel-root {
+  font-size: calc(0.75rem * var(--app-font-scale)) !important;
+}
+
+.MuiModal-root .MuiInputBase-input {
+  font-size: calc(0.8rem * var(--app-font-scale)) !important;
+}
+
+/* Data management section */
+.MuiAlert-root {
+  font-size: calc(0.7rem * var(--app-font-scale)) !important;
+}
+
+/* Search field */
+.MuiTextField-root:not(.MuiModal-root .MuiTextField-root) .MuiInputBase-input {
+  font-size: calc(0.8rem * var(--app-font-scale)) !important;
+}
+
+/* Scale sidebar action icons */
+.MuiIconButton-root:not([data-player-card]) .MuiSvgIcon-root {
+  font-size: calc(1.2rem * var(--app-font-scale)) !important;
+}
+
+/* ✨ NOW SCALE PLAYER CARDS PROPERLY */
+[data-player-id] {
+  /* Scale the card dimensions */
+  width: calc(160px * var(--app-font-scale)) !important;
+  height: calc(28px * var(--app-font-scale)) !important;
+  
+  /* Scale base font size smaller to fit within cards */
+  font-size: calc(0.55rem * var(--app-font-scale)) !important;
+}
+
+/* Scale player card text elements - make them smaller */
+[data-player-id] .MuiTypography-root {
+  font-size: calc(0.65rem * var(--app-font-scale)) !important;
+  line-height: 1.1 !important;
+}
+
+/* Specific scaling for player names */
+[data-player-id] .MuiTypography-root:first-of-type {
+  font-size: calc(0.58rem * var(--app-font-scale)) !important;
+  font-weight: bold !important;
+}
+
+/* Specific scaling for stats (games and timer) */
+[data-player-id] .MuiTypography-body2 {
+  font-size: calc(0.5rem * var(--app-font-scale)) !important;
+  line-height: 1 !important;
+}
+
+/* Scale player card icons smaller */
+[data-player-id] .MuiSvgIcon-root {
+  font-size: calc(0.7rem * var(--app-font-scale)) !important;
+}
+
+/* Scale player card buttons smaller */
+[data-player-id] .MuiIconButton-root {
+  padding: calc(1px * var(--app-font-scale)) !important;
+  min-height: calc(20px * var(--app-font-scale)) !important;
+  min-width: calc(20px * var(--app-font-scale)) !important;
+}
+
+/* Mobile responsive scaling for player cards - even smaller fonts */
+@media (max-width: 1110px) {
+  [data-player-id] {
+    width: calc(140px * var(--app-font-scale)) !important;
+    height: calc(30px * var(--app-font-scale)) !important;
+    font-size: calc(0.6rem * var(--app-font-scale)) !important;
+  }
+  
+  [data-player-id] .MuiTypography-root {
+    font-size: calc(0.62rem * var(--app-font-scale)) !important;
+  }
+  
+  [data-player-id] .MuiTypography-body2 {
+    font-size: calc(0.54rem * var(--app-font-scale)) !important;
+  }
+}
+
+/* Scale court and queue chips */
+.MuiChip-root {
+  font-size: calc(0.6rem * var(--app-font-scale)) !important;
+  height: calc(20px * var(--app-font-scale)) !important;
+}
+
+/* Scale main navigation icons in app bar */
+.MuiAppBar-root .MuiSvgIcon-root {
+  font-size: calc(1.5rem * var(--app-font-scale)) !important;
+}

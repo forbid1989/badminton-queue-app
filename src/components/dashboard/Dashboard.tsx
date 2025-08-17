@@ -1,6 +1,7 @@
 import React, { useContext, useState, useCallback, useMemo } from 'react';
 import { Typography, IconButton, Box, Divider, useTheme } from '@mui/material';
 import AddIcon from '@mui/icons-material/GroupAdd';
+import SettingsIcon from '@mui/icons-material/Settings';
 import { AppContext } from '../../BadmintonQueueUI';
 import CourtZone from '../CourtZone';
 import QueueZone from '../QueueZone';
@@ -8,6 +9,7 @@ import UnqueuedZone from '../PlayerListZone';
 import DataManagement from '../DataManagement';
 import PlayerParserForm from '../input/PlayerParserForm';
 import CourtControlPanel from '../CourtControlPanel';
+import SettingsModal from '../input/SettingsModal';
 import Popover from '@mui/material/Popover';
 import AddRoadIcon from '@mui/icons-material/AddRoad';
 
@@ -18,6 +20,7 @@ const Dashboard: React.FC = React.memo(() => {
   // State management
   const [openParser, setOpenParser] = useState(false);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [openSettings, setOpenSettings] = useState(false);
 
   // Memoized calculations
   const totalPlayers = useMemo(() => state.players.length, [state.players.length]);
@@ -39,6 +42,14 @@ const Dashboard: React.FC = React.memo(() => {
 
   const handleClosePopover = useCallback(() => {
     setAnchorEl(null);
+  }, []);
+
+  const handleOpenSettings = useCallback(() => {
+    setOpenSettings(true);
+  }, []);
+
+  const handleCloseSettings = useCallback(() => {
+    setOpenSettings(false);
   }, []);
 
   // Memoized style objects with responsive breakpoints
@@ -123,9 +134,12 @@ const Dashboard: React.FC = React.memo(() => {
         <IconButton onClick={handleOpenPopover} title="Court Settings">
           <AddRoadIcon />
         </IconButton>
+        <IconButton onClick={handleOpenSettings} title="App Settings">
+          <SettingsIcon />
+        </IconButton>
       </Box>
     </Box>
-  ), [totalPlayers, headerSx, buttonGroupSx, handleOpenParser, handleOpenPopover]);
+  ), [totalPlayers, headerSx, buttonGroupSx, handleOpenParser, handleOpenPopover, handleOpenSettings]);
 
   // Memoized popover content
   const popoverContent = useMemo(() => (
@@ -178,6 +192,9 @@ const Dashboard: React.FC = React.memo(() => {
 
         {/* Player Parser Modal */}
         <PlayerParserForm open={openParser} onClose={handleCloseParser} />
+        
+        {/* Settings Modal */}
+        <SettingsModal open={openSettings} onClose={handleCloseSettings} />
       </Box>
     </Box>
   );
