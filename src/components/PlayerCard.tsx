@@ -23,6 +23,7 @@ import KeyboardReturnIcon from '@mui/icons-material/KeyboardReturn';
 import HistoryIcon from '@mui/icons-material/History';
 import BadmintonIcon from './input/BadmintonIcon';
 import { getTimeAgo } from '../utils/getTimeAgo';
+import { formatMatchDuration, getMatchDescription, isToday } from '../utils/matchHistoryUtils';
 
 let currentDragData: { playerId: string; playerZone: string } | null = null;
 
@@ -115,10 +116,6 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
     if (!playerCooldownsEnabled) return false;
     if (!playerStatus.isOnCourt) return false;
     
-    // Use courtEnteredTime if available, otherwise fallback to timeEntered
-    // This handles players who were already on court before the feature was added
-    // const enteredTime = player.courtEnteredTime || player.timeEntered;
-    // const timeOnCourt = Math.floor((Date.now() - enteredTime) / 1000);
     return elapsedSeconds < 900; // 15 minutes = 900 seconds
   }, [playerCooldownsEnabled, playerStatus.isOnCourt, elapsedSeconds]);
 
@@ -987,48 +984,168 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
         slotProps={{
           paper: {
             sx: {
-              minWidth: isMobile ? 320 : 280,
+              minWidth: isMobile ? 380 : 340,
+              maxWidth: isMobile ? 420 : 380,
+              maxHeight: '70vh',
               p: 2,
               borderRadius: isMobile ? 2 : 1,
               boxShadow: isMobile 
                 ? '0 8px 24px rgba(0,0,0,0.15)' 
                 : theme.shadows[8],
+              overflowY: 'auto',
             },
           },
         }}
       >
         <Typography variant="subtitle2" gutterBottom sx={{
           fontSize: isMobile ? '0.9rem' : '0.8rem',
+          fontWeight: 'bold',
+          borderBottom: '1px solid rgba(0,0,0,0.1)',
+          paddingBottom: '8px',
+          marginBottom: '12px',
         }}>
-          {player.name}&apos;s Match History
+          🏸 {player.name}&apos;s Match History
         </Typography>
 
         {player.matchHistory?.length ? (
-          player.matchHistory.map((entry, i) => {
-            const timestamp = new Date(entry.timestamp).toLocaleTimeString([], {
-              hour: 'numeric',
-              minute: '2-digit',
-              hour12: true,
-            });
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+            {player.matchHistory
+              .slice() // Create a copy to avoid mutating original array
+              .reverse() // Show most recent matches first
+              .map((entry, i) => {
+                const startTime = new Date(entry.startTime);
+                const endTime = new Date(entry.endTime);
+                
+                const startTimeStr = startTime.toLocaleTimeString([], {
+                  hour: 'numeric',
+                  minute: '2-digit',
+                  hour12: true,
+                });
+                
+                const endTimeStr = endTime.toLocaleTimeString([], {
+                  hour: 'numeric',
+                  minute: '2-digit', 
+                  hour12: true,
+                });
 
-            return (
-              <Typography
-                key={i}
-                variant="body2"
-                fontSize={isMobile ? '0.8rem' : '0.75rem'}
-                sx={{ mb: 0.5 }}
-              >
-                <strong>Played with:</strong> {entry.opponents.join(', ')} at {timestamp}
-              </Typography>
-            );
-          })
+                const matchDescription = getMatchDescription(entry, player.name);
+                const durationStr = formatMatchDuration(entry.duration);
+
+                // Get match type emoji
+                const getMatchTypeEmoji = (type: string) => {
+                  switch (type) {
+                    case '1v1': return '⚔️';
+                    case '2v1': return '🔀';
+                    case '2v2': return '👥';
+                    default: return '🏸';
+                  }
+                };
+
+                return (
+                  <Box
+                    key={`${entry.matchId}-${i}`}
+                    sx={{
+                      backgroundColor: 'rgba(0,0,0,0.03)',
+                      borderRadius: 1,
+                      padding: 1.5,
+                      border: '1px solid rgba(0,0,0,0.1)',
+                    }}
+                  >
+                    {/* Match type and description */}
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        fontSize: isMobile ? '0.8rem' : '0.75rem',
+                        fontWeight: 'bold',
+                        color: 'primary.main',
+                        marginBottom: '4px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 0.5,
+                      }}
+                    >
+                      {getMatchTypeEmoji(entry.matchType)}
+                      {matchDescription}
+                    </Typography>
+
+                    {/* Court and timing info */}
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        fontSize: isMobile ? '0.7rem' : '0.65rem',
+                        color: 'text.secondary',
+                        display: 'block',
+                        marginBottom: '2px',
+                      }}
+                    >
+                      📍 {entry.courtName}
+                    </Typography>
+
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        fontSize: isMobile ? '0.7rem' : '0.65rem',
+                        color: 'text.secondary',
+                        display: 'block',
+                        marginBottom: '2px',
+                      }}
+                    >
+                      ⏰ {startTimeStr} - {endTimeStr}
+                    </Typography>
+
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        fontSize: isMobile ? '0.7rem' : '0.65rem',
+                        color: 'success.main',
+                        fontWeight: 'medium',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 0.5,
+                      }}
+                    >
+                      ⏱️ Duration: {durationStr}
+                    </Typography>
+
+                    {/* Show date if not today */}
+                    {!isToday(startTime) && (
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          fontSize: isMobile ? '0.65rem' : '0.6rem',
+                          color: 'text.disabled',
+                          display: 'block',
+                          marginTop: '4px',
+                          fontStyle: 'italic',
+                        }}
+                      >
+                        📅 {startTime.toLocaleDateString()}
+                      </Typography>
+                    )}
+                  </Box>
+                );
+              })}
+          </Box>
         ) : (
-          <Typography 
-            variant="body2" 
-            fontSize={isMobile ? '0.8rem' : '0.75rem'}
-          >
-            No match history
-          </Typography>
+          <Box sx={{ 
+            textAlign: 'center', 
+            padding: 2,
+            color: 'text.secondary',
+          }}>
+            <Typography 
+              variant="body2" 
+              fontSize={isMobile ? '0.8rem' : '0.75rem'}
+              sx={{ marginBottom: 1 }}
+            >
+              No match history yet
+            </Typography>
+            <Typography 
+              variant="caption" 
+              fontSize={isMobile ? '0.7rem' : '0.65rem'}
+            >
+              Start playing to see your match history here!
+            </Typography>
+          </Box>
         )}
       </Popover>
 

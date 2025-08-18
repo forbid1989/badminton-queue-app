@@ -1,6 +1,7 @@
 import { ActionType } from "./Action";
 import { Player, PlayerStatus } from "../types/Player";
 import { clearLocalStorage } from "../utils/localStorage";
+import { generateMatchHistoryEntries } from "../utils/matchHistoryUtils";
 
 type Action =
   | { type: "setCourtCount"; payload: number }
@@ -1354,7 +1355,7 @@ export default function reducer(state: any, action: Action) {
 
     case ActionType.END_GAME: {
       const courtId = action.payload.courtId;
-      const timestamp = Date.now();
+      const endTime = Date.now();
 
       // Step 1: Find players on this court
       const playersOnCourt: Player[] = state.players.filter((player: Player) =>
@@ -1373,20 +1374,38 @@ export default function reducer(state: any, action: Action) {
         playersOnCourt.map((p) => p.name)
       );
 
-      // Step 2: Update players - increment games and handle status
+      // Step 2: Get court name for match history
+      const courtIndex = parseInt(courtId.split("-")[1]);
+      const courtName = `Court ${courtIndex + 1}`;
+
+      // Step 3: Calculate match start time from earliest courtEnteredTime
+      const matchStartTime = Math.min(
+        ...playersOnCourt.map((p) => p.courtEnteredTime || p.timeEntered)
+      );
+
+      // Step 4: Generate enhanced match history entries
+      const matchHistoryEntries = generateMatchHistoryEntries(
+        playersOnCourt,
+        courtName,
+        matchStartTime,
+        endTime
+      );
+
+      console.log("📝 Generated match history entries:", matchHistoryEntries);
+
+      // Step 5: Update players with enhanced match history
       const updatedPlayers = state.players.map((player: Player) => {
         const isOnCourt = player.status.includes(courtId as PlayerStatus);
         if (!isOnCourt) return player;
 
-        // Find opponents (other players on same court)
-        const opponents = playersOnCourt
-          .filter((p) => p.id !== player.id)
-          .map((p) => p.name);
+        // Find this player's match history entry based on their position in the court
+        const playerIndex = playersOnCourt.findIndex((p) => p.id === player.id);
+        const playerMatchEntry = matchHistoryEntries[playerIndex];
 
-        const matchEntry = {
-          opponents,
-          timestamp,
-        };
+        if (!playerMatchEntry) {
+          console.warn(`⚠️ No match entry found for player ${player.name}`);
+          return player;
+        }
 
         // Remove this court from status, keep queue if present (Condition #6)
         const remainingStatus = player.status.filter((s) => s !== courtId);
@@ -1394,28 +1413,29 @@ export default function reducer(state: any, action: Action) {
         console.log(
           `🔄 ${player.name}: status ${JSON.stringify(
             player.status
-          )} → ${JSON.stringify(remainingStatus)}`
+          )} → ${JSON.stringify(remainingStatus)}, adding match entry:`,
+          playerMatchEntry
         );
 
         return {
           ...player,
           gamesPlayed: player.gamesPlayed + 1,
           status: remainingStatus,
-          timeEntered: timestamp,
-          matchHistory: [...(player.matchHistory || []), matchEntry],
+          timeEntered: endTime,
+          matchHistory: [...(player.matchHistory || []), playerMatchEntry],
           courtOrder: null, // ✨ Clear court order when leaving court
           courtEnteredTime: undefined,
         };
       });
 
-      // ✨ Rebuild using order fields
+      // Step 6: Rebuild zone mappings using order fields
       const { playersByCourt, playersByQueue } = rebuildZoneMappings(
         updatedPlayers,
         state.courts.count,
         Object.keys(state.queue.playersByQueue)
       );
 
-      console.log("✅ Game ended successfully");
+      console.log("✅ Game ended successfully with enhanced match history");
 
       return {
         ...state,
