@@ -30,5 +30,6 @@ export type RootState = {
   settings: {
     priorityMode: string; // "FIFO" | "LongestWaiting"
     colorCodedTimers: boolean;
+    playerCooldowns: boolean; // ✨ NEW: Enable/disable player cooldowns
   };
 };

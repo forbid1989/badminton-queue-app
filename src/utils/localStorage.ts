@@ -17,6 +17,9 @@ interface PersistedState {
     // 🆕 Add the queue structure so we know which queue IDs exist
     playersByQueue: Record<string, Player[]>;
   };
+  settings?: {
+    playerCooldowns?: boolean;
+  };
   version: string;
 }
 
@@ -34,6 +37,9 @@ export const saveToLocalStorage = (state: RootState): void => {
         count: state.queue.count,
         // 🆕 Save the actual queue structure
         playersByQueue: state.queue.playersByQueue,
+      },
+      settings: {
+        playerCooldowns: state.settings?.playerCooldowns || false,
       },
       version: CURRENT_VERSION,
     };
@@ -88,6 +94,11 @@ export const loadFromLocalStorage = (): Partial<RootState> | null => {
         playersByQueue: persistedState.queue?.playersByQueue || {
           "queue-0": [],
         },
+      },
+      settings: {
+        priorityMode: "FIFO",
+        colorCodedTimers: true,
+        playerCooldowns: persistedState.settings?.playerCooldowns || false,
       },
     };
   } catch (error) {

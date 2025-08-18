@@ -29,6 +29,7 @@ export interface Player {
   timeEntered: number;
   waitingSince?: number;
   matchHistory?: MatchHistoryEntry[];
+  courtEnteredTime?: number; // ✨ NEW: Track when player entered current court for cooldown
 
   // ✨ NEW: Explicit ordering fields
   /**

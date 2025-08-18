@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useContext } from 'react';
 import {
   Modal,
   Paper,
@@ -13,6 +13,8 @@ import {
   useTheme,
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
+import { AppContext } from '../../BadmintonQueueUI';
+import { Action } from '../../app/Action';
 
 interface SettingsModalProps {
   open: boolean;
@@ -21,11 +23,12 @@ interface SettingsModalProps {
 
 const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
   const theme = useTheme();
+  const { state, dispatch } = useContext(AppContext);
   
   // Zoom levels: 75%, 85%, 100%, 110%, 125%, 150%
   const zoomLevels = [75, 85, 100, 110, 125, 150];
   const [zoomLevel, setZoomLevel] = useState(100);
-  const [playerCooldowns, setPlayerCooldowns] = useState(false);
+  const [playerCooldowns, setPlayerCooldowns] = useState(state.settings.playerCooldowns || false);
 
   // Apply responsive font scaling to CSS root variables
   const applyFontScale = useCallback((level: number) => {
@@ -56,6 +59,17 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
       }
     }
   }, [applyFontScale, zoomLevels]);
+
+  // Sync cooldown state with global state
+  useEffect(() => {
+    setPlayerCooldowns(state.settings.playerCooldowns || false);
+  }, [state.settings.playerCooldowns]);
+
+  // Handle cooldown toggle
+  const handleCooldownToggle = (checked: boolean) => {
+    setPlayerCooldowns(checked);
+    dispatch(Action.togglePlayerCooldowns());
+  };
 
   // Handle font scale change from slider
   const handleFontScaleChange = (event: Event, newValue: number | number[]) => {
@@ -181,7 +195,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
               control={
                 <Switch
                   checked={playerCooldowns}
-                  onChange={(e) => setPlayerCooldowns(e.target.checked)}
+                  onChange={(e) => handleCooldownToggle(e.target.checked)}
                   size="medium"
                 />
               }
@@ -194,7 +208,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
                     variant="caption" 
                     sx={{ fontSize: '0.75rem', color: 'text.secondary' }}
                   >
-                    Prevent players from rejoining games too quickly
+                    Players must play for 15 minutes before advance queueing
                   </Typography>
                 </Box>
               }

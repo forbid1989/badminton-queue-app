@@ -13,6 +13,7 @@ const ActionType = {
   SET_PLAYER_TEXT_INPUT: "setPlayerTextInput",
   TOGGLE_TIMERS: "toggleTimers",
   SET_PRIORITY_MODE: "setPriorityMode",
+  TOGGLE_PLAYER_COOLDOWNS: "togglePlayerCooldowns",
   REMOVE_PLAYER: "removePlayer",
   TRANSFER_QUEUE_TO_COURT: "transferQueueToCourt",
   END_GAME: "endGame",
@@ -111,6 +112,12 @@ const Action = {
     return {
       type: ActionType.SET_PRIORITY_MODE,
       mode,
+    };
+  },
+
+  togglePlayerCooldowns() {
+    return {
+      type: ActionType.TOGGLE_PLAYER_COOLDOWNS,
     };
   },
 

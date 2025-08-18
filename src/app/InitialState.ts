@@ -33,6 +33,7 @@ const baseInitialState = {
   settings: {
     priorityMode: "FIFO", // or 'LongestWaiting'
     colorCodedTimers: true,
+    playerCooldowns: false, // ✨ NEW: Default to disabled
   },
 };
 
@@ -40,7 +41,10 @@ const baseInitialState = {
 function migratePlayersWithOrderFields(players: Player[]): Player[] {
   return players.map((player) => {
     // If player already has order fields, keep them
-    if (typeof player.courtOrder !== 'undefined' && typeof player.queueOrder !== 'undefined') {
+    if (
+      typeof player.courtOrder !== "undefined" &&
+      typeof player.queueOrder !== "undefined"
+    ) {
       return player;
     }
 
@@ -64,20 +68,20 @@ function assignOrderFieldsFromZonePosition(
     let newQueueOrder = player.queueOrder;
 
     // Find which court this player is in and assign order based on position
-    const courtId = player.status.find(s => s.startsWith('court-'));
+    const courtId = player.status.find((s) => s.startsWith("court-"));
     if (courtId && playersByCourt[courtId]) {
       const courtPlayers = playersByCourt[courtId];
-      const position = courtPlayers.findIndex(p => p.id === player.id);
+      const position = courtPlayers.findIndex((p) => p.id === player.id);
       if (position >= 0) {
         newCourtOrder = position;
       }
     }
 
     // Find which queue this player is in and assign order based on position
-    const queueId = player.status.find(s => s.startsWith('queue-'));
+    const queueId = player.status.find((s) => s.startsWith("queue-"));
     if (queueId && playersByQueue[queueId]) {
       const queuePlayers = playersByQueue[queueId];
-      const position = queuePlayers.findIndex(p => p.id === player.id);
+      const position = queuePlayers.findIndex((p) => p.id === player.id);
       if (position >= 0) {
         newQueueOrder = position;
       }

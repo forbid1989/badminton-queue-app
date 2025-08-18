@@ -49,6 +49,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
   const courtCount = useMemo(() => state.courts.count, [state.courts.count]);
   const queueCount = useMemo(() => state.queue.count, [state.queue.count]);
   const isMobile = useMediaQuery('(max-width: 1110px)');
+  const playerCooldownsEnabled = useMemo(() => state.settings.playerCooldowns, [state.settings.playerCooldowns]);
 
   const isTouchDevice = useMemo(() => {
     return 'ontouchstart' in window || navigator.maxTouchPoints > 0;
@@ -109,10 +110,25 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
     };
   }, [player.status, elapsedSeconds]);
 
+  // Calculate if player is on cooldown (< 15 minutes on court)
+  const isOnCooldown = useMemo(() => {
+    if (!playerCooldownsEnabled) return false;
+    if (!playerStatus.isOnCourt) return false;
+    if (!player.courtEnteredTime) return false;
+    
+    const timeOnCourt = Math.floor((Date.now() - player.courtEnteredTime) / 1000);
+    return timeOnCourt < 900; // 15 minutes = 900 seconds
+  }, [playerCooldownsEnabled, playerStatus.isOnCourt, player.courtEnteredTime]);
+
   // Memoized color calculations
   const cardColors = useMemo(() => {
     const getBackgroundColor = () => {
       const { isConflict, isCourtAndQueue, isIdleTooLong, isOnCourt, isInQueue, isUnassigned } = playerStatus;
+      
+      // Check for cooldown state (gray card when on court < 15 mins)
+      if (isOnCooldown && zone === "all") {
+        return "#B0B0B0"; // Gray for cooldown
+      }
       
       if (zone !== "all") {
         if (isConflict) return "#F7C59F";
@@ -133,6 +149,11 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
 
     const getTextColor = () => {
       const { isConflict, isCourtAndQueue, isIdleTooLong, isOnCourt, isInQueue } = playerStatus;
+      
+      // Check for cooldown state
+      if (isOnCooldown && zone === "all") {
+        return "#555555"; // Darker gray text for cooldown
+      }
       
       if (zone !== "all") {
         if (isConflict) return "#5C3D2E";
@@ -155,7 +176,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
       backgroundColor: getBackgroundColor(),
       textColor: getTextColor()
     };
-  }, [playerStatus, zone]);
+  }, [playerStatus, zone, isOnCooldown]);
 
   // Memoized available zone calculation
   const availableZone = useMemo(() => {
@@ -178,7 +199,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
     return null;
   }, [courtCount, queueCount, state.courts.playersByCourt, state.queue.playersByQueue]);
 
-  const isQuickAddDisabled = !availableZone;
+  const isQuickAddDisabled = !availableZone || (isOnCooldown && zone === "all");
   const showQuickAddIcon = useMemo(() => {
     const { isUnassigned, isOnCourt, isInQueue } = playerStatus;
     return (isUnassigned && !isOnCourt) || (zone === "all" && isOnCourt && !isInQueue);
@@ -234,6 +255,13 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
 
   // Enhanced drag start with global state
   const handleDragStart = useCallback((e: React.DragEvent) => {
+    // Prevent dragging from player list if on cooldown (for advance queueing)
+    if (isOnCooldown && zone === "all") {
+      e.preventDefault();
+      console.log('🚫 Drag prevented: Player on cooldown');
+      return;
+    }
+    
     // Set global drag data
     currentDragData = { playerId: player.id, playerZone: zone };
     
@@ -245,7 +273,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
     
     setIsDragging(true);
     console.log('🚀 Drag started:', currentDragData);
-  }, [player, zone]);
+  }, [player, zone, isOnCooldown]);
 
   const handleDragEnd = useCallback(() => {
     setIsDragging(false);
@@ -330,6 +358,12 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     if (!isTouchDevice) return;
 
+    // Prevent touch dragging from player list if on cooldown
+    if (isOnCooldown && zone === "all") {
+      console.log('🚫 Touch drag prevented: Player on cooldown');
+      return;
+    }
+
     const touch = e.touches[0];
     const rect = cardRef.current?.getBoundingClientRect();
     if (!rect) return;
@@ -366,7 +400,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
       
     }, 150);
 
-  }, [isTouchDevice, player, zone]);
+  }, [isTouchDevice, player, zone, isOnCooldown]);
 
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
     if (!isTouchDevice || !initialTouchRef.current) return;
@@ -603,7 +637,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
       : isSwapping
         ? '0 0 20px rgba(233, 30, 99, 0.8)'
         : '0 1px 3px rgba(0,0,0,0.2), inset 0 1px 1px rgba(255,255,255,0.2)',
-      cursor: 'grab',
+      cursor: isOnCooldown && zone === "all" ? 'not-allowed' : 'grab',
       margin: '0 auto 2px',
       color: cardColors.textColor,
       border: isSwapping
@@ -659,14 +693,14 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
         pointerEvents: 'none',
       },
     };
-  }, [isInTeamZone, isMobile, cardColors, isDragging, isDropTarget, isSwapping]);
+  }, [isInTeamZone, isMobile, cardColors, isDragging, isDropTarget, isSwapping, isOnCooldown, zone]);
 
   return (
     <div className="flipped">
       <Card
         ref={cardRef}
         sx={enhancedCardStyles}
-        draggable
+        draggable={!(isOnCooldown && zone === "all")}
         data-player-id={player.id}
         data-zone={zone}
         onDragStart={handleDragStart}
@@ -855,7 +889,9 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
                 disabled={isQuickAddDisabled}
                 title={
                   isQuickAddDisabled
-                    ? "No available court or queue"
+                    ? isOnCooldown 
+                      ? `On cooldown (${Math.ceil((900 - Math.floor((Date.now() - (player.courtEnteredTime || 0)) / 1000)) / 60)} mins remaining)`
+                      : "No available court or queue"
                     : "Quick Add"
                 }
                 sx={{

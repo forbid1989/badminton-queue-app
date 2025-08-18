@@ -22,6 +22,7 @@ type Action =
   | { type: "endGame"; payload: { courtId: string } }
   | { type: "createQueue" }
   | { type: "removeQueue"; payload: { queueId: string } }
+  | { type: "togglePlayerCooldowns" }
   | {
       type: "movePlayerToPosition";
       payload: {
@@ -462,6 +463,12 @@ export default function reducer(state: any, action: Action) {
         status: newStatus,
         timeEntered:
           isToCourt && !existingCourt ? Date.now() : playerToMove.timeEntered,
+        courtEnteredTime:
+          isToCourt && !existingCourt
+            ? Date.now()
+            : !isToCourt
+            ? undefined
+            : playerToMove.courtEnteredTime,
       };
 
       // ✨ Handle order fields with EXACT POSITION assignment (the key difference from MOVE_PLAYER)
@@ -646,6 +653,12 @@ export default function reducer(state: any, action: Action) {
         status: newStatus,
         timeEntered:
           isToCourt && !existingCourt ? Date.now() : playerToMove.timeEntered,
+        courtEnteredTime:
+          isToCourt && !existingCourt
+            ? Date.now()
+            : !isToCourt
+            ? undefined
+            : playerToMove.courtEnteredTime,
       };
 
       // ✨ Update order fields based on move
@@ -819,12 +832,19 @@ export default function reducer(state: any, action: Action) {
         status: newStatus,
         timeEntered:
           isToCourt && !existingCourt ? Date.now() : playerToMove.timeEntered,
+        courtEnteredTime:
+          isToCourt && !existingCourt
+            ? Date.now()
+            : !isToCourt
+            ? undefined
+            : playerToMove.courtEnteredTime,
       };
 
       // ✨ Update order fields based on move
       if (isFromCourt && (to === "rest" || to === "all")) {
         // Leaving court - clear court order
         updatedPlayer = clearOrderFromPlayer(updatedPlayer, from);
+        updatedPlayer.courtEnteredTime = undefined;
         console.log(`🧹 Cleared court order for ${updatedPlayer.name}`);
       } else if (isFromQueue && (to === "rest" || to === "all")) {
         // Leaving queue - clear queue order
@@ -868,6 +888,7 @@ export default function reducer(state: any, action: Action) {
       } else if (isFromCourt && isToQueue) {
         // Court to queue - clear court order, assign queue order
         updatedPlayer.courtOrder = null;
+        updatedPlayer.courtEnteredTime = undefined;
         updatedPlayer.queueOrder = assignedPosition;
         console.log(
           `⬇️ Court-to-queue: ${updatedPlayer.name} cleared court order, assigned queue position ${assignedPosition}`
@@ -1127,6 +1148,16 @@ export default function reducer(state: any, action: Action) {
       };
     }
 
+    case ActionType.TOGGLE_PLAYER_COOLDOWNS: {
+      return {
+        ...state,
+        settings: {
+          ...state.settings,
+          playerCooldowns: !state.settings.playerCooldowns,
+        },
+      };
+    }
+
     case ActionType.SET_PRIORITY_MODE: {
       return {
         ...state,
@@ -1248,6 +1279,7 @@ export default function reducer(state: any, action: Action) {
             timeEntered: timestamp,
             queueOrder: null, // ✨ Clear queue order
             courtOrder: newCourtPosition, // ✨ Assign court order
+            courtEnteredTime: timestamp,
           };
         }
         return player;
@@ -1372,6 +1404,7 @@ export default function reducer(state: any, action: Action) {
           timeEntered: timestamp,
           matchHistory: [...(player.matchHistory || []), matchEntry],
           courtOrder: null, // ✨ Clear court order when leaving court
+          courtEnteredTime: undefined,
         };
       });
 
@@ -1436,6 +1469,7 @@ export default function reducer(state: any, action: Action) {
         settings: {
           priorityMode: "FIFO",
           colorCodedTimers: true,
+          playerCooldowns: false,
         },
       };
     }
