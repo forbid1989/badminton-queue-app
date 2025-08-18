@@ -114,11 +114,13 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
   const isOnCooldown = useMemo(() => {
     if (!playerCooldownsEnabled) return false;
     if (!playerStatus.isOnCourt) return false;
-    if (!player.courtEnteredTime) return false;
     
-    const timeOnCourt = Math.floor((Date.now() - player.courtEnteredTime) / 1000);
-    return timeOnCourt < 900; // 15 minutes = 900 seconds
-  }, [playerCooldownsEnabled, playerStatus.isOnCourt, player.courtEnteredTime]);
+    // Use courtEnteredTime if available, otherwise fallback to timeEntered
+    // This handles players who were already on court before the feature was added
+    // const enteredTime = player.courtEnteredTime || player.timeEntered;
+    // const timeOnCourt = Math.floor((Date.now() - enteredTime) / 1000);
+    return elapsedSeconds < 900; // 15 minutes = 900 seconds
+  }, [playerCooldownsEnabled, playerStatus.isOnCourt, elapsedSeconds]);
 
   // Memoized color calculations
   const cardColors = useMemo(() => {
@@ -890,7 +892,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
                 title={
                   isQuickAddDisabled
                     ? isOnCooldown 
-                      ? `On cooldown (${Math.ceil((900 - Math.floor((Date.now() - (player.courtEnteredTime || 0)) / 1000)) / 60)} mins remaining)`
+                      ? `On cooldown (${Math.ceil((900 - Math.floor((Date.now() - (player.courtEnteredTime || player.timeEntered)) / 1000)) / 60)} mins remaining)`
                       : "No available court or queue"
                     : "Quick Add"
                 }
