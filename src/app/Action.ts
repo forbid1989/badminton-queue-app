@@ -4,11 +4,11 @@ const ActionType = {
   SET_COURT_COUNT: "setCourtCount",
   ADD_PLAYERS_FROM_TEXT: "addPlayersFromText",
   CLEAR_ALL_PLAYERS: "clearAllPlayers",
-  CLEAR_ALL_DATA: "clearAllData", // 🆕 New action for clearing everything including localStorage
+  CLEAR_ALL_DATA: "clearAllData",
   MOVE_PLAYER: "movePlayer",
-  MOVE_PLAYER_TO_POSITION: "movePlayerToPosition", // 🆕 New action for position-specific moves
-  QUICK_MOVE_PLAYER: "quickMovePlayer", // 🆕 New action for quick add button and regular zone drops
-  SWAP_PLAYERS: "swapPlayers", // 🆕 Moved up to be with other player actions
+  MOVE_PLAYER_TO_POSITION: "movePlayerToPosition",
+  QUICK_MOVE_PLAYER: "quickMovePlayer",
+  SWAP_PLAYERS: "swapPlayers",
   SET_GAMES_PLAYED: "setGamesPlayed",
   SET_PLAYER_TEXT_INPUT: "setPlayerTextInput",
   TOGGLE_TIMERS: "toggleTimers",
@@ -19,8 +19,13 @@ const ActionType = {
   END_GAME: "endGame",
   UPDATE_PLAYER_NAME: "updatePlayerName",
   RENAME_PLAYER: "renamePlayer",
-  CREATE_QUEUE: "createQueue", // 🆕 New action
-  REMOVE_QUEUE: "removeQueue", // 🆕 New action
+  CREATE_QUEUE: "createQueue",
+  REMOVE_QUEUE: "removeQueue",
+  UPDATE_PAYMENT_SETTINGS: "updatePaymentSettings",
+  TOGGLE_PLAYER_PAYMENT: "togglePlayerPayment",
+  TOGGLE_PLAYER_GUEST: "togglePlayerGuest",
+  MARK_ALL_PLAYERS_PAID: "markAllPlayersPaid",
+  CLEAR_ALL_PAYMENTS: "clearAllPayments",
 } as const;
 
 // 🧠 Action creators
@@ -160,6 +165,39 @@ const Action = {
     return {
       type: ActionType.REMOVE_QUEUE,
       payload: { queueId },
+    };
+  },
+
+  updatePaymentSettings(settings: any) {
+    return {
+      type: ActionType.UPDATE_PAYMENT_SETTINGS,
+      payload: settings,
+    };
+  },
+
+  togglePlayerPayment(playerId: string) {
+    return {
+      type: ActionType.TOGGLE_PLAYER_PAYMENT,
+      payload: { playerId },
+    };
+  },
+
+  togglePlayerGuest(playerId: string) {
+    return {
+      type: ActionType.TOGGLE_PLAYER_GUEST,
+      payload: { playerId },
+    };
+  },
+
+  markAllPlayersPaid() {
+    return {
+      type: ActionType.MARK_ALL_PLAYERS_PAID,
+    };
+  },
+
+  clearAllPayments() {
+    return {
+      type: ActionType.CLEAR_ALL_PAYMENTS,
     };
   },
 };

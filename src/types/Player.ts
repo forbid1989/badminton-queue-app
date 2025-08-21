@@ -5,6 +5,15 @@ export type PlayerStatus = `queue-${number}` | `court-${number}`;
 
 // Enhanced Player.ts - Updated match history structure
 
+// 🆕 Payment information for each player
+export interface PaymentInfo {
+  hasPaid: boolean; // Whether the player has paid
+  isGuest: boolean; // Whether the player is a guest (affects fee calculation)
+  amountOwed?: number; // Calculated amount owed (optional, can be calculated on-the-fly)
+  paidAt?: number; // Timestamp when payment was made
+  notes?: string; // Optional notes about payment
+}
+
 export interface MatchHistoryEntry {
   matchId: string; // Unique identifier for the match
   partner?: string; // Partner's name (undefined for 1v1)
@@ -27,6 +36,7 @@ export interface Player {
   courtEnteredTime?: number;
   courtOrder: number | null;
   queueOrder: number | null;
+  paymentInfo?: PaymentInfo;
 }
 
 // Enhanced match history utility functions

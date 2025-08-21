@@ -2,6 +2,7 @@ import React, { useContext, useState, useCallback, useMemo } from 'react';
 import { Typography, IconButton, Box, Divider, useTheme } from '@mui/material';
 import AddIcon from '@mui/icons-material/GroupAdd';
 import SettingsIcon from '@mui/icons-material/Settings';
+import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
 import { AppContext } from '../../BadmintonQueueUI';
 import CourtZone from '../CourtZone';
 import QueueZone from '../QueueZone';
@@ -12,6 +13,7 @@ import CourtControlPanel from '../CourtControlPanel';
 import SettingsModal from '../input/SettingsModal';
 import Popover from '@mui/material/Popover';
 import AddRoadIcon from '@mui/icons-material/AddRoad';
+import PaymentModal from '../input/PaymentModal';
 
 const Dashboard: React.FC = React.memo(() => {
   const { state } = useContext(AppContext);
@@ -21,6 +23,7 @@ const Dashboard: React.FC = React.memo(() => {
   const [openParser, setOpenParser] = useState(false);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [openSettings, setOpenSettings] = useState(false);
+  const [openPayment, setOpenPayment] = useState(false);
 
   // Memoized calculations
   const totalPlayers = useMemo(() => state.players.length, [state.players.length]);
@@ -50,6 +53,14 @@ const Dashboard: React.FC = React.memo(() => {
 
   const handleCloseSettings = useCallback(() => {
     setOpenSettings(false);
+  }, []);
+
+  const handleOpenPayment = useCallback(() => {
+    setOpenPayment(true);
+  }, []);
+
+  const handleClosePayment = useCallback(() => {
+    setOpenPayment(false);
   }, []);
 
   // Memoized style objects with responsive breakpoints
@@ -121,7 +132,6 @@ const Dashboard: React.FC = React.memo(() => {
     },
   }), []);
 
-  // Memoized header content
   const headerContent = useMemo(() => (
     <Box sx={headerSx}>
       <Typography variant="subtitle1" sx={{ fontSize: '0.95rem' }}>
@@ -134,12 +144,15 @@ const Dashboard: React.FC = React.memo(() => {
         <IconButton onClick={handleOpenPopover} title="Court Settings">
           <AddRoadIcon />
         </IconButton>
+        <IconButton onClick={handleOpenPayment} title="Payment Summary">
+          <AttachMoneyIcon />
+        </IconButton>
         <IconButton onClick={handleOpenSettings} title="App Settings">
           <SettingsIcon />
         </IconButton>
       </Box>
     </Box>
-  ), [totalPlayers, headerSx, buttonGroupSx, handleOpenParser, handleOpenPopover, handleOpenSettings]);
+  ), [totalPlayers, headerSx, buttonGroupSx, handleOpenParser, handleOpenPopover, handleOpenPayment, handleOpenSettings]);
 
   // Memoized popover content
   const popoverContent = useMemo(() => (
@@ -195,6 +208,9 @@ const Dashboard: React.FC = React.memo(() => {
         
         {/* Settings Modal */}
         <SettingsModal open={openSettings} onClose={handleCloseSettings} />
+
+        {/* Payment Modal */}
+        <PaymentModal open={openPayment} onClose={handleClosePayment} />
       </Box>
     </Box>
   );

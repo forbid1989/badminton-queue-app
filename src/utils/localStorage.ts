@@ -19,6 +19,7 @@ interface PersistedState {
   };
   settings?: {
     playerCooldowns?: boolean;
+    paymentSettings?: any;
   };
   version: string;
 }
@@ -40,6 +41,7 @@ export const saveToLocalStorage = (state: RootState): void => {
       },
       settings: {
         playerCooldowns: state.settings?.playerCooldowns || false,
+        paymentSettings: state.settings?.paymentSettings,
       },
       version: CURRENT_VERSION,
     };
@@ -99,6 +101,7 @@ export const loadFromLocalStorage = (): Partial<RootState> | null => {
         priorityMode: "FIFO",
         colorCodedTimers: true,
         playerCooldowns: persistedState.settings?.playerCooldowns || false,
+        paymentSettings: persistedState.settings?.paymentSettings,
       },
     };
   } catch (error) {

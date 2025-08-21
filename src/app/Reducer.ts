@@ -36,7 +36,12 @@ type Action =
   | {
       type: "quickMovePlayer";
       payload: { id: string; from: string; to: string };
-    };
+    }
+  | { type: "updatePaymentSettings"; payload: any }
+  | { type: "togglePlayerPayment"; payload: { playerId: string } }
+  | { type: "togglePlayerGuest"; payload: { playerId: string } }
+  | { type: "markAllPlayersPaid" }
+  | { type: "clearAllPayments" };
 
 // Helper function to check if we should auto-create a new queue
 function shouldAutoCreateQueue(state: any): boolean {
@@ -1490,6 +1495,172 @@ export default function reducer(state: any, action: Action) {
           priorityMode: "FIFO",
           colorCodedTimers: true,
           playerCooldowns: false,
+          paymentSettings: {
+            feeStructure: "flat" as "flat" | "per_game",
+            flatFee: 50,
+            courtFee: 20,
+            perGameFee: 15,
+            guestFee: 25,
+            currency: "PHP",
+          },
+        },
+      };
+    }
+
+    case ActionType.UPDATE_PAYMENT_SETTINGS: {
+      return {
+        ...state,
+        settings: {
+          ...state.settings,
+          paymentSettings: action.payload,
+        },
+      };
+    }
+
+    case ActionType.TOGGLE_PLAYER_PAYMENT: {
+      const { playerId } = action.payload;
+
+      const updatedPlayers = state.players.map((player: Player) => {
+        if (player.id === playerId) {
+          const currentPaymentInfo = player.paymentInfo || {
+            hasPaid: false,
+            isGuest: false,
+          };
+          const newHasPaid = !currentPaymentInfo.hasPaid;
+
+          return {
+            ...player,
+            paymentInfo: {
+              ...currentPaymentInfo,
+              hasPaid: newHasPaid,
+              paidAt: newHasPaid ? Date.now() : undefined,
+            },
+          };
+        }
+        return player;
+      });
+
+      // Rebuild zone mappings
+      const { playersByCourt, playersByQueue } = rebuildZoneMappings(
+        updatedPlayers,
+        state.courts.count,
+        Object.keys(state.queue.playersByQueue)
+      );
+
+      return {
+        ...state,
+        players: updatedPlayers,
+        courts: {
+          ...state.courts,
+          playersByCourt,
+        },
+        queue: {
+          ...state.queue,
+          playersByQueue,
+        },
+      };
+    }
+
+    case ActionType.TOGGLE_PLAYER_GUEST: {
+      const { playerId } = action.payload;
+
+      const updatedPlayers = state.players.map((player: Player) => {
+        if (player.id === playerId) {
+          const currentPaymentInfo = player.paymentInfo || {
+            hasPaid: false,
+            isGuest: false,
+          };
+
+          return {
+            ...player,
+            paymentInfo: {
+              ...currentPaymentInfo,
+              isGuest: !currentPaymentInfo.isGuest,
+            },
+          };
+        }
+        return player;
+      });
+
+      // Rebuild zone mappings
+      const { playersByCourt, playersByQueue } = rebuildZoneMappings(
+        updatedPlayers,
+        state.courts.count,
+        Object.keys(state.queue.playersByQueue)
+      );
+
+      return {
+        ...state,
+        players: updatedPlayers,
+        courts: {
+          ...state.courts,
+          playersByCourt,
+        },
+        queue: {
+          ...state.queue,
+          playersByQueue,
+        },
+      };
+    }
+
+    case ActionType.MARK_ALL_PLAYERS_PAID: {
+      const updatedPlayers = state.players.map((player: Player) => ({
+        ...player,
+        paymentInfo: {
+          ...(player.paymentInfo || { isGuest: false }),
+          hasPaid: true,
+          paidAt: Date.now(),
+        },
+      }));
+
+      // Rebuild zone mappings
+      const { playersByCourt, playersByQueue } = rebuildZoneMappings(
+        updatedPlayers,
+        state.courts.count,
+        Object.keys(state.queue.playersByQueue)
+      );
+
+      return {
+        ...state,
+        players: updatedPlayers,
+        courts: {
+          ...state.courts,
+          playersByCourt,
+        },
+        queue: {
+          ...state.queue,
+          playersByQueue,
+        },
+      };
+    }
+
+    case ActionType.CLEAR_ALL_PAYMENTS: {
+      const updatedPlayers = state.players.map((player: Player) => ({
+        ...player,
+        paymentInfo: {
+          ...(player.paymentInfo || {}),
+          hasPaid: false,
+          paidAt: undefined,
+        },
+      }));
+
+      // Rebuild zone mappings
+      const { playersByCourt, playersByQueue } = rebuildZoneMappings(
+        updatedPlayers,
+        state.courts.count,
+        Object.keys(state.queue.playersByQueue)
+      );
+
+      return {
+        ...state,
+        players: updatedPlayers,
+        courts: {
+          ...state.courts,
+          playersByCourt,
+        },
+        queue: {
+          ...state.queue,
+          playersByQueue,
         },
       };
     }

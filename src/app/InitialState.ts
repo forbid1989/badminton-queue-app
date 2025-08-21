@@ -34,6 +34,14 @@ const baseInitialState = {
     priorityMode: "FIFO", // or 'LongestWaiting'
     colorCodedTimers: true,
     playerCooldowns: false, // ✨ NEW: Default to disabled
+    paymentSettings: {
+      feeStructure: "flat" as "flat" | "per_game",
+      flatFee: 50,
+      courtFee: 20,
+      perGameFee: 15,
+      guestFee: 25,
+      currency: "PHP",
+    },
   },
 };
 
