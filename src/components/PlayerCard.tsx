@@ -25,7 +25,12 @@ import BadmintonIcon from './input/BadmintonIcon';
 import { getTimeAgo } from '../utils/getTimeAgo';
 import { formatMatchDuration, getMatchDescription, isToday } from '../utils/matchHistoryUtils';
 
-let currentDragData: { playerId: string; playerZone: string } | null = null;
+// Pragmatic Drag and Drop imports
+import { draggable, dropTargetForElements } from '@atlaskit/pragmatic-drag-and-drop/element/adapter';
+import { setCustomNativeDragPreview } from '@atlaskit/pragmatic-drag-and-drop/element/set-custom-native-drag-preview';
+import { combine } from '@atlaskit/pragmatic-drag-and-drop/combine';
+import { disableNativeDragPreview } from '@atlaskit/pragmatic-drag-and-drop/element/disable-native-drag-preview';
+import { preventUnhandled } from '@atlaskit/pragmatic-drag-and-drop/prevent-unhandled';
 
 const formatElapsedTime = (seconds: number) => {
   const mins = Math.floor(seconds / 60);
@@ -37,10 +42,6 @@ type PlayerCardProps = {
   player: Player;
   zone: string;
 };
-
-// Global variables for drag state
-let draggedElement: HTMLElement | null = null;
-let draggedData: { player: Player; zone: string } | null = null;
 
 const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
   const theme = useTheme();
@@ -70,7 +71,6 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [gamesPlayed, setGamesPlayed] = useState(player.gamesPlayed.toString());
   const [isDragging, setIsDragging] = useState(false);
-  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [name, setName] = useState(player.name);
   const [isDropTarget, setIsDropTarget] = useState(false);
   const [isSwapping, setIsSwapping] = useState(false);
@@ -78,9 +78,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
   const cardRef = useRef<HTMLDivElement>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const nameUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const touchStartTimeRef = useRef<number>(0);
-  const initialTouchRef = useRef<{ x: number, y: number } | null>(null);
-  const dragTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const dragPreviewRef = useRef<HTMLDivElement | null>(null);
 
   // Memoized player status calculations
   const playerStatus = useMemo(() => {
@@ -252,296 +250,127 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
     setHistoryAnchorEl(null);
   }, []);
 
-  // Enhanced drag start with global state
-  const handleDragStart = useCallback((e: React.DragEvent) => {
-    // Prevent dragging from player list if on cooldown (for advance queueing)
-    if (isOnCooldown && zone === "all") {
-      e.preventDefault();
-      console.log('🚫 Drag prevented: Player on cooldown');
-      return;
-    }
-    
-    // Set global drag data
-    currentDragData = { playerId: player.id, playerZone: zone };
-    
-    // Keep original data transfer for zone drops
-    e.dataTransfer.setData('player/id', player.id.toString());
-    e.dataTransfer.setData('player/source', zone);
-    e.dataTransfer.setData('player/json', JSON.stringify(player));
-    e.dataTransfer.setData('player/isSwapOperation', 'false');
-    
-    setIsDragging(true);
-    console.log('🚀 Drag started:', currentDragData);
-  }, [player, zone, isOnCooldown]);
+  // Setup PDD draggable and drop target for swapping
+  useEffect(() => {
+    const element = cardRef.current;
+    if (!element) return;
 
-  const handleDragEnd = useCallback(() => {
-    setIsDragging(false);
-    currentDragData = null; // Clear global drag data
-    console.log('🏁 Drag ended');
-  }, []);
+    // Prevent dragging if on cooldown from player list
+    const canDrag = !(isOnCooldown && zone === "all");
 
-  // Fixed drag over using global variables
-  const handleDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    
-    // Use global drag data instead of dataTransfer
-    if (!currentDragData) {
-      console.log('❌ No current drag data');
-      return;
-    }
-    
-    const { playerId: draggedPlayerId, playerZone: draggedPlayerZone } = currentDragData;
-    
-    // Only allow swap if conditions are met
-    if (
-      draggedPlayerId !== player.id && 
-      draggedPlayerZone === zone &&
-      (zone.startsWith('court-') || zone.startsWith('queue-'))
-    ) {
-      console.log('✅ Setting drop target');
-      setIsDropTarget(true);
-    } else {
-      console.log('❌ Conditions not met, clearing drop target');
-      setIsDropTarget(false);
-    }
-  }, [player.id, zone]);
-
-  // Handle drag leave
-  const handleDragLeave = useCallback((e: React.DragEvent) => {
-    // Only remove drop target state if we're actually leaving this element
-    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
-      console.log('🚪 Drag leave');
-      setIsDropTarget(false);
-    }
-  }, []);
-
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    console.log('📦 Drop detected on player:', player.name);
-    setIsDropTarget(false);
-    
-    if (!currentDragData) {
-      console.log('❌ No drag data on drop');
-      return;
-    }
-    
-    const { playerId: draggedPlayerId, playerZone: draggedPlayerZone } = currentDragData;
-    
-    // Perform swap if conditions are met
-    if (
-      draggedPlayerId !== player.id && 
-      draggedPlayerZone === zone &&
-      (zone.startsWith('court-') || zone.startsWith('queue-'))
-    ) {
-      console.log('🔄 Dispatching swap action');
-      
-      try {
-        setIsSwapping(true);
-        dispatch(Action.swapPlayers(draggedPlayerId, player.id, zone));
-         // Reset animation after delay
-        setTimeout(() => {
-          setIsSwapping(false);
-        }, 600); // Animation duration
-        console.log('✅ Swap action dispatched successfully');
-      } catch (error) {
-        console.error('❌ Error dispatching swap action:', error);
-      }
-    } else {
-      console.log('❌ Drop conditions not met - no swap will occur');
-    }
-  }, [player.id, player.name, zone, dispatch]);
-
-  // 🔧 COMPLETELY REWRITTEN mobile touch handling - Much simpler and more reliable
-  const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    if (!isTouchDevice) return;
-
-    // Prevent touch dragging from player list if on cooldown
-    if (isOnCooldown && zone === "all") {
-      console.log('🚫 Touch drag prevented: Player on cooldown');
+    if (!canDrag) {
       return;
     }
 
-    const touch = e.touches[0];
-    const rect = cardRef.current?.getBoundingClientRect();
-    if (!rect) return;
-
-    // Store initial touch data
-    touchStartTimeRef.current = Date.now();
-    initialTouchRef.current = { x: touch.clientX, y: touch.clientY };
-    setDragOffset({
-      x: touch.clientX - rect.left,
-      y: touch.clientY - rect.top
-    });
-
-    // Set global drag data immediately
-    draggedElement = cardRef.current;
-    draggedData = { player, zone };
-    currentDragData = { playerId: player.id, playerZone: zone };
-
-    console.log('📱 Touch start - player:', player.name, 'zone:', zone);
-
-    // Very short delay for drag start (150ms)
-    dragTimeoutRef.current = setTimeout(() => {
-      console.log('🚀 Starting mobile drag');
-      setIsDragging(true);
-      
-      // Haptic feedback
-      if ('vibrate' in navigator) {
-        navigator.vibrate(50);
-      }
-
-      // Prevent scrolling during drag
-      document.body.style.overflow = 'hidden';
-      document.body.style.position = 'fixed';
-      document.body.style.width = '100%';
-      
-    }, 150);
-
-  }, [isTouchDevice, player, zone, isOnCooldown]);
-
-  const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    if (!isTouchDevice || !initialTouchRef.current) return;
-
-    const touch = e.touches[0];
-    const deltaX = Math.abs(touch.clientX - initialTouchRef.current.x);
-    const deltaY = Math.abs(touch.clientY - initialTouchRef.current.y);
-    const deltaTime = Date.now() - touchStartTimeRef.current;
-
-    // If moving enough, consider it a drag
-    if ((deltaX > 10 || deltaY > 10) && deltaTime > 100) {
-      // Clear timeout and start drag immediately
-      if (dragTimeoutRef.current) {
-        clearTimeout(dragTimeoutRef.current);
-        dragTimeoutRef.current = null;
-      }
-
-      if (!isDragging) {
-        console.log('🚀 Touch move threshold exceeded - starting drag');
-        setIsDragging(true);
-        
-        // Prevent scrolling
-        document.body.style.overflow = 'hidden';
-        document.body.style.position = 'fixed';
-        document.body.style.width = '100%';
-      }
-
-      // Prevent default scrolling
-      e.preventDefault();
-    }
-  }, [isTouchDevice, isDragging]);
-
-  // 🔧 COMPLETELY REWRITTEN touch end - Much more reliable drop detection
-  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
-    if (!isTouchDevice) return;
-
-    // Clear timeout
-    if (dragTimeoutRef.current) {
-      clearTimeout(dragTimeoutRef.current);
-      dragTimeoutRef.current = null;
-    }
-
-    // Restore scrolling
-    document.body.style.overflow = '';
-    document.body.style.position = '';
-    document.body.style.width = '';
-
-    // Only process if we were actually dragging
-    if (!isDragging || !draggedData) {
-      console.log('📱 Touch end - not dragging, ignoring');
-      setIsDragging(false);
-      initialTouchRef.current = null;
-      draggedElement = null;
-      draggedData = null;
-      currentDragData = null;
-      return;
-    }
-
-    const touch = e.changedTouches[0];
-    console.log('📱 Touch end at:', touch.clientX, touch.clientY);
-
-    // 🔧 SIMPLIFIED element detection - try multiple approaches
-    let targetElement = document.elementFromPoint(touch.clientX, touch.clientY);
-    
-    // Look for player card first (for swaps)
-    const playerCard = targetElement?.closest('[data-player-id]');
-    if (playerCard) {
-      const targetPlayerId = playerCard.getAttribute('data-player-id');
-      const targetZone = playerCard.getAttribute('data-zone');
-      
-      if (
-        targetPlayerId && 
-        targetZone === zone && 
-        targetPlayerId !== player.id &&
-        (zone.startsWith('court-') || zone.startsWith('queue-'))
-      ) {
-        console.log('✅ Mobile swap detected');
-        setIsSwapping(true);
-        setTimeout(() => setIsSwapping(false), 600);
-        dispatch(Action.swapPlayers(player.id, targetPlayerId, zone));
-        
-        // Success haptic
-        if ('vibrate' in navigator) {
-          navigator.vibrate([50, 100, 50]);
+    return combine(
+      // Make the card draggable
+      draggable({
+        element,
+        getInitialData: () => ({
+          playerId: player.id,
+          playerName: player.name,
+          playerZone: zone,
+          player: player,
+          type: 'player-card'
+        }),
+        onGenerateDragPreview: ({ nativeSetDragImage }) => {
+          // Create custom drag preview
+          setCustomNativeDragPreview({
+            nativeSetDragImage,
+            getOffset: () => ({ x: 16, y: 8 }),
+            render({ container }) {
+              // Create a simplified version of the card as preview
+              const preview = document.createElement('div');
+              preview.style.padding = '4px 8px';
+              preview.style.backgroundColor = cardColors.backgroundColor;
+              preview.style.color = cardColors.textColor;
+              preview.style.borderRadius = '8px';
+              preview.style.fontSize = '0.75rem';
+              preview.style.fontWeight = 'bold';
+              preview.style.boxShadow = '0 2px 8px rgba(0,0,0,0.15)';
+              preview.textContent = player.name;
+              container.appendChild(preview);
+            }
+          });
+        },
+        onDragStart: () => {
+          setIsDragging(true);
+          console.log('🚀 PDD Drag started:', player.name, 'from', zone);
+        },
+        onDrop: () => {
+          setIsDragging(false);
+          console.log('🎯 PDD Drag ended');
         }
-      }
-    } else {
-      // Look for droppable zone
-      let droppableZone = targetElement?.closest('[data-droppable-zone]');
+      }),
       
-      // If not found, search more aggressively
-      if (!droppableZone) {
-        let searchElement = targetElement?.parentElement;
-        let attempts = 0;
-        while (searchElement && attempts < 3) {
-          droppableZone = searchElement.closest('[data-droppable-zone]');
-          if (droppableZone) break;
-          searchElement = searchElement.parentElement;
-          attempts++;
-        }
-      }
-
-      if (droppableZone) {
-        const targetZone = droppableZone.getAttribute('data-droppable-zone');
-        const targetPosition = droppableZone.getAttribute('data-position');
-        
-        console.log('📱 Found drop zone:', targetZone, 'position:', targetPosition);
-        
-        if (targetZone) {
-          if (targetPosition !== null && targetPosition !== 'null') {
-            // Position-specific drop
-            const positionNum = parseInt(targetPosition);
-            console.log('✅ Mobile position drop:', player.name, 'to', targetZone, 'position', positionNum);
-            dispatch(Action.movePlayerToPosition(player.id, zone, targetZone, positionNum));
-          } else if (targetZone !== zone) {
-            // Regular zone drop
-            console.log('✅ Mobile zone drop:', player.name, 'to', targetZone);
-            dispatch(Action.quickMovePlayer(player.id, zone, targetZone));
-          }
+      // Make the card a drop target for swapping
+      dropTargetForElements({
+        element,
+        getData: () => ({
+          playerId: player.id,
+          zone: zone,
+          type: 'player-card-target'
+        }),
+        canDrop: ({ source }) => {
+          // Only allow drops from other player cards in the same zone
+          if (source.data.type !== 'player-card') return false;
+          const sourceZone = source.data.playerZone as string;
+          const sourcePlayerId = source.data.playerId as string;
           
-          // Success haptic
-          if ('vibrate' in navigator) {
-            navigator.vibrate(100);
+          // Check if it's the same zone and different player
+          return sourceZone === zone && 
+                 sourcePlayerId !== player.id &&
+                 (zone.startsWith('court-') || zone.startsWith('queue-'));
+        },
+        onDragEnter: ({ source }) => {
+          if (source.data.playerId !== player.id) {
+            setIsDropTarget(true);
+            console.log('✅ Swap target entered:', player.name);
+          }
+        },
+        onDragLeave: () => {
+          setIsDropTarget(false);
+        },
+        onDrop: ({ source }) => {
+          setIsDropTarget(false);
+          const sourcePlayerId = source.data.playerId as string;
+          
+          if (sourcePlayerId && sourcePlayerId !== player.id) {
+            console.log('🔄 Swapping players via PDD');
+            setIsSwapping(true);
+            dispatch(Action.swapPlayers(sourcePlayerId, player.id, zone));
+            
+            // Reset animation after delay
+            setTimeout(() => {
+              setIsSwapping(false);
+            }, 600);
           }
         }
-      } else {
-        console.log('❌ No valid drop target found');
-        // Error haptic
-        if ('vibrate' in navigator) {
-          navigator.vibrate([100, 50, 100]);
-        }
-      }
-    }
+      })
+    );
+  }, [player, zone, dispatch, isOnCooldown, cardColors]);
 
-    // Reset all drag states
-    setIsDragging(false);
-    initialTouchRef.current = null;
-    draggedElement = null;
-    draggedData = null;
-    currentDragData = null;
+  // Touch support for mobile - checking different methods
+  useEffect(() => {
+    if (!isTouchDevice) return;
     
-  }, [isTouchDevice, isDragging, player.id, zone, dispatch]);
+    const element = cardRef.current;
+    if (!element) return;
+
+    // Method 2: Check if element adapter handles touch natively
+    // The draggable() function in the main effect might already handle touch
+    
+    // Log to see if touch events are being handled
+    const touchStartHandler = (e: TouchEvent) => {
+      console.log('Touch detected on player card:', player.name);
+    };
+    
+    element.addEventListener('touchstart', touchStartHandler, { passive: true });
+    
+    return () => {
+      element.removeEventListener('touchstart', touchStartHandler);
+    };
+  }, [player, zone, isTouchDevice, cardColors]);
 
   // Optimized timer effect
   useEffect(() => {
@@ -597,9 +426,6 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
       if (nameUpdateTimeoutRef.current) {
         clearTimeout(nameUpdateTimeoutRef.current);
       }
-      if (dragTimeoutRef.current) {
-        clearTimeout(dragTimeoutRef.current);
-      }
     };
   }, []);
 
@@ -654,7 +480,6 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
       animation: isSwapping 
         ? 'swapFlash 0.6s ease-in-out'
         : 'none',
-      // 🔧 SIMPLIFIED touch optimizations
       touchAction: 'none', // Prevent all default touch behaviors
       userSelect: 'none',
       WebkitUserSelect: 'none',
@@ -699,17 +524,8 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
       <Card
         ref={cardRef}
         sx={enhancedCardStyles}
-        draggable={!(isOnCooldown && zone === "all")}
         data-player-id={player.id}
         data-zone={zone}
-        onDragStart={handleDragStart}
-        onDragEnd={handleDragEnd}
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
       >
         <Box
           sx={{
@@ -817,11 +633,11 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
             <Box sx={{
               display: 'flex',
               alignItems: 'center',
-              backgroundColor: 'rgba(255, 255, 255, 0.2)', // Subtle background
+              backgroundColor: 'rgba(255, 255, 255, 0.2)', 
               borderRadius: '8px',
               padding: '1px 4px',
               border: '1px solid rgba(255, 255, 255, 0.3)',
-              gap: 0.75, // Add consistent spacing between games and timer
+              gap: 0.75, 
             }}>
               {/* Games played indicator */}
               <Typography 
@@ -830,20 +646,20 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
                   display: 'flex',
                   alignItems: 'center',
                   fontSize: isInTeamZone 
-                    ? (isMobile ? '0.65rem' : '0.6rem')   // Increased from 0.54/0.5
-                    : (isMobile ? '0.75rem' : '0.7rem'),  // Increased from 0.62/0.58
+                    ? (isMobile ? '0.65rem' : '0.6rem')   
+                    : (isMobile ? '0.75rem' : '0.7rem'),  
                   gap: 0.3,
-                  fontWeight: 600, // Bolder
+                  fontWeight: 600, 
                   color: cardColors.textColor,
-                  textShadow: '1px 1px 1px rgba(0,0,0,0.3)', // Better contrast
+                  textShadow: '1px 1px 1px rgba(0,0,0,0.3)', 
                 }}
               >
                 {player.gamesPlayed}
                 <Box 
                   component="span" 
                   sx={{ 
-                    fontSize: '1em', // Same size as number
-                    filter: 'brightness(1.2)', // Make emoji more vibrant
+                    fontSize: '1em', 
+                    filter: 'brightness(1.2)', 
                   }}
                 >
                   🎮
@@ -854,14 +670,14 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
               <Typography 
                 variant="body2" 
                 sx={{
-                  fontWeight: elapsedSeconds > 900 ? 700 : 600, // Match the boldness of games
+                  fontWeight: elapsedSeconds > 900 ? 700 : 600, 
                   color: elapsedSeconds > 900 ? '#8B0000' : cardColors.textColor,
                   fontSize: isInTeamZone 
-                    ? (isMobile ? '0.65rem' : '0.6rem')   // SAME AS GAMES - was 0.54/0.5
-                    : (isMobile ? '0.75rem' : '0.7rem'),  // SAME AS GAMES - was 0.62/0.58
-                  minWidth: isInTeamZone ? '32px' : '36px', // Slightly wider for larger text
+                    ? (isMobile ? '0.65rem' : '0.6rem')   
+                    : (isMobile ? '0.75rem' : '0.7rem'),  
+                  minWidth: isInTeamZone ? '32px' : '36px', 
                   textAlign: 'left',
-                  textShadow: '1px 1px 1px rgba(0,0,0,0.3)', // Same text shadow as games
+                  textShadow: '1px 1px 1px rgba(0,0,0,0.3)', 
                 }}
               >
                 {formattedTime}
@@ -1010,8 +826,8 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
         {player.matchHistory?.length ? (
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
             {player.matchHistory
-              .slice() // Create a copy to avoid mutating original array
-              .reverse() // Show most recent matches first
+              .slice() 
+              .reverse() 
               .map((entry, i) => {
                 const startTime = new Date(entry.startTime);
                 const endTime = new Date(entry.endTime);
@@ -1031,7 +847,6 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
                 const matchDescription = getMatchDescription(entry, player.name);
                 const durationStr = formatMatchDuration(entry.duration);
 
-                // Get match type emoji
                 const getMatchTypeEmoji = (type: string) => {
                   switch (type) {
                     case '1v1': return '⚔️';

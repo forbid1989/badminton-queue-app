@@ -4,6 +4,11 @@ import { AppContext } from '../BadmintonQueueUI';
 import { Action } from '../app/Action';
 import { Player } from '../types/Player';
 
+// Pragmatic Drag and Drop imports
+import { dropTargetForElements } from '@atlaskit/pragmatic-drag-and-drop/element/adapter';
+import { combine } from '@atlaskit/pragmatic-drag-and-drop/combine';
+import { autoScrollForElements } from '@atlaskit/pragmatic-drag-and-drop-auto-scroll/element';
+
 type DroppableZoneProps = {
   zone: string;
   players: Player[];
@@ -12,22 +17,11 @@ type DroppableZoneProps = {
   position?: number; // ✨ Optional position for position-specific zones
 };
 
-// Global drop lock to prevent duplicate drops in the same event cycle
-let dropLock: {
-  playerId: string | null;
-  timestamp: number;
-  isPositionSpecific: boolean;
-} = {
-  playerId: null,
-  timestamp: 0,
-  isPositionSpecific: false
-};
-
-const DROP_LOCK_TIMEOUT = 100; // 100ms lock duration
-
 const DroppableZone: React.FC<DroppableZoneProps> = React.memo(({ zone, players, children, sx, position }) => {
   const { dispatch } = useContext(AppContext);
   const [isHovered, setIsHovered] = useState(false);
+  const [isDragOverValid, setIsDragOverValid] = useState(false);
+  const elementRef = useRef<HTMLDivElement>(null);
   
   // 📱 Mobile device detection
   const isMobileDevice = useMemo(() => {
@@ -35,12 +29,6 @@ const DroppableZone: React.FC<DroppableZoneProps> = React.memo(({ zone, players,
            window.innerWidth <= 768 ||
            'ontouchstart' in window;
   }, []);
-  
-  // Use refs to store current values for event handlers
-  const zoneRef = useRef(zone);
-  const positionRef = useRef(position);
-  const isFullRef = useRef(false);
-  const elementRef = useRef<HTMLDivElement>(null);
   
   // Memoize isFull calculation
   const isFull = useMemo(() => {
@@ -51,13 +39,6 @@ const DroppableZone: React.FC<DroppableZoneProps> = React.memo(({ zone, players,
     // For main zones, max 4 players
     return players.length >= 4;
   }, [players.length, position]);
-  
-  // Update refs when values change
-  useEffect(() => {
-    zoneRef.current = zone;
-    positionRef.current = position;
-    isFullRef.current = isFull;
-  }, [zone, position, isFull]);
 
   // Determine if this is a position-specific zone
   const isPositionZone = position !== undefined;
@@ -125,116 +106,106 @@ const DroppableZone: React.FC<DroppableZoneProps> = React.memo(({ zone, players,
     return 'none';
   }, [isHovered, isMobileDevice, isPositionZone]);
 
-  // ✨ SIMPLIFIED Enhanced handleDrop with priority lock system
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setIsHovered(false);
-    
-    const json = e.dataTransfer.getData('player/json');
-    const isSwapOperation = e.dataTransfer.getData('player/isSwapOperation') === 'true';
+  // Setup PDD drop target
+  useEffect(() => {
+    const element = elementRef.current;
+    if (!element) return;
 
-    if (!json) return;
+    // For the main 'all' zone, enable auto-scrolling
+    const autoScrollOptions = zone === 'all' ? [
+      autoScrollForElements({
+        element,
+        canScroll: ({ source }) => source.data.type === 'player-card',
+        getConfiguration: () => ({
+          maxScrollSpeed: 'standard',
+        }),
+      })
+    ] : [];
 
-    try {
-      const player: Player = JSON.parse(json);
-      const from = e.dataTransfer.getData('player/source');
-      const currentTime = Date.now();
+    return combine(
+      dropTargetForElements({
+        element,
+        getData: () => ({
+          zone,
+          position,
+          type: isPositionZone ? 'position-drop-zone' : 'zone-drop-zone'
+        }),
+        canDrop: ({ source }) => {
+          // Only accept player cards
+          if (source.data.type !== 'player-card') return false;
+          
+          const playerId = source.data.playerId as string;
+          const playerZone = source.data.playerZone as string;
 
-      // Get current ref values to avoid stale closure issues
-      const currentZone = zoneRef.current;
-      const currentPosition = positionRef.current;
-      const isCurrentPositionSpecific = currentPosition !== undefined;
-      
-      console.log('🔍 Drop analysis:', {
-        player: player.name,
-        from,
-        targetZone: currentZone,
-        targetPosition: currentPosition,
-        isPositionSpecific: isCurrentPositionSpecific,
-        currentTime,
-        lockState: dropLock
-      });
+          // Check if zone is full
+          if (!isPositionZone && isFull) {
+            console.log(`❌ Zone ${zone} is full`);
+            return false;
+          }
 
-      // If this was a swap operation that was handled by a PlayerCard, don't process it here
-      if (isSwapOperation) {
-        console.log('🚫 Swap operation detected - skipping zone drop handling');
-        return;
-      }
+          // For position zones, check if position is occupied
+          if (isPositionZone) {
+            const positionOccupied = players.some(p => {
+              if (zone.startsWith('court-')) {
+                return p.courtOrder === position && p.id !== playerId;
+              } else if (zone.startsWith('queue-')) {
+                return p.queueOrder === position && p.id !== playerId;
+              }
+              return false;
+            });
+            
+            if (positionOccupied) {
+              console.log(`❌ Position ${position} in ${zone} is occupied`);
+              return false;
+            }
+          }
 
-      // ✨ CHECK DROP LOCK - Prevent duplicate drops
-      if (dropLock.playerId === player.id && 
-          currentTime - dropLock.timestamp < DROP_LOCK_TIMEOUT) {
-        
-        // If the current drop is position-specific but the locked one wasn't, allow override
-        if (isCurrentPositionSpecific && !dropLock.isPositionSpecific) {
-          console.log('🔓 Override: Position-specific drop overriding zone drop');
-        } else {
-          console.log('🔒 Drop blocked by lock - duplicate drop prevented');
-          return;
+          // Allow drops from different zones or within same zone for repositioning
+          return true;
+        },
+        onDragEnter: ({ source }) => {
+          console.log(`🎯 Drag enter zone: ${zone}, position: ${position}`);
+          setIsHovered(true);
+          setIsDragOverValid(true);
+        },
+        onDragLeave: () => {
+          setIsHovered(false);
+          setIsDragOverValid(false);
+        },
+        onDrop: ({ source }) => {
+          console.log('📦 PDD Drop detected on zone:', zone, 'position:', position);
+          setIsHovered(false);
+          setIsDragOverValid(false);
+
+          const playerId = source.data.playerId as string;
+          const playerZone = source.data.playerZone as string;
+          const isSwapOperation = source.data.isSwapOperation as boolean;
+
+          // Skip if this was a swap operation
+          if (isSwapOperation) {
+            console.log('🚫 Swap operation detected - skipping zone drop');
+            return;
+          }
+
+          // Handle the drop based on whether it's position-specific or not
+          if (isPositionZone && position !== undefined) {
+            console.log(`🎯 Position-specific drop via PDD: Moving player to ${zone} position ${position}`);
+            dispatch(Action.movePlayerToPosition(playerId, playerZone, zone, position));
+          } else if (playerZone !== zone) {
+            console.log(`🎯 Zone drop via PDD: Moving player from "${playerZone}" to "${zone}"`);
+            dispatch(Action.quickMovePlayer(playerId, playerZone, zone));
+          } else {
+            console.log(`⏭️ Same zone drop - no action needed`);
+          }
         }
-      }
+      }),
+      ...autoScrollOptions
+    );
+  }, [zone, position, dispatch, isPositionZone, isFull, players]);
 
-      // ✨ SET DROP LOCK with priority information
-      dropLock = {
-        playerId: player.id,
-        timestamp: currentTime,
-        isPositionSpecific: isCurrentPositionSpecific
-      };
-
-      // ✨ STOP EVENT PROPAGATION for position-specific drops
-      if (isCurrentPositionSpecific) {
-        e.stopPropagation();
-        console.log('🛑 Event propagation stopped for position-specific drop');
-      }
-
-      // Process the drop with explicit if-else logic
-      if (isCurrentPositionSpecific) {
-        // Position-specific drop (P1, P2, P3, P4 grid boxes) - HIGHEST PRIORITY
-        console.log(`🎯 Position-specific drop: Moving ${player.name} to ${currentZone} position ${currentPosition}`);
-        dispatch(Action.movePlayerToPosition(player.id, from, currentZone, currentPosition));
-      } else if (from === currentZone) {
-        // Same zone - no operation needed
-        console.log(`❌ No-op: Same zone ${from} === ${currentZone}`);
-      } else {
-        // Regular zone drop with auto-positioning - LOWER PRIORITY
-        console.log(`🎯 Zone drop with auto-positioning: Moving ${player.name} from "${from}" to "${currentZone}"`);
-        dispatch(Action.quickMovePlayer(player.id, from, currentZone));
-      }
-
-      // Clear lock after timeout
-      setTimeout(() => {
-        if (dropLock.playerId === player.id && dropLock.timestamp === currentTime) {
-          console.log('🔓 Drop lock cleared for', player.name);
-          dropLock = { playerId: null, timestamp: 0, isPositionSpecific: false };
-        }
-      }, DROP_LOCK_TIMEOUT);
-      
-    } catch (error) {
-      console.error('Error parsing player data:', error);
-    }
-  }, [dispatch]);
-
-  const handleDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    
-    // Only set hover for desktop
-    if (!isMobileDevice && (isPositionZone || !isFullRef.current)) {
-      setIsHovered(true);
-    }
-  }, [isPositionZone, isMobileDevice]);
-
-  const handleDragLeave = useCallback((e: React.DragEvent) => {
-    // Only clear hover if we're actually leaving this element and not on mobile
-    if (!isMobileDevice && !e.currentTarget.contains(e.relatedTarget as Node)) {
-      setIsHovered(false);
-    }
-  }, [isMobileDevice]);
-
-  // 📱 SIMPLIFIED mobile touch handlers - Let PlayerCard handle all touch logic
-  const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    // Don't interfere with PlayerCard touch handling
-    console.log('📱 Zone touch start - allowing PlayerCard to handle');
-  }, []);
+  // Note: Touch support is being investigated
+  // PDD v1.7.4 might handle touch automatically through pointer events
+  // If touch doesn't work, we'll need to add manual touch handling
 
   // Memoized combined styles
   const combinedSx = useMemo(() => ({
@@ -253,7 +224,7 @@ const DroppableZone: React.FC<DroppableZoneProps> = React.memo(({ zone, players,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    // 📱 SIMPLIFIED Mobile-specific touch optimizations
+    // 📱 Mobile-specific touch optimizations
     touchAction: isMobileDevice ? 'pan-y' : 'auto', // Allow vertical scrolling
     WebkitTapHighlightColor: 'transparent',
     WebkitTouchCallout: 'none',
@@ -276,10 +247,6 @@ const DroppableZone: React.FC<DroppableZoneProps> = React.memo(({ zone, players,
       ref={elementRef}
       data-droppable-zone={zone}
       data-position={position}
-      onDragOver={handleDragOver}
-      onDragLeave={handleDragLeave}
-      onDrop={handleDrop}
-      onTouchStart={handleTouchStart}
       sx={combinedSx}
     >
       {children}
