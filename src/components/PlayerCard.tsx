@@ -480,7 +480,6 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
       animation: isSwapping 
         ? 'swapFlash 0.6s ease-in-out'
         : 'none',
-      touchAction: 'none', // Prevent all default touch behaviors
       userSelect: 'none',
       WebkitUserSelect: 'none',
       WebkitTapHighlightColor: 'transparent',

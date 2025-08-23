@@ -53,7 +53,7 @@ const DroppableZone: React.FC<DroppableZoneProps> = React.memo(({ zone, players,
 
   // Enhanced border color calculation
   const borderColor = useMemo(() => {
-    const anyHover = isHovered;
+    const anyHover = isHovered && isDragOverValid;
     
     if (isPositionZone) {
       if (isFull) return '#D5C96A';
@@ -64,11 +64,11 @@ const DroppableZone: React.FC<DroppableZoneProps> = React.memo(({ zone, players,
     if (isFull) return '#D5C96A';
     if (anyHover) return '#4CAF50';
     return '#CAD4CC';
-  }, [isFull, isHovered, isPositionZone, players.length]);
+  }, [isFull, isHovered, isDragOverValid, isPositionZone, players.length]);
 
   // Enhanced background color calculation
   const backgroundColor = useMemo(() => {
-    const anyHover = isHovered;
+    const anyHover = isHovered && isDragOverValid;
     
     if (isPositionZone) {
       if (anyHover) return 'rgba(255, 107, 53, 0.3)';
@@ -77,21 +77,21 @@ const DroppableZone: React.FC<DroppableZoneProps> = React.memo(({ zone, players,
     
     if (anyHover) return '#E8F5E9';
     return zoneBackground;
-  }, [isHovered, zoneBackground, isPositionZone, players.length]);
+  }, [isHovered, isDragOverValid, zoneBackground, isPositionZone, players.length]);
 
   // Enhanced transform calculation
   const transform = useMemo(() => {
-    const anyHover = isHovered;
+    const anyHover = isHovered && isDragOverValid;
     
     if (isPositionZone) {
       return anyHover ? 'scale(1.12)' : 'scale(1)';
     }
     return anyHover ? 'scale(1.03)' : 'scale(1)';
-  }, [isHovered, isPositionZone]);
+  }, [isHovered, isDragOverValid, isPositionZone]);
 
   // Enhanced box shadow
   const boxShadow = useMemo(() => {
-    const anyHover = isHovered;
+    const anyHover = isHovered && isDragOverValid;
     
     if (isPositionZone && anyHover) {
       return isMobileDevice 
@@ -104,7 +104,7 @@ const DroppableZone: React.FC<DroppableZoneProps> = React.memo(({ zone, players,
         : '0 2px 8px rgba(76, 175, 80, 0.3)';
     }
     return 'none';
-  }, [isHovered, isMobileDevice, isPositionZone]);
+  }, [isHovered, isDragOverValid, isMobileDevice, isPositionZone]);
 
   // Setup PDD drop target
   useEffect(() => {
@@ -128,16 +128,17 @@ const DroppableZone: React.FC<DroppableZoneProps> = React.memo(({ zone, players,
         getData: () => ({
           zone,
           position,
-          type: isPositionZone ? 'position-drop-zone' : 'zone-drop-zone'
+          type: isPositionZone ? 'position-drop-zone' : 'zone-drop-zone',
+          // Add a priority level - position zones have higher priority
+          priority: isPositionZone ? 100 : 1
         }),
         canDrop: ({ source }) => {
           // Only accept player cards
           if (source.data.type !== 'player-card') return false;
           
           const playerId = source.data.playerId as string;
-          const playerZone = source.data.playerZone as string;
 
-          // Check if zone is full
+          // Check if zone is full (only for non-position zones)
           if (!isPositionZone && isFull) {
             console.log(`❌ Zone ${zone} is full`);
             return false;
@@ -160,11 +161,10 @@ const DroppableZone: React.FC<DroppableZoneProps> = React.memo(({ zone, players,
             }
           }
 
-          // Allow drops from different zones or within same zone for repositioning
           return true;
         },
         onDragEnter: ({ source }) => {
-          console.log(`🎯 Drag enter zone: ${zone}, position: ${position}`);
+          console.log(`🎯 Drag enter: zone=${zone}, position=${position}, isPositionZone=${isPositionZone}`);
           setIsHovered(true);
           setIsDragOverValid(true);
         },
@@ -172,30 +172,41 @@ const DroppableZone: React.FC<DroppableZoneProps> = React.memo(({ zone, players,
           setIsHovered(false);
           setIsDragOverValid(false);
         },
-        onDrop: ({ source }) => {
-          console.log('📦 PDD Drop detected on zone:', zone, 'position:', position);
+        onDrop: ({ source, location }) => {
+          console.log('📦 Drop event on zone:', zone, 'position:', position, 'isPositionZone:', isPositionZone);
+          
+          const playerId = source.data.playerId as string;
+          const playerZone = source.data.playerZone as string;
+          
+          // For position-specific drops, handle immediately without checking other targets
+          if (isPositionZone && position !== undefined) {
+            console.log(`✅ POSITION DROP: Moving player to ${zone} position ${position}`);
+            setIsHovered(false);
+            setIsDragOverValid(false);
+            
+            // Dispatch the position-specific move
+            dispatch(Action.movePlayerToPosition(playerId, playerZone, zone, position));
+            return; // Exit early for position drops
+          }
+          
+          // For general zone drops, check if there's a position-specific target that should handle it
+          const dropTargets = location.current.dropTargets;
+          const hasPositionTarget = dropTargets.some(dt => dt.data.type === 'position-drop-zone');
+          
+          if (hasPositionTarget) {
+            console.log(`⏭️ Skipping zone drop - position-specific target will handle it`);
+            return;
+          }
+          
           setIsHovered(false);
           setIsDragOverValid(false);
 
-          const playerId = source.data.playerId as string;
-          const playerZone = source.data.playerZone as string;
-          const isSwapOperation = source.data.isSwapOperation as boolean;
-
-          // Skip if this was a swap operation
-          if (isSwapOperation) {
-            console.log('🚫 Swap operation detected - skipping zone drop');
-            return;
-          }
-
-          // Handle the drop based on whether it's position-specific or not
-          if (isPositionZone && position !== undefined) {
-            console.log(`🎯 Position-specific drop via PDD: Moving player to ${zone} position ${position}`);
-            dispatch(Action.movePlayerToPosition(playerId, playerZone, zone, position));
-          } else if (playerZone !== zone) {
-            console.log(`🎯 Zone drop via PDD: Moving player from "${playerZone}" to "${zone}"`);
+          // Handle general zone drop
+          if (playerZone !== zone) {
+            console.log(`✅ ZONE DROP: Moving player from "${playerZone}" to "${zone}"`);
             dispatch(Action.quickMovePlayer(playerId, playerZone, zone));
           } else {
-            console.log(`⏭️ Same zone drop - no action needed`);
+            console.log(`⏭️ Same zone - no action needed`);
           }
         }
       }),
@@ -224,8 +235,7 @@ const DroppableZone: React.FC<DroppableZoneProps> = React.memo(({ zone, players,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    // 📱 Mobile-specific touch optimizations
-    touchAction: isMobileDevice ? 'pan-y' : 'auto', // Allow vertical scrolling
+    // 📱 Allow scrolling - remove touchAction restrictions
     WebkitTapHighlightColor: 'transparent',
     WebkitTouchCallout: 'none',
     userSelect: 'none',
