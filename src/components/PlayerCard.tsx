@@ -80,6 +80,10 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
   const nameUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const dragPreviewRef = useRef<HTMLDivElement | null>(null);
 
+  // 🆕 NEW: Context menu prevention refs and state
+  const contextMenuTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [contextMenuBlocked, setContextMenuBlocked] = useState(false);
+
   // Memoized player status calculations
   const playerStatus = useMemo(() => {
     const isOnCourt = player.status.some(s => s.startsWith('court'));
@@ -202,6 +206,29 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
     return (isUnassigned && !isOnCourt) || (zone === "all" && isOnCourt && !isInQueue);
   }, [playerStatus, zone]);
 
+  // 🆕 NEW: Context menu prevention handlers
+  const handleContextMenu = useCallback((e: React.MouseEvent | MouseEvent) => {
+    console.log('🚫 Context menu blocked during drag operation');
+    e.preventDefault();
+    e.stopPropagation();
+    return false;
+  }, []);
+
+  const blockContextMenuTemporarily = useCallback(() => {
+    setContextMenuBlocked(true);
+    
+    // Clear any existing timeout
+    if (contextMenuTimeoutRef.current) {
+      clearTimeout(contextMenuTimeoutRef.current);
+    }
+    
+    // Re-enable context menu after 2 seconds
+    contextMenuTimeoutRef.current = setTimeout(() => {
+      setContextMenuBlocked(false);
+      console.log('✅ Context menu re-enabled');
+    }, 2000);
+  }, []);
+
   // Optimized event handlers with useCallback
   const handleQuickAdd = useCallback(() => {
     if (availableZone) {
@@ -262,7 +289,16 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
       return;
     }
 
-    return combine(
+    // 🆕 NEW: Add context menu event listeners
+    const handleElementContextMenu = (e: MouseEvent) => {
+      if (contextMenuBlocked) {
+        handleContextMenu(e);
+      }
+    };
+
+    element.addEventListener('contextmenu', handleElementContextMenu, { capture: true });
+
+    const cleanup = combine(
       // Make the card draggable
       draggable({
         element,
@@ -295,7 +331,9 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
         },
         onDragStart: () => {
           setIsDragging(true);
-          console.log('🚀 PDD Drag started:', player.name, 'from', zone);
+          // 🆕 NEW: Block context menu when drag starts
+          blockContextMenuTemporarily();
+          console.log('🚀 PDD Drag started:', player.name, 'from', zone, '- Context menu blocked');
         },
         onDrop: () => {
           setIsDragging(false);
@@ -348,29 +386,97 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
         }
       })
     );
-  }, [player, zone, dispatch, isOnCooldown, cardColors]);
 
-  // Touch support for mobile - checking different methods
+    // Cleanup function
+    return () => {
+      cleanup();
+      element.removeEventListener('contextmenu', handleElementContextMenu, { capture: true });
+    };
+  }, [player, zone, dispatch, isOnCooldown, cardColors, contextMenuBlocked, handleContextMenu, blockContextMenuTemporarily]);
+
+  // 🆕 NEW: Enhanced touch support with context menu prevention
   useEffect(() => {
     if (!isTouchDevice) return;
     
     const element = cardRef.current;
     if (!element) return;
 
-    // Method 2: Check if element adapter handles touch natively
-    // The draggable() function in the main effect might already handle touch
-    
-    // Log to see if touch events are being handled
-    const touchStartHandler = (e: TouchEvent) => {
-      console.log('Touch detected on player card:', player.name);
+    let touchStartTime = 0;
+    let touchMoved = false;
+    let longPressTimer: NodeJS.Timeout | null = null;
+
+    const handleTouchStart = (e: TouchEvent) => {
+      touchStartTime = Date.now();
+      touchMoved = false;
+      
+      console.log('📱 Touch start detected on player card:', player.name);
+      
+      // Start long press timer for context menu prevention
+      longPressTimer = setTimeout(() => {
+        // This is likely a long press for dragging
+        blockContextMenuTemporarily();
+        console.log('🔒 Long press detected - blocking context menu');
+        
+        // Add visual feedback for long press
+        element.style.transform = 'scale(0.95)';
+        element.style.transition = 'transform 0.1s ease';
+        
+        // Haptic feedback if available
+        if ('vibrate' in navigator) {
+          navigator.vibrate(50);
+        }
+      }, 300); // 300ms for long press detection
     };
-    
-    element.addEventListener('touchstart', touchStartHandler, { passive: true });
+
+    const handleTouchMove = (e: TouchEvent) => {
+      touchMoved = true;
+      
+      // Clear long press timer if user moves
+      if (longPressTimer) {
+        clearTimeout(longPressTimer);
+        longPressTimer = null;
+      }
+      
+      // If context menu is blocked and user is moving, likely dragging
+      if (contextMenuBlocked) {
+        e.preventDefault(); // Prevent scrolling during drag
+      }
+    };
+
+    const handleTouchEnd = (e: TouchEvent) => {
+      const touchDuration = Date.now() - touchStartTime;
+      
+      // Clear long press timer
+      if (longPressTimer) {
+        clearTimeout(longPressTimer);
+        longPressTimer = null;
+      }
+      
+      // Reset visual feedback
+      element.style.transform = '';
+      element.style.transition = '';
+      
+      // If it was a quick tap (< 200ms) and no movement, allow normal interaction
+      if (touchDuration < 200 && !touchMoved) {
+        console.log('👆 Quick tap - allowing normal interaction');
+      }
+    };
+
+    // Add touch event listeners with passive: false to allow preventDefault
+    element.addEventListener('touchstart', handleTouchStart, { passive: true });
+    element.addEventListener('touchmove', handleTouchMove, { passive: false });
+    element.addEventListener('touchend', handleTouchEnd, { passive: true });
     
     return () => {
-      element.removeEventListener('touchstart', touchStartHandler);
+      element.removeEventListener('touchstart', handleTouchStart);
+      element.removeEventListener('touchmove', handleTouchMove);
+      element.removeEventListener('touchend', handleTouchEnd);
+      
+      if (longPressTimer) {
+        clearTimeout(longPressTimer);
+      }
     };
-  }, [player, zone, isTouchDevice, cardColors]);
+  }, [player, zone, isTouchDevice, contextMenuBlocked, blockContextMenuTemporarily]);
 
   // Optimized timer effect
   useEffect(() => {
@@ -426,13 +532,16 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
       if (nameUpdateTimeoutRef.current) {
         clearTimeout(nameUpdateTimeoutRef.current);
       }
+      if (contextMenuTimeoutRef.current) {
+        clearTimeout(contextMenuTimeoutRef.current);
+      }
     };
   }, []);
 
   // Memoized formatted time
   const formattedTime = useMemo(() => formatElapsedTime(elapsedSeconds), [elapsedSeconds]);
 
-  // Enhanced card styles with mobile optimizations
+  // Enhanced card styles with mobile optimizations and context menu prevention
   const enhancedCardStyles = useMemo(() => {
     const getCardDimensions = () => {
       return {
@@ -484,6 +593,9 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
       WebkitUserSelect: 'none',
       WebkitTapHighlightColor: 'transparent',
       WebkitTouchCallout: 'none',
+      // 🆕 NEW: Enhanced context menu prevention
+      MozUserSelect: 'none',
+      msUserSelect: 'none',
       '&:active': {
         cursor: 'grabbing',
         transform: 'scale(0.95)',
@@ -525,6 +637,8 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
         sx={enhancedCardStyles}
         data-player-id={player.id}
         data-zone={zone}
+        // 🆕 NEW: Add context menu handler to the Card component
+        onContextMenu={contextMenuBlocked ? handleContextMenu : undefined}
       >
         <Box
           sx={{
@@ -892,7 +1006,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
                         marginBottom: '2px',
                       }}
                     >
-                      📍 {entry.courtName}
+                      🏟️ {entry.courtName}
                     </Typography>
 
                     <Typography
