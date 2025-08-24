@@ -236,7 +236,7 @@ const QueueItem = React.memo<{
           backgroundColor: '#FBC02D',
           color: '#333',
           position: 'relative',
-          minHeight: '120px',
+          minHeight: '140px',
           background: 'linear-gradient(135deg, #FBC02D 0%, #F9A825 100%)',
         }}
       >
