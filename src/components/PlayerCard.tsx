@@ -350,20 +350,28 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
           type: 'player-card-target'
         }),
         canDrop: ({ source }) => {
-          // Only allow drops from other player cards in the same zone
+          // Only allow drops from other player cards
           if (source.data.type !== 'player-card') return false;
+          
           const sourceZone = source.data.playerZone as string;
           const sourcePlayerId = source.data.playerId as string;
           
-          // Check if it's the same zone and different player
-          return sourceZone === zone && 
-                 sourcePlayerId !== player.id &&
-                 (zone.startsWith('court-') || zone.startsWith('queue-'));
+          // Don't allow dropping on self
+          if (sourcePlayerId === player.id) return false;
+          
+          // 🆕 ENHANCED: Allow cross-zone swapping between any court/queue zones
+          const isValidSourceZone = sourceZone.startsWith('court-') || sourceZone.startsWith('queue-');
+          const isValidTargetZone = zone.startsWith('court-') || zone.startsWith('queue-');
+          
+          // Allow swapping between any combination of court/queue zones
+          return isValidSourceZone && isValidTargetZone;
         },
         onDragEnter: ({ source }) => {
-          if (source.data.playerId !== player.id) {
+          const sourcePlayerId = source.data.playerId as string;
+          const sourceZone = source.data.playerZone as string;
+          if (sourcePlayerId !== player.id) {
             setIsDropTarget(true);
-            console.log('✅ Swap target entered:', player.name);
+            console.log(`✅ ${sourceZone === zone ? 'Same-zone' : 'Cross-zone'} swap target entered:`, player.name);
           }
         },
         onDragLeave: () => {
@@ -372,11 +380,22 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
         onDrop: ({ source }) => {
           setIsDropTarget(false);
           const sourcePlayerId = source.data.playerId as string;
+          const sourceZone = source.data.playerZone as string;
           
           if (sourcePlayerId && sourcePlayerId !== player.id) {
-            console.log('🔄 Swapping players via PDD');
+            const isCrossZone = sourceZone !== zone;
+            console.log(`🔄 ${isCrossZone ? 'Cross-zone' : 'Same-zone'} swap: ${sourceZone} ↔ ${zone}`);
+            
             setIsSwapping(true);
-            dispatch(Action.swapPlayers(sourcePlayerId, player.id, zone));
+            
+            // 🆕 ENHANCED: Use different action based on whether it's same-zone or cross-zone
+            if (isCrossZone) {
+              // Cross-zone - use new cross-zone swap action
+              dispatch(Action.swapPlayersCrossZone(sourcePlayerId, sourceZone, player.id, zone));
+            } else {
+              // Same zone - use existing swap action
+              dispatch(Action.swapPlayers(sourcePlayerId, player.id, zone));
+            }
             
             // Reset animation after delay
             setTimeout(() => {

@@ -13,6 +13,15 @@ type Action =
       type: "swapPlayers";
       payload: { playerId1: string; playerId2: string; zone: string };
     }
+  | {
+      type: "swapPlayersCrossZone";
+      payload: {
+        playerId1: string;
+        zone1: string;
+        playerId2: string;
+        zone2: string;
+      };
+    }
   | { type: "setGamesPlayed"; payload: { id: string; value: number } }
   | { type: "updatePlayerName"; payload: { id: string; newName: string } }
   | { type: "setPlayerTextInput"; text: string }
@@ -1011,6 +1020,166 @@ export default function reducer(state: any, action: Action) {
       );
 
       console.log("✅ REDUCER: Swap completed successfully");
+
+      return {
+        ...state,
+        players: updatedPlayers,
+        courts: {
+          ...state.courts,
+          playersByCourt,
+        },
+        queue: {
+          ...state.queue,
+          playersByQueue,
+        },
+      };
+    }
+
+    case ActionType.SWAP_PLAYERS_CROSS_ZONE: {
+      console.log(
+        "🔄 REDUCER: SWAP_PLAYERS_CROSS_ZONE action received:",
+        action.payload
+      );
+
+      const { playerId1, zone1, playerId2, zone2 } = action.payload;
+
+      // Find both players
+      const player1 = state.players.find((p: Player) => p.id === playerId1);
+      const player2 = state.players.find((p: Player) => p.id === playerId2);
+
+      if (!player1 || !player2) {
+        console.warn("❌ REDUCER: Cannot swap: one or both players not found");
+        return state;
+      }
+
+      // Verify players are in their respective zones
+      const player1InZone1 = player1.status.includes(zone1 as PlayerStatus);
+      const player2InZone2 = player2.status.includes(zone2 as PlayerStatus);
+
+      if (!player1InZone1 || !player2InZone2) {
+        console.warn("❌ REDUCER: Cannot swap: players not in expected zones");
+        return state;
+      }
+
+      console.log(
+        `🔄 Cross-zone swap: ${player1.name} (${zone1}) ↔ ${player2.name} (${zone2})`
+      );
+
+      // Helper function to update player status and orders for cross-zone swap
+      const updatePlayerForCrossZoneSwap = (
+        player: Player,
+        fromZone: string,
+        toZone: string,
+        targetPosition: number | null
+      ): Player => {
+        const isFromCourt = fromZone.startsWith("court-");
+        const isFromQueue = fromZone.startsWith("queue-");
+        const isToCourt = toZone.startsWith("court-");
+        const isToQueue = toZone.startsWith("queue-");
+
+        // Get existing statuses
+        const existingCourt = player.status.find((s) => s.startsWith("court-"));
+        const existingQueue = player.status.find((s) => s.startsWith("queue-"));
+
+        let newStatus: PlayerStatus[] = [];
+
+        // Determine new status based on move type
+        if (isFromCourt && isToCourt) {
+          // Court to court - replace court, keep queue if exists
+          newStatus = existingQueue
+            ? [toZone as PlayerStatus, existingQueue]
+            : [toZone as PlayerStatus];
+        } else if (isFromQueue && isToQueue) {
+          // Queue to queue - replace queue, keep court if exists
+          newStatus = existingCourt
+            ? [existingCourt, toZone as PlayerStatus]
+            : [toZone as PlayerStatus];
+        } else if (isFromCourt && isToQueue) {
+          // Court to queue - replace court with queue
+          newStatus = [toZone as PlayerStatus];
+        } else if (isFromQueue && isToCourt) {
+          // Queue to court - replace queue with court
+          newStatus = [toZone as PlayerStatus];
+        }
+
+        // Create updated player with new status
+        let updatedPlayer: Player = {
+          ...player,
+          status: newStatus,
+        };
+
+        // Update order fields and timestamps based on the zones
+        if (isFromCourt && isToCourt) {
+          // Court to court - update court order, keep queue order
+          updatedPlayer.courtOrder = targetPosition;
+          // Keep existing court entry time since still on court
+        } else if (isFromQueue && isToQueue) {
+          // Queue to queue - update queue order, keep court order
+          updatedPlayer.queueOrder = targetPosition;
+        } else if (isFromCourt && isToQueue) {
+          // Court to queue - clear court order, set queue order
+          updatedPlayer.courtOrder = null;
+          updatedPlayer.queueOrder = targetPosition;
+          updatedPlayer.courtEnteredTime = undefined; // No longer on court
+        } else if (isFromQueue && isToCourt) {
+          // Queue to court - clear queue order, set court order
+          updatedPlayer.queueOrder = null;
+          updatedPlayer.courtOrder = targetPosition;
+          updatedPlayer.courtEnteredTime = Date.now(); // Now on court
+        }
+
+        return updatedPlayer;
+      };
+
+      // Get the positions/orders of both players to swap them
+      let player1TargetPosition: number | null = null;
+      let player2TargetPosition: number | null = null;
+
+      if (zone1.startsWith("court-")) {
+        player1TargetPosition = player1.courtOrder;
+      } else if (zone1.startsWith("queue-")) {
+        player1TargetPosition = player1.queueOrder;
+      }
+
+      if (zone2.startsWith("court-")) {
+        player2TargetPosition = player2.courtOrder;
+      } else if (zone2.startsWith("queue-")) {
+        player2TargetPosition = player2.queueOrder;
+      }
+
+      // Perform the cross-zone swap
+      const updatedPlayer1 = updatePlayerForCrossZoneSwap(
+        player1,
+        zone1,
+        zone2,
+        player2TargetPosition
+      );
+      const updatedPlayer2 = updatePlayerForCrossZoneSwap(
+        player2,
+        zone2,
+        zone1,
+        player1TargetPosition
+      );
+
+      console.log(`✅ Cross-zone swap completed:
+      ${player1.name}: ${zone1} (pos ${player1TargetPosition}) → ${zone2} (pos ${player2TargetPosition})
+      ${player2.name}: ${zone2} (pos ${player2TargetPosition}) → ${zone1} (pos ${player1TargetPosition})`);
+
+      // Update players array
+      const updatedPlayers = state.players.map((p: Player) => {
+        if (p.id === playerId1) return updatedPlayer1;
+        if (p.id === playerId2) return updatedPlayer2;
+        return p;
+      });
+
+      // Rebuild zone mappings using updated order fields
+      const { playersByCourt, playersByQueue } = rebuildZoneMappings(
+        updatedPlayers,
+        state.courts.count,
+        Object.keys(state.queue.playersByQueue)
+      );
+
+      console.log("✅ REDUCER: Cross-zone swap completed successfully");
 
       return {
         ...state,

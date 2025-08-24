@@ -9,6 +9,7 @@ const ActionType = {
   MOVE_PLAYER_TO_POSITION: "movePlayerToPosition",
   QUICK_MOVE_PLAYER: "quickMovePlayer",
   SWAP_PLAYERS: "swapPlayers",
+  SWAP_PLAYERS_CROSS_ZONE: "swapPlayersCrossZone",
   SET_GAMES_PLAYED: "setGamesPlayed",
   SET_PLAYER_TEXT_INPUT: "setPlayerTextInput",
   TOGGLE_TIMERS: "toggleTimers",
@@ -90,6 +91,18 @@ const Action = {
     return {
       type: ActionType.SWAP_PLAYERS,
       payload: { playerId1, playerId2, zone },
+    };
+  },
+
+  swapPlayersCrossZone(
+    playerId1: string,
+    zone1: string,
+    playerId2: string,
+    zone2: string
+  ) {
+    return {
+      type: ActionType.SWAP_PLAYERS_CROSS_ZONE,
+      payload: { playerId1, zone1, playerId2, zone2 },
     };
   },
 
