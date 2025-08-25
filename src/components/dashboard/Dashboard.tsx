@@ -2,7 +2,7 @@ import React, { useContext, useState, useCallback, useMemo } from 'react';
 import { Typography, IconButton, Box, Divider, useTheme } from '@mui/material';
 import AddIcon from '@mui/icons-material/GroupAdd';
 import SettingsIcon from '@mui/icons-material/Settings';
-import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
+import AttachMoneyIcon from '@mui/icons-material/Payment';
 import { AppContext } from '../../BadmintonQueueUI';
 import CourtZone from '../CourtZone';
 import QueueZone from '../QueueZone';
