@@ -13,6 +13,7 @@ import CourtControlPanel from '../CourtControlPanel';
 import SettingsModal from '../input/SettingsModal';
 import Popover from '@mui/material/Popover';
 import AddRoadIcon from '@mui/icons-material/AddRoad';
+import CourtAddIcon from '../input/CourtAddIcon';
 import PaymentModal from '../input/PaymentModal';
 
 const Dashboard: React.FC = React.memo(() => {
@@ -142,7 +143,8 @@ const Dashboard: React.FC = React.memo(() => {
           <AddIcon />
         </IconButton>
         <IconButton onClick={handleOpenPopover} title="Court Settings">
-          <AddRoadIcon />
+          <CourtAddIcon />
+          {/* <AddRoadIcon /> */}
         </IconButton>
         <IconButton onClick={handleOpenPayment} title="Payment Summary">
           <AttachMoneyIcon />
