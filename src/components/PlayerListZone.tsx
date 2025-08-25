@@ -169,6 +169,25 @@ const PlayerListZone: React.FC<PlayerListZoneProps> = ({ state }) => {
           py: 1,
           boxShadow: 'inset 0 0 4px rgba(0,0,0,0.04)',
           borderTop: '2px dashed #d8c9aa',
+          minHeight: '200px', // 🆕 Ensure adequate drop target size
+          position: 'relative',
+          // 🆕 Enhanced styling when players are being dragged over from courts/queues
+          transition: 'all 0.3s ease',
+          '&::before': {
+            content: '"Drop players here to return them to the player list"',
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            color: 'rgba(0,0,0,0.3)',
+            fontSize: '0.85rem',
+            fontStyle: 'italic',
+            textAlign: 'center',
+            pointerEvents: 'none',
+            opacity: filteredAndSortedPlayers.length === 0 ? 1 : 0,
+            transition: 'opacity 0.3s ease',
+            zIndex: 1,
+          },
         }}
       >
         {filteredAndSortedPlayers.length === 0 ? emptyMessage : playerGrid}

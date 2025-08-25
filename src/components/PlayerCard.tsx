@@ -261,7 +261,8 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
   }, []);
 
   const handleReturnToRest = useCallback(() => {
-    dispatch(Action.movePlayer(player.id, zone, 'rest'));
+    // 🆕 Use quickMovePlayer instead of movePlayer for better cleanup when returning to player list
+    dispatch(Action.quickMovePlayer(player.id, zone, 'all'));
   }, [player.id, zone, dispatch]);
 
   const handleDeletePlayer = useCallback(() => {
@@ -862,19 +863,34 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
               </IconButton>
             )}
 
-            {/* Return button */}
+            {/* Enhanced Return button - now works from any zone back to player list */}
             {!playerStatus.isUnassigned && (
               <IconButton
                 size="small"
                 onClick={handleReturnToRest}
-                title="Return to Rest"
+                title={`Return ${player.name} to player list (clears all assignments)`}
                 sx={{
                   padding: isMobile ? '2px' : '1px',
                   color: '#6D4C41',
                   minHeight: isMobile ? '28px' : 'auto',
+                  // 🆕 Enhanced styling to make it more prominent
+                  backgroundColor: 'rgba(109, 76, 65, 0.1)',
+                  border: '1px solid rgba(109, 76, 65, 0.3)',
+                  borderRadius: '50%',
                   '&:hover': {
                     color: '#3E2723',
+                    backgroundColor: 'rgba(109, 76, 65, 0.2)',
+                    transform: 'scale(1.1)',
                   },
+                  // 🆕 Special styling based on player status
+                  ...(playerStatus.isCourtAndQueue && {
+                    backgroundColor: 'rgba(0, 176, 189, 0.2)', // Teal background for advanced queue
+                    borderColor: 'rgba(0, 176, 189, 0.5)',
+                    color: '#00b0bd',
+                    '&:hover': {
+                      backgroundColor: 'rgba(0, 176, 189, 0.3)',
+                    },
+                  }),
                 }}
               >
                 <KeyboardReturnIcon sx={{ 
