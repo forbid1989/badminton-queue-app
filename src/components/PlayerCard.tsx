@@ -360,6 +360,15 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
           // Don't allow dropping on self
           if (sourcePlayerId === player.id) return false;
           
+          // 🆕 REPLACEMENT FEATURE: Allow drops from player list onto court/queue players
+          const isFromPlayerList = sourceZone === 'all';
+          const isTargetInCourtOrQueue = zone.startsWith('court-') || zone.startsWith('queue-');
+          
+          if (isFromPlayerList && isTargetInCourtOrQueue) {
+            console.log(`✅ Allowing replacement: ${sourcePlayerId} from player list → ${player.name} in ${zone}`);
+            return true;
+          }
+          
           // 🆕 ENHANCED: Allow cross-zone swapping between any court/queue zones
           const isValidSourceZone = sourceZone.startsWith('court-') || sourceZone.startsWith('queue-');
           const isValidTargetZone = zone.startsWith('court-') || zone.startsWith('queue-');
@@ -372,7 +381,11 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
           const sourceZone = source.data.playerZone as string;
           if (sourcePlayerId !== player.id) {
             setIsDropTarget(true);
-            console.log(`✅ ${sourceZone === zone ? 'Same-zone' : 'Cross-zone'} swap target entered:`, player.name);
+            
+            // 🆕 Enhanced logging for replacement vs swap
+            const isReplacement = sourceZone === 'all' && (zone.startsWith('court-') || zone.startsWith('queue-'));
+            const operationType = isReplacement ? 'Replacement' : (sourceZone === zone ? 'Same-zone swap' : 'Cross-zone swap');
+            console.log(`✅ ${operationType} target entered: ${player.name} in ${zone}`);
           }
         },
         onDragLeave: () => {
@@ -384,24 +397,42 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
           const sourceZone = source.data.playerZone as string;
           
           if (sourcePlayerId && sourcePlayerId !== player.id) {
-            const isCrossZone = sourceZone !== zone;
-            console.log(`🔄 ${isCrossZone ? 'Cross-zone' : 'Same-zone'} swap: ${sourceZone} ↔ ${zone}`);
+            // 🆕 REPLACEMENT LOGIC: Player from player list replacing player in court/queue
+            const isReplacement = sourceZone === 'all' && (zone.startsWith('court-') || zone.startsWith('queue-'));
             
-            setIsSwapping(true);
-            
-            // 🆕 ENHANCED: Use different action based on whether it's same-zone or cross-zone
-            if (isCrossZone) {
-              // Cross-zone - use new cross-zone swap action
-              dispatch(Action.swapPlayersCrossZone(sourcePlayerId, sourceZone, player.id, zone));
+            if (isReplacement) {
+              console.log(`🔄 REPLACEMENT: ${sourcePlayerId} from player list → replacing ${player.name} in ${zone}`);
+              
+              setIsSwapping(true);
+              
+              // Use new replacement action
+              dispatch(Action.replacePlayer(sourcePlayerId, sourceZone, player.id, zone));
+              
+              // Reset animation after delay
+              setTimeout(() => {
+                setIsSwapping(false);
+              }, 600);
             } else {
-              // Same zone - use existing swap action
-              dispatch(Action.swapPlayers(sourcePlayerId, player.id, zone));
+              // 🆕 ENHANCED: Regular swap logic (same-zone or cross-zone)
+              const isCrossZone = sourceZone !== zone;
+              console.log(`🔄 ${isCrossZone ? 'Cross-zone' : 'Same-zone'} swap: ${sourceZone} ↔ ${zone}`);
+              
+              setIsSwapping(true);
+              
+              // Use different action based on whether it's same-zone or cross-zone
+              if (isCrossZone) {
+                // Cross-zone - use new cross-zone swap action
+                dispatch(Action.swapPlayersCrossZone(sourcePlayerId, sourceZone, player.id, zone));
+              } else {
+                // Same zone - use existing swap action
+                dispatch(Action.swapPlayers(sourcePlayerId, player.id, zone));
+              }
+              
+              // Reset animation after delay
+              setTimeout(() => {
+                setIsSwapping(false);
+              }, 600);
             }
-            
-            // Reset animation after delay
-            setTimeout(() => {
-              setIsSwapping(false);
-            }, 600);
           }
         }
       })

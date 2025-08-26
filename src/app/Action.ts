@@ -10,6 +10,7 @@ const ActionType = {
   QUICK_MOVE_PLAYER: "quickMovePlayer",
   SWAP_PLAYERS: "swapPlayers",
   SWAP_PLAYERS_CROSS_ZONE: "swapPlayersCrossZone",
+  REPLACE_PLAYER: "replacePlayer",
   SET_GAMES_PLAYED: "setGamesPlayed",
   SET_PLAYER_TEXT_INPUT: "setPlayerTextInput",
   TOGGLE_TIMERS: "toggleTimers",
@@ -103,6 +104,19 @@ const Action = {
     return {
       type: ActionType.SWAP_PLAYERS_CROSS_ZONE,
       payload: { playerId1, zone1, playerId2, zone2 },
+    };
+  },
+
+  // 🆕 NEW: Action for replacing a player (from player list to court/queue)
+  replacePlayer(
+    sourcePlayerId: string,
+    sourceZone: string,
+    targetPlayerId: string,
+    targetZone: string
+  ) {
+    return {
+      type: ActionType.REPLACE_PLAYER,
+      payload: { sourcePlayerId, sourceZone, targetPlayerId, targetZone },
     };
   },
 

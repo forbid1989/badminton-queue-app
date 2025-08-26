@@ -22,6 +22,15 @@ type Action =
         zone2: string;
       };
     }
+  | {
+      type: "replacePlayer";
+      payload: {
+        sourcePlayerId: string;
+        sourceZone: string;
+        targetPlayerId: string;
+        targetZone: string;
+      };
+    }
   | { type: "setGamesPlayed"; payload: { id: string; value: number } }
   | { type: "updatePlayerName"; payload: { id: string; newName: string } }
   | { type: "setPlayerTextInput"; text: string }
@@ -574,9 +583,6 @@ export default function reducer(state: any, action: Action) {
         },
       };
     }
-    // ========================================
-    // MOVE_PLAYER case (no automatic positioning)
-    // ========================================
     // ========================================
     // MOVE_PLAYER case (no automatic positioning)
     // ========================================
@@ -1296,6 +1302,122 @@ export default function reducer(state: any, action: Action) {
       );
 
       console.log("✅ REDUCER: Cross-zone swap completed successfully");
+
+      return {
+        ...state,
+        players: updatedPlayers,
+        courts: {
+          ...state.courts,
+          playersByCourt,
+        },
+        queue: {
+          ...state.queue,
+          playersByQueue,
+        },
+      };
+    }
+
+    case ActionType.REPLACE_PLAYER: {
+      console.log(
+        "🔄 REDUCER: REPLACE_PLAYER action received:",
+        action.payload
+      );
+
+      const { sourcePlayerId, sourceZone, targetPlayerId, targetZone } =
+        action.payload;
+
+      // Find both players
+      const sourcePlayer = state.players.find(
+        (p: Player) => p.id === sourcePlayerId
+      );
+      const targetPlayer = state.players.find(
+        (p: Player) => p.id === targetPlayerId
+      );
+
+      if (!sourcePlayer || !targetPlayer) {
+        console.warn(
+          "⚠️ REDUCER: Cannot replace: one or both players not found"
+        );
+        return state;
+      }
+
+      // Verify source is from player list and target is in court/queue
+      const isSourceFromPlayerList = sourceZone === "all";
+      const isTargetInCourtOrQueue =
+        targetZone.startsWith("court-") || targetZone.startsWith("queue-");
+
+      if (!isSourceFromPlayerList || !isTargetInCourtOrQueue) {
+        console.warn(
+          "⚠️ REDUCER: Invalid replacement: source must be from player list, target must be in court/queue"
+        );
+        return state;
+      }
+
+      console.log(
+        `🔄 Replacement: ${sourcePlayer.name} (player list) → replacing ${targetPlayer.name} (${targetZone})`
+      );
+
+      // Get the target player's position/order in their current zone
+      let targetPosition: number | null = null;
+      if (targetZone.startsWith("court-")) {
+        targetPosition = targetPlayer.courtOrder;
+      } else if (targetZone.startsWith("queue-")) {
+        targetPosition = targetPlayer.queueOrder;
+      }
+
+      console.log(`🎯 Target position: ${targetPosition} in ${targetZone}`);
+
+      // Update both players
+      let updatedSourcePlayer: Player = {
+        ...sourcePlayer,
+        // Source player takes target's exact status and position
+        status: [...targetPlayer.status] as PlayerStatus[],
+        timeEntered: targetZone.startsWith("court-")
+          ? Date.now()
+          : sourcePlayer.timeEntered,
+        courtEnteredTime: targetZone.startsWith("court-")
+          ? Date.now()
+          : undefined,
+      };
+
+      let updatedTargetPlayer: Player = {
+        ...targetPlayer,
+        // Target player gets sent back to player list (clear all statuses and orders)
+        status: [],
+        timeEntered: Date.now(), // Reset time for return to player list
+        courtEnteredTime: undefined,
+        courtOrder: null,
+        queueOrder: null,
+      };
+
+      // Set the correct order for the source player based on target zone
+      if (targetZone.startsWith("court-")) {
+        updatedSourcePlayer.courtOrder = targetPosition;
+        updatedSourcePlayer.queueOrder = targetPlayer.queueOrder; // Keep queue order if target was in advanced queue
+      } else if (targetZone.startsWith("queue-")) {
+        updatedSourcePlayer.queueOrder = targetPosition;
+        updatedSourcePlayer.courtOrder = targetPlayer.courtOrder; // Keep court order if target was in advanced queue
+      }
+
+      console.log(`✅ Replacement details:
+      Source (${sourcePlayer.name}): player list → ${targetZone} (pos ${targetPosition})
+      Target (${targetPlayer.name}): ${targetZone} → player list (cleared)`);
+
+      // Update players array
+      const updatedPlayers = state.players.map((p: Player) => {
+        if (p.id === sourcePlayerId) return updatedSourcePlayer;
+        if (p.id === targetPlayerId) return updatedTargetPlayer;
+        return p;
+      });
+
+      // Rebuild zone mappings using updated order fields
+      const { playersByCourt, playersByQueue } = rebuildZoneMappings(
+        updatedPlayers,
+        state.courts.count,
+        Object.keys(state.queue.playersByQueue)
+      );
+
+      console.log("✅ REDUCER: Replacement completed successfully");
 
       return {
         ...state,
