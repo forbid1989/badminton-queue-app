@@ -261,8 +261,8 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
   }, []);
 
   const handleReturnToRest = useCallback(() => {
-    // 🆕 Use quickMovePlayer instead of movePlayer for better cleanup when returning to player list
-    dispatch(Action.quickMovePlayer(player.id, zone, 'all'));
+    // 🆕 FIXED: Use movePlayer to remove only from the specific zone, not all zones
+    dispatch(Action.movePlayer(player.id, zone, 'all'));
   }, [player.id, zone, dispatch]);
 
   const handleDeletePlayer = useCallback(() => {
@@ -864,7 +864,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
             )}
 
             {/* Enhanced Return button - now works from any zone back to player list */}
-            {!playerStatus.isUnassigned && (
+            {(playerStatus.isOnCourt || playerStatus.isInQueue || playerStatus.isCourtAndQueue) && (
               <IconButton
                 size="small"
                 onClick={handleReturnToRest}
@@ -886,9 +886,17 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
                   ...(playerStatus.isCourtAndQueue && {
                     backgroundColor: 'rgba(0, 176, 189, 0.2)', // Teal background for advanced queue
                     borderColor: 'rgba(0, 176, 189, 0.5)',
-                    color: '#00b0bd',
+                    color: '#6D4C41',
                     '&:hover': {
                       backgroundColor: 'rgba(0, 176, 189, 0.3)',
+                      color: '#6D4C41', // Darker teal on hover for better visibility
+                    },
+                    // 🆕 FIXED: Ensure the icon itself is visible
+                    '& .MuiSvgIcon-root': {
+                      color: '#6D4C41',
+                      fontSize: isMobile 
+                        ? (isInTeamZone ? '0.8rem' : '0.9rem')
+                        : (isInTeamZone ? '0.7rem' : '0.8rem'),
                     },
                   }),
                 }}

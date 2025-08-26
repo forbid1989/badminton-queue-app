@@ -593,10 +593,54 @@ export default function reducer(state: any, action: Action) {
       // 🆕 SPECIAL CASE: Moving TO the player list (zone "all" or "rest")
       if (to === "all" || to === "rest") {
         console.log(
-          `🔙 RETURN TO PLAYER LIST: ${playerToMove.name} from "${from}"`
+          `🔙 PARTIAL RETURN TO PLAYER LIST: ${playerToMove.name} from "${from}"`
         );
 
-        const updatedPlayer = returnPlayerToList(playerToMove);
+        // 🆕 FIXED: Only remove from the specific zone, preserve other assignments
+        const isFromCourt = from.startsWith("court-");
+        const isFromQueue = from.startsWith("queue-");
+
+        // Get player's current statuses
+        const existingCourt = playerToMove.status.find(
+          (s: PlayerStatus): s is PlayerStatus => s.startsWith("court-")
+        );
+        const existingQueue = playerToMove.status.find(
+          (s: PlayerStatus): s is PlayerStatus => s.startsWith("queue-")
+        );
+
+        let newStatus: PlayerStatus[] = [];
+        let updatedPlayer = { ...playerToMove };
+
+        if (isFromCourt) {
+          // Remove only court status, keep queue if exists
+          newStatus = existingQueue ? [existingQueue] : [];
+          updatedPlayer.courtOrder = null;
+          updatedPlayer.courtEnteredTime = undefined;
+          console.log(
+            `🔄 Removed court status, ${
+              existingQueue ? "keeping queue" : "no queue to keep"
+            }`
+          );
+        } else if (isFromQueue) {
+          // Remove only queue status, keep court if exists
+          newStatus = existingCourt ? [existingCourt] : [];
+          updatedPlayer.queueOrder = null;
+          console.log(
+            `🔄 Removed queue status, ${
+              existingCourt ? "keeping court" : "no court to keep"
+            }`
+          );
+        } else {
+          // If moving from "all" zone (player list), clear all statuses (full return)
+          newStatus = [];
+          updatedPlayer.courtOrder = null;
+          updatedPlayer.queueOrder = null;
+          updatedPlayer.courtEnteredTime = undefined;
+          updatedPlayer.timeEntered = Date.now(); // Reset time for full return
+          console.log(`🔄 Full return to player list - cleared all statuses`);
+        }
+
+        updatedPlayer.status = newStatus;
 
         const updatedPlayers = state.players.map((p: Player) =>
           p.id === id ? updatedPlayer : p
@@ -610,7 +654,11 @@ export default function reducer(state: any, action: Action) {
         );
 
         console.log(
-          `✅ Successfully returned ${updatedPlayer.name} to player list`
+          `✅ Successfully returned ${
+            updatedPlayer.name
+          } from ${from} to player list, remaining status: ${JSON.stringify(
+            updatedPlayer.status
+          )}`
         );
 
         return {

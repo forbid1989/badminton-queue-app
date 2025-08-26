@@ -234,8 +234,8 @@ const DroppableZone: React.FC<DroppableZoneProps> = React.memo(({ zone, players,
             setIsHovered(false);
             setIsDragOverValid(false);
             
-            // Use quickMovePlayer for returns to ensure proper cleanup
-            dispatch(Action.quickMovePlayer(playerId, playerZone, 'all'));
+            // 🆕 FIXED: Use movePlayer to only remove from the specific zone, preserving other assignments
+            dispatch(Action.movePlayer(playerId, playerZone, 'all'));
             return;
           }
           
