@@ -476,7 +476,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
         if ('vibrate' in navigator) {
           navigator.vibrate(50);
         }
-      }, 300); // 300ms for long press detection
+      }, 200); // 200ms for long press detection
     };
 
     const handleTouchMove = (e: TouchEvent) => {
@@ -555,7 +555,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
       if (name !== player.name && name.trim() !== '') {
         dispatch(Action.updatePlayerName(player.id, name));
       }
-    }, 300);
+    }, 200);
 
     return () => {
       if (nameUpdateTimeoutRef.current) {
