@@ -347,7 +347,7 @@ const AddQueueButton = React.memo<{ onAddQueue: () => void }>(({ onAddQueue }) =
     <Box
       onClick={onAddQueue}
       sx={{
-        minHeight: '120px',
+        minHeight: '140px',
         backgroundColor: '#E8F5E9',
         borderRadius: 2,
         border: '2px dashed #4CAF50',

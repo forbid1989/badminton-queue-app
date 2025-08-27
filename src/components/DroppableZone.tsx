@@ -285,10 +285,12 @@ const DroppableZone: React.FC<DroppableZoneProps> = React.memo(({ zone, players,
     marginBottom: isPositionZone ? 0 : 3,
     backgroundColor,
     minHeight: isPositionZone 
-      ? (isMobileDevice ? 40 : 35)
-      : isPlayerListZone
-      ? (isMobileDevice ? 150 : 120) // 🆕 Larger target area for player list
-      : (isMobileDevice ? 90 : 80),
+    ? (isMobileDevice ? 40 : 35)
+    : isPlayerListZone
+    ? (isMobileDevice ? 150 : 120) // Keep player list dimensions
+    : zone.startsWith('queue-')
+    ? '140px' // 🔧 NEW: Match court box height for queue zones
+    : (isMobileDevice ? 90 : 80), // Keep original for other zones
     transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
     transform,
     boxShadow,
