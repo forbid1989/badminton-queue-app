@@ -13,9 +13,14 @@ import {
   TextField,
   useTheme,
   useMediaQuery,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from '@mui/material';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import DeleteIcon from '@mui/icons-material/Delete';
+import WarningIcon from '@mui/icons-material/Warning';
 import { Player, PlayerStatus } from '../types/Player';
 import { AppContext } from '../BadmintonQueueUI';
 import { Action } from '../app/Action';
@@ -65,6 +70,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
   // State management
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [historyAnchorEl, setHistoryAnchorEl] = useState<null | HTMLElement>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState<boolean>(false);
   const [elapsedSeconds, setElapsedSeconds] = useState<number>(() => {
     return Math.floor((Date.now() - player.timeEntered) / 1000);
   });
@@ -80,7 +86,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
   const nameUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const dragPreviewRef = useRef<HTMLDivElement | null>(null);
 
-  // 🆕 NEW: Context menu prevention refs and state
+  // Context menu prevention refs and state
   const contextMenuTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [contextMenuBlocked, setContextMenuBlocked] = useState(false);
 
@@ -120,6 +126,19 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
     
     return elapsedSeconds < 900; // 15 minutes = 900 seconds
   }, [playerCooldownsEnabled, playerStatus.isOnCourt, elapsedSeconds]);
+
+  // Calculate player statistics for delete dialog
+  const playerStats = useMemo(() => {
+    const matchHistoryCount = player.matchHistory?.length || 0;
+    const totalPlayTime = player.matchHistory?.reduce((total, match) => total + match.duration, 0) || 0;
+    
+    return {
+      gamesPlayed: player.gamesPlayed,
+      matchHistoryCount,
+      totalPlayTime,
+      hasPaymentInfo: Boolean(player.paymentInfo?.hasPaid || player.paymentInfo?.isGuest)
+    };
+  }, [player.gamesPlayed, player.matchHistory, player.paymentInfo]);
 
   // Memoized color calculations
   const cardColors = useMemo(() => {
@@ -206,9 +225,9 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
     return (isUnassigned && !isOnCourt) || (zone === "all" && isOnCourt && !isInQueue);
   }, [playerStatus, zone]);
 
-  // 🆕 NEW: Context menu prevention handlers
+  // Context menu prevention handlers
   const handleContextMenu = useCallback((e: React.MouseEvent | MouseEvent) => {
-    console.log('🚫 Context menu blocked during drag operation');
+    console.log('Context menu blocked during drag operation');
     e.preventDefault();
     e.stopPropagation();
     return false;
@@ -225,7 +244,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
     // Re-enable context menu after 2 seconds
     contextMenuTimeoutRef.current = setTimeout(() => {
       setContextMenuBlocked(false);
-      console.log('✅ Context menu re-enabled');
+      console.log('Context menu re-enabled');
     }, 2000);
   }, []);
 
@@ -261,14 +280,23 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
   }, []);
 
   const handleReturnToRest = useCallback(() => {
-    // 🆕 FIXED: Use movePlayer to remove only from the specific zone, not all zones
     dispatch(Action.movePlayer(player.id, zone, 'all'));
   }, [player.id, zone, dispatch]);
 
+  // Enhanced delete handler with confirmation dialog
   const handleDeletePlayer = useCallback(() => {
-    dispatch(Action.removePlayer(player.id));
+    setDeleteDialogOpen(true);
     closePopover();
-  }, [player.id, dispatch, closePopover]);
+  }, [closePopover]);
+
+  const handleConfirmDelete = useCallback(() => {
+    dispatch(Action.removePlayer(player.id));
+    setDeleteDialogOpen(false);
+  }, [player.id, dispatch]);
+
+  const handleCancelDelete = useCallback(() => {
+    setDeleteDialogOpen(false);
+  }, []);
 
   const handleHistoryOpen = useCallback((e: React.MouseEvent<HTMLElement>) => {
     setHistoryAnchorEl(e.currentTarget);
@@ -290,7 +318,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
       return;
     }
 
-    // 🆕 NEW: Add context menu event listeners
+    // Add context menu event listeners
     const handleElementContextMenu = (e: MouseEvent) => {
       if (contextMenuBlocked) {
         handleContextMenu(e);
@@ -332,13 +360,13 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
         },
         onDragStart: () => {
           setIsDragging(true);
-          // 🆕 NEW: Block context menu when drag starts
+          // Block context menu when drag starts
           blockContextMenuTemporarily();
-          console.log('🚀 PDD Drag started:', player.name, 'from', zone, '- Context menu blocked');
+          console.log('PDD Drag started:', player.name, 'from', zone, '- Context menu blocked');
         },
         onDrop: () => {
           setIsDragging(false);
-          console.log('🎯 PDD Drag ended');
+          console.log('PDD Drag ended');
         }
       }),
       
@@ -360,16 +388,16 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
           // Don't allow dropping on self
           if (sourcePlayerId === player.id) return false;
           
-          // 🆕 REPLACEMENT FEATURE: Allow drops from player list onto court/queue players
+          // REPLACEMENT FEATURE: Allow drops from player list onto court/queue players
           const isFromPlayerList = sourceZone === 'all';
           const isTargetInCourtOrQueue = zone.startsWith('court-') || zone.startsWith('queue-');
           
           if (isFromPlayerList && isTargetInCourtOrQueue) {
-            console.log(`✅ Allowing replacement: ${sourcePlayerId} from player list → ${player.name} in ${zone}`);
+            console.log(`Allowing replacement: ${sourcePlayerId} from player list → ${player.name} in ${zone}`);
             return true;
           }
           
-          // 🆕 ENHANCED: Allow cross-zone swapping between any court/queue zones
+          // ENHANCED: Allow cross-zone swapping between any court/queue zones
           const isValidSourceZone = sourceZone.startsWith('court-') || sourceZone.startsWith('queue-');
           const isValidTargetZone = zone.startsWith('court-') || zone.startsWith('queue-');
           
@@ -382,10 +410,10 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
           if (sourcePlayerId !== player.id) {
             setIsDropTarget(true);
             
-            // 🆕 Enhanced logging for replacement vs swap
+            // Enhanced logging for replacement vs swap
             const isReplacement = sourceZone === 'all' && (zone.startsWith('court-') || zone.startsWith('queue-'));
             const operationType = isReplacement ? 'Replacement' : (sourceZone === zone ? 'Same-zone swap' : 'Cross-zone swap');
-            console.log(`✅ ${operationType} target entered: ${player.name} in ${zone}`);
+            console.log(`${operationType} target entered: ${player.name} in ${zone}`);
           }
         },
         onDragLeave: () => {
@@ -397,11 +425,11 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
           const sourceZone = source.data.playerZone as string;
           
           if (sourcePlayerId && sourcePlayerId !== player.id) {
-            // 🆕 REPLACEMENT LOGIC: Player from player list replacing player in court/queue
+            // REPLACEMENT LOGIC: Player from player list replacing player in court/queue
             const isReplacement = sourceZone === 'all' && (zone.startsWith('court-') || zone.startsWith('queue-'));
             
             if (isReplacement) {
-              console.log(`🔄 REPLACEMENT: ${sourcePlayerId} from player list → replacing ${player.name} in ${zone}`);
+              console.log(`REPLACEMENT: ${sourcePlayerId} from player list → replacing ${player.name} in ${zone}`);
               
               setIsSwapping(true);
               
@@ -413,9 +441,9 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
                 setIsSwapping(false);
               }, 600);
             } else {
-              // 🆕 ENHANCED: Regular swap logic (same-zone or cross-zone)
+              // ENHANCED: Regular swap logic (same-zone or cross-zone)
               const isCrossZone = sourceZone !== zone;
-              console.log(`🔄 ${isCrossZone ? 'Cross-zone' : 'Same-zone'} swap: ${sourceZone} ↔ ${zone}`);
+              console.log(`${isCrossZone ? 'Cross-zone' : 'Same-zone'} swap: ${sourceZone} ↔ ${zone}`);
               
               setIsSwapping(true);
               
@@ -445,7 +473,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
     };
   }, [player, zone, dispatch, isOnCooldown, cardColors, contextMenuBlocked, handleContextMenu, blockContextMenuTemporarily]);
 
-  // 🆕 NEW: Enhanced touch support with context menu prevention
+  // Enhanced touch support with context menu prevention
   useEffect(() => {
     if (!isTouchDevice) return;
     
@@ -460,13 +488,13 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
       touchStartTime = Date.now();
       touchMoved = false;
       
-      console.log('📱 Touch start detected on player card:', player.name);
+      console.log('Touch start detected on player card:', player.name);
       
       // Start long press timer for context menu prevention
       longPressTimer = setTimeout(() => {
         // This is likely a long press for dragging
         blockContextMenuTemporarily();
-        console.log('🔒 Long press detected - blocking context menu');
+        console.log('Long press detected - blocking context menu');
         
         // Add visual feedback for long press
         element.style.transform = 'scale(0.95)';
@@ -509,7 +537,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
       
       // If it was a quick tap (< 200ms) and no movement, allow normal interaction
       if (touchDuration < 200 && !touchMoved) {
-        console.log('👆 Quick tap - allowing normal interaction');
+        console.log('Quick tap - allowing normal interaction');
       }
     };
 
@@ -644,7 +672,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
       WebkitUserSelect: 'none',
       WebkitTapHighlightColor: 'transparent',
       WebkitTouchCallout: 'none',
-      // 🆕 NEW: Enhanced context menu prevention
+      // Enhanced context menu prevention
       MozUserSelect: 'none',
       msUserSelect: 'none',
       '&:active': {
@@ -688,7 +716,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
         sx={enhancedCardStyles}
         data-player-id={player.id}
         data-zone={zone}
-        // 🆕 NEW: Add context menu handler to the Card component
+        // Add context menu handler to the Card component
         onContextMenu={contextMenuBlocked ? handleContextMenu : undefined}
       >
         <Box
@@ -904,7 +932,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
                   padding: isMobile ? '2px' : '1px',
                   color: '#6D4C41',
                   minHeight: isMobile ? '28px' : 'auto',
-                  // 🆕 Enhanced styling to make it more prominent
+                  // Enhanced styling to make it more prominent
                   backgroundColor: 'rgba(109, 76, 65, 0.1)',
                   border: '1px solid rgba(109, 76, 65, 0.3)',
                   borderRadius: '50%',
@@ -913,7 +941,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
                     backgroundColor: 'rgba(109, 76, 65, 0.2)',
                     transform: 'scale(1.1)',
                   },
-                  // 🆕 Special styling based on player status
+                  // Special styling based on player status
                   ...(playerStatus.isCourtAndQueue && {
                     backgroundColor: 'rgba(0, 176, 189, 0.2)', // Teal background for advanced queue
                     borderColor: 'rgba(0, 176, 189, 0.5)',
@@ -922,7 +950,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
                       backgroundColor: 'rgba(0, 176, 189, 0.3)',
                       color: '#6D4C41', // Darker teal on hover for better visibility
                     },
-                    // 🆕 FIXED: Ensure the icon itself is visible
+                    // FIXED: Ensure the icon itself is visible
                     '& .MuiSvgIcon-root': {
                       color: '#6D4C41',
                       fontSize: isMobile 
@@ -1007,7 +1035,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
           paddingBottom: '8px',
           marginBottom: '12px',
         }}>
-          🏸 {player.name}&apos;s Match History
+          {player.name}'s Match History
         </Typography>
 
         {player.matchHistory?.length ? (
@@ -1080,7 +1108,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
                         marginBottom: '2px',
                       }}
                     >
-                      🏟️ {entry.courtName}
+                      {entry.courtName}
                     </Typography>
 
                     <Typography
@@ -1092,7 +1120,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
                         marginBottom: '2px',
                       }}
                     >
-                      ⏰ {startTimeStr} - {endTimeStr}
+                      {startTimeStr} - {endTimeStr}
                     </Typography>
 
                     <Typography
@@ -1106,7 +1134,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
                         gap: 0.5,
                       }}
                     >
-                      ⏱️ Duration: {durationStr}
+                      Duration: {durationStr}
                     </Typography>
 
                     {/* Show date if not today */}
@@ -1121,7 +1149,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
                           fontStyle: 'italic',
                         }}
                       >
-                        📅 {startTime.toLocaleDateString()}
+                        {startTime.toLocaleDateString()}
                       </Typography>
                     )}
                   </Box>
@@ -1297,6 +1325,80 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
           </Button>
         </Box>
       </Popover>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog 
+        open={deleteDialogOpen} 
+        onClose={handleCancelDelete}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle sx={{ 
+          fontSize: '0.9rem',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1,
+          color: 'error.main'
+        }}>
+          <WarningIcon sx={{ fontSize: '1.2rem' }} />
+          Delete Player "{player.name}"?
+        </DialogTitle>
+        <DialogContent>
+          <Typography sx={{ fontSize: '0.8rem', mb: 2 }}>
+            This action will permanently delete the player and <strong>cannot be undone</strong>.
+          </Typography>
+          
+          <Box sx={{ 
+            bgcolor: 'error.light', 
+            p: 2, 
+            borderRadius: 1, 
+            border: '1px solid',
+            borderColor: 'error.main',
+            color: 'error.contrastText'
+          }}>
+            <Typography sx={{ fontSize: '0.75rem', fontWeight: 'bold', mb: 1 }}>
+              The following data will be lost:
+            </Typography>
+            <Box component="ul" sx={{ fontSize: '0.7rem', margin: 0, paddingLeft: 2 }}>
+              <li><strong>{playerStats.gamesPlayed}</strong> recorded games</li>
+              {playerStats.matchHistoryCount > 0 && (
+                <li><strong>{playerStats.matchHistoryCount}</strong> match history entries</li>
+              )}
+              {playerStats.totalPlayTime > 0 && (
+                <li><strong>{Math.floor(playerStats.totalPlayTime / 60)} minutes</strong> of total play time</li>
+              )}
+              {playerStats.hasPaymentInfo && (
+                <li>Payment information and status</li>
+              )}
+              <li>Current court/queue position</li>
+            </Box>
+          </Box>
+
+          <Typography sx={{ fontSize: '0.75rem', mt: 2, fontStyle: 'italic', color: 'text.secondary' }}>
+            <strong>Tip:</strong> If you just want to remove the player from the current court or queue, 
+            look for the <KeyboardReturnIcon sx={{ fontSize: '0.8rem', mx: 0.5, verticalAlign: 'middle' }} /> 
+            "Return to Rest" button instead.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ padding: 2, gap: 1 }}>
+          <Button 
+            onClick={handleCancelDelete}
+            variant="outlined"
+            sx={{ fontSize: '0.75rem' }}
+          >
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleConfirmDelete}
+            color="error"
+            variant="contained"
+            startIcon={<DeleteIcon sx={{ fontSize: '0.8rem' }} />}
+            sx={{ fontSize: '0.75rem' }}
+          >
+            Delete Player
+          </Button>
+        </DialogActions>
+      </Dialog>
     </div>
   );
 });
