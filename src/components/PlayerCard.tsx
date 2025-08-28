@@ -84,7 +84,6 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
   const cardRef = useRef<HTMLDivElement>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const nameUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const dragPreviewRef = useRef<HTMLDivElement | null>(null);
 
   // Context menu prevention refs and state
   const contextMenuTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -304,6 +303,11 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
 
   const handleHistoryClose = useCallback(() => {
     setHistoryAnchorEl(null);
+  }, []);
+
+  const handleGamesClick = useCallback((e: React.MouseEvent<HTMLElement>) => {
+    e.stopPropagation(); // Prevent card drag
+    setHistoryAnchorEl(e.currentTarget);
   }, []);
 
   // Setup PDD draggable and drop target for swapping
@@ -834,9 +838,11 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
               {/* Games played indicator */}
               <Typography 
                 variant="body2" 
+                onClick={handleGamesClick}
                 sx={{
                   display: 'flex',
                   alignItems: 'center',
+                  cursor: 'pointer',
                   fontSize: isInTeamZone 
                     ? (isMobile ? '0.65rem' : '0.6rem')   
                     : (isMobile ? '0.75rem' : '0.7rem'),  
@@ -844,7 +850,31 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
                   fontWeight: 600, 
                   color: cardColors.textColor,
                   textShadow: '1px 1px 1px rgba(0,0,0,0.3)', 
+                  position: 'relative',
+                  transition: 'all 0.2s ease',
+                  '&::after': {
+                    content: '""',
+                    position: 'absolute',
+                    bottom: '-2px',
+                    left: 0,
+                    right: 0,
+                    height: '1px',
+                    backgroundColor: '#5C4033',
+                    transform: 'scaleX(0)',
+                    transition: 'transform 0.2s ease',
+                  },
+                  '&:hover': {
+                    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+                    borderRadius: '4px',
+                    '&::after': {
+                      transform: 'scaleX(1)',
+                    },
+                  },
+                  '&:active': {
+                    transform: 'scale(0.98)',
+                  },
                 }}
+                title="Click to view match history"
               >
                 {player.gamesPlayed}
                 <Box 
@@ -967,24 +997,6 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
                 }} />
               </IconButton>
             )}
-
-            {/* History button */}
-            <IconButton
-              size="small"
-              onClick={handleHistoryOpen}
-              title="View Match History"
-              sx={{ 
-                padding: isMobile ? '2px' : '1px',
-                minHeight: isMobile ? '28px' : 'auto',
-                '& .MuiSvgIcon-root': {
-                  fontSize: isMobile 
-                    ? (isInTeamZone ? '0.7rem' : '0.8rem')
-                    : (isInTeamZone ? '0.6rem' : '0.75rem'),
-                },
-              }}
-            >
-              <HistoryIcon />
-            </IconButton>
 
             {/* Menu button */}
             <IconButton 
@@ -1185,144 +1197,194 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
         anchorEl={anchorEl}
         onClose={closePopover}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+        transformOrigin={{ vertical: 'top', horizontal: 'left' }}
         slotProps={{
           paper: {
             sx: {
-              minWidth: isMobile ? 160 : 140,
-              p: isMobile ? 1.5 : 1,
-              borderRadius: isMobile ? 2 : 1,
-              boxShadow: isMobile 
-                ? '0 8px 24px rgba(0,0,0,0.15)' 
-                : theme.shadows[8],
+              minWidth: isMobile ? 200 : 180,
+              p: 0, // Remove padding, we'll add it per section
+              borderRadius: 3,
+              boxShadow: '0 12px 28px rgba(0,0,0,0.15)',
+              border: '1px solid rgba(0,0,0,0.08)',
+              overflow: 'hidden',
             },
           },
         }}
       >
-        <Box 
-          display="flex" 
-          flexDirection="column" 
-          gap={isMobile ? 1.5 : 1.2}
-          sx={{ fontSize: isMobile ? '0.7rem' : '0.65rem' }}
-        >
-          <TextField
-            label="Games"
-            value={gamesPlayed}
-            onChange={handleGamesChange}
-            onBlur={handleGamesBlur}
-            size="small"
-            slotProps={{
-              input: {
-                style: {
-                  fontSize: isMobile ? '0.7rem' : '0.65rem',
-                  padding: isMobile ? '2px 6px' : '0 4px',
-                },
-              },
-              inputLabel: {
-                sx: { fontSize: isMobile ? '0.7rem' : '0.65rem' }
-              }
-            }}
-          />
+        {/* Header */}
+        <Box sx={{ 
+          px: 2, 
+          py: 1.5, 
+          backgroundColor: '#5C4033',
+          color: 'white'
+        }}>
+          <Typography variant="subtitle2" sx={{ 
+            fontSize: '0.8rem', 
+            fontWeight: 600,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1
+          }}>
+            ⚙️ {player.name}
+          </Typography>
+        </Box>
 
+        {/* Content */}
+        <Box sx={{ p: 2 }}>
+          {/* Games Field */}
+          <Box sx={{ mb: 2 }}>
+            <TextField
+              label="🎮 Games Played"
+              value={gamesPlayed}
+              onChange={handleGamesChange}
+              onBlur={handleGamesBlur}
+              size="small"
+              fullWidth
+              variant="outlined"
+              slotProps={{
+                input: {
+                  style: {
+                    fontSize: '0.8rem',
+                  },
+                },
+                inputLabel: {
+                  sx: { fontSize: '0.8rem' }
+                }
+              }}
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: 2,
+                }
+              }}
+            />
+          </Box>
+
+          {/* View History Button */}
           {!isInTeamZone && (
-            <>
+            <Box sx={{ mb: 2 }}>
               <Button
-                variant="text"
+                variant="outlined"
                 size="small"
                 onClick={handleHistoryOpen}
+                fullWidth
                 sx={{ 
-                  fontSize: isMobile ? '0.7rem' : '0.65rem', 
-                  padding: isMobile ? '4px 6px' : '2px 4px',
-                  minHeight: isMobile ? '36px' : 'auto',
+                  fontSize: '0.8rem',
+                  fontWeight: 500,
+                  borderRadius: 2,
+                  textTransform: 'none',
+                  color: '#5C4033',
+                  borderColor: '#5C4033',
+                  '&:hover': {
+                    backgroundColor: 'rgba(92, 64, 51, 0.04)',
+                    borderColor: '#5C4033',
+                  }
                 }}
               >
-                View History
+                📊 View History
               </Button>
+            </Box>
+          )}
 
-              <FormControl size="small" fullWidth>
-                <InputLabel sx={{ fontSize: isMobile ? '0.7rem' : '0.65rem' }}>Court</InputLabel>
-                <Select
-                  label="Court"
-                  value=""
-                  onChange={(e) => {
-                    const to = e.target.value;
-                    dispatch(Action.movePlayer(player.id, zone, to));
-                    closePopover();
-                  }}
-                  size='small'
-                  sx={{ 
-                    fontSize: isMobile ? '0.7rem' : '0.65rem',
-                    minHeight: isMobile ? '36px' : 'auto',
-                  }}
-                >
-                  {Array.from({ length: courtCount }, (_, i) => {
-                    const courtKey = `court-${i}`;
-                    const courtPlayers = state.courts.playersByCourt[courtKey] || [];
-                    const isCourtFull = courtPlayers.length >= 4;
+          {/* Movement Options */}
+          {!isInTeamZone && (
+            <>
+              <Typography variant="caption" sx={{ 
+                color: 'text.secondary', 
+                fontSize: '0.75rem',
+                fontWeight: 600,
+                mb: 1,
+                display: 'block'
+              }}>
+                MOVE TO
+              </Typography>
 
-                    return (
-                      <MenuItem
-                        key={courtKey}
-                        value={courtKey}
-                        sx={{ 
-                          fontSize: isMobile ? '0.7rem' : '0.65rem',
-                          minHeight: isMobile ? '36px' : 'auto',
-                        }}
-                        disabled={isCourtFull}
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, mb: 2 }}>
+                <FormControl size="small" fullWidth>
+                  <InputLabel sx={{ fontSize: '0.8rem' }}>🏸 Court</InputLabel>
+                  <Select
+                    label="🏸 Court"
+                    value=""
+                    onChange={(e) => {
+                      const to = e.target.value;
+                      dispatch(Action.movePlayer(player.id, zone, to));
+                      closePopover();
+                    }}
+                    size='small'
+                    sx={{ 
+                      fontSize: '0.8rem',
+                      borderRadius: 2,
+                    }}
+                  >
+                    {Array.from({ length: courtCount }, (_, i) => (
+                      <MenuItem 
+                        key={i} 
+                        value={`court-${i}`}
+                        sx={{ fontSize: '0.8rem' }}
                       >
                         Court {i + 1}
                       </MenuItem>
-                    );
-                  })}
-                </Select>
-              </FormControl>
+                    ))}
+                  </Select>
+                </FormControl>
 
-              <FormControl size="small" fullWidth>
-                <InputLabel sx={{ fontSize: isMobile ? '0.7rem' : '0.65rem' }}>Queue</InputLabel>
-                <Select
-                  label="Queue"
-                  value=""
-                  onChange={(e) => {
-                    const to = e.target.value;
-                    dispatch(Action.movePlayer(player.id, zone, to));
-                    closePopover();
-                  }}
-                  size="small"
-                  sx={{ 
-                    fontSize: isMobile ? '0.7rem' : '0.65rem',
-                    minHeight: isMobile ? '36px' : 'auto',
-                  }}
-                >
-                  {Object.keys(state.queue.playersByQueue).map((queueId, index) => (
-                    <MenuItem 
-                      key={queueId} 
-                      value={queueId} 
-                      sx={{ 
-                        fontSize: isMobile ? '0.7rem' : '0.65rem',
-                        minHeight: isMobile ? '36px' : 'auto',
-                      }}
-                    >
-                      Queue {index + 1}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
+                <FormControl size="small" fullWidth>
+                  <InputLabel sx={{ fontSize: '0.8rem' }}>⏳ Queue</InputLabel>
+                  <Select
+                    label="⏳ Queue"
+                    value=""
+                    onChange={(e) => {
+                      const to = e.target.value;
+                      dispatch(Action.movePlayer(player.id, zone, to));
+                      closePopover();
+                    }}
+                    size='small'
+                    sx={{ 
+                      fontSize: '0.8rem',
+                      borderRadius: 2,
+                    }}
+                  >
+                    {Object.keys(state.queue.playersByQueue).map((queueId, index) => (
+                      <MenuItem 
+                        key={queueId} 
+                        value={queueId}
+                        sx={{ fontSize: '0.8rem' }}
+                      >
+                        Queue {index + 1}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Box>
             </>
           )}
 
-          <Button
-            variant="outlined"
-            color="error"
-            size="small"
-            onClick={handleDeletePlayer}
-            startIcon={<DeleteIcon sx={{ fontSize: isMobile ? '0.8rem' : '0.75rem' }} />}
-            sx={{ 
-              fontSize: isMobile ? '0.7rem' : '0.65rem', 
-              padding: isMobile ? '6px 8px' : '4px 6px',
-              minHeight: isMobile ? '36px' : 'auto',
-            }}
-          >
-            Delete Player
-          </Button>
+          {/* Danger Zone */}
+          <Box sx={{ 
+            borderTop: '1px solid rgba(0,0,0,0.1)', 
+            pt: 2,
+            mt: 1 
+          }}>
+            <Button
+              variant="contained"
+              color="error"
+              size="small"
+              onClick={handleDeletePlayer}
+              startIcon={<DeleteIcon sx={{ fontSize: '0.9rem' }} />}
+              fullWidth
+              sx={{ 
+                fontSize: '0.8rem',
+                fontWeight: 600,
+                borderRadius: 2,
+                textTransform: 'none',
+                boxShadow: 'none',
+                '&:hover': {
+                  boxShadow: '0 2px 8px rgba(244, 67, 54, 0.3)',
+                }
+              }}
+            >
+              Delete Player
+            </Button>
+          </Box>
         </Box>
       </Popover>
 

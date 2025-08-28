@@ -33,7 +33,7 @@ const BadmintonQueueUI: React.FC = () => {
 			<AppContext.Provider value={{ state, dispatch }}>
 				<AppBar position="static" color="primary">
 					<Toolbar sx={{ display: 'flex', justifyContent: 'space-between' }}>
-						<Typography variant="h6" color="inherit">🏸 Badminton Queue</Typography>
+						<Typography variant="h6" color="inherit">🏸 Queue Maestro</Typography>
 					</Toolbar>
 				</AppBar>
 				<Box sx={{ 

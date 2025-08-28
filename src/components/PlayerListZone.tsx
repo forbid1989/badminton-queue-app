@@ -12,7 +12,7 @@ type PlayerListZoneProps = {
   };
 };
 
-// 🔢 Visual priority for card colors - moved outside component to avoid recreation
+// 📢 Visual priority for card colors - moved outside component to avoid recreation
 const statusOrder = {
   rest: 0,
   queue: 1,
@@ -87,6 +87,19 @@ const PlayerListZone: React.FC<PlayerListZoneProps> = ({ state }) => {
       ))}
     </Grid>
   ), [filteredAndSortedPlayers]);
+
+  // 🆕 Calculate whether to show the drop message
+  const shouldShowDropMessage = useMemo(() => {
+    // Only show drop message if:
+    // 1. There are no players in the player list (filteredAndSortedPlayers.length === 0)
+    // 2. AND there are actually players in the system (state.players.length > 0)
+    // 3. AND user is not currently searching
+    const hasNoPlayersInList = filteredAndSortedPlayers.length === 0;
+    const hasPlayersInSystem = state.players.length > 0;
+    const isNotSearching = searchQuery.trim() === '';
+    
+    return hasNoPlayersInList && hasPlayersInSystem && isNotSearching;
+  }, [filteredAndSortedPlayers.length, state.players.length, searchQuery]);
 
   return (
     <Box sx={{ px: { xs: 0.5, lg: 1 } }}> 
@@ -184,7 +197,7 @@ const PlayerListZone: React.FC<PlayerListZoneProps> = ({ state }) => {
             fontStyle: 'italic',
             textAlign: 'center',
             pointerEvents: 'none',
-            opacity: filteredAndSortedPlayers.length === 0 ? 1 : 0,
+            opacity: shouldShowDropMessage ? 1 : 0,
             transition: 'opacity 0.3s ease',
             zIndex: 1,
           },
