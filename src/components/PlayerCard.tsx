@@ -19,8 +19,14 @@ import {
   DialogActions,
 } from '@mui/material';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
+import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import WarningIcon from '@mui/icons-material/Warning';
+import SettingsIcon from '@mui/icons-material/Settings';
+import SportsEsportsIcon from '@mui/icons-material/SportsEsports';
+import BarChartIcon from '@mui/icons-material/BarChart';
+import SportsIcon from '@mui/icons-material/Sports';
+import QueueIcon from '@mui/icons-material/Queue';
 import { Player, PlayerStatus } from '../types/Player';
 import { AppContext } from '../BadmintonQueueUI';
 import { Action } from '../app/Action';
@@ -80,6 +86,9 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
   const [name, setName] = useState(player.name);
   const [isDropTarget, setIsDropTarget] = useState(false);
   const [isSwapping, setIsSwapping] = useState(false);
+  const [submenuName, setSubmenuName] = useState(player.name);
+  const [editNameAnchorEl, setEditNameAnchorEl] = useState<null | HTMLElement>(null);
+  const [editNameValue, setEditNameValue] = useState(player.name);
 
   const cardRef = useRef<HTMLDivElement>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -268,7 +277,9 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
 
   const openPopover = useCallback((event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
-  }, []);
+    // Add this line to sync submenu name
+    setSubmenuName(player.name);
+  }, [player.name]); // Add player.name to dependencies
 
   const closePopover = useCallback(() => {
     setAnchorEl(null);
@@ -309,6 +320,60 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
     e.stopPropagation(); // Prevent card drag
     setHistoryAnchorEl(e.currentTarget);
   }, []);
+
+  // Handle pencil icon click for inline name editing
+  const handlePencilClick = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent card drag
+    setEditNameAnchorEl(e.currentTarget as HTMLElement);
+    setEditNameValue(player.name); // Sync with current name
+  }, [player.name]);
+
+  // Handle submenu name change
+  const handleSubmenuNameChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setSubmenuName(e.target.value);
+  }, []);
+
+  // Handle submenu name save
+  const handleSubmenuNameSave = useCallback(() => {
+    if (submenuName.trim() !== '' && submenuName !== player.name) {
+      dispatch(Action.updatePlayerName(player.id, submenuName.trim()));
+    }
+  }, [submenuName, player.name, player.id, dispatch]);
+
+  // Handle submenu name on blur
+  const handleSubmenuNameBlur = useCallback(() => {
+    handleSubmenuNameSave();
+  }, [handleSubmenuNameSave]);
+
+  // Handle submenu name on enter key
+  const handleSubmenuNameKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleSubmenuNameSave();
+    }
+  }, [handleSubmenuNameSave]);
+
+  const handleEditNameClose = useCallback(() => {
+    setEditNameAnchorEl(null);
+  }, []);
+
+  const handleEditNameChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setEditNameValue(e.target.value);
+  }, []);
+
+  const handleEditNameSave = useCallback(() => {
+    if (editNameValue.trim() !== '' && editNameValue !== player.name) {
+      dispatch(Action.updatePlayerName(player.id, editNameValue.trim()));
+    }
+    setEditNameAnchorEl(null);
+  }, [editNameValue, player.name, player.id, dispatch]);
+
+  const handleEditNameKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleEditNameSave();
+    } else if (e.key === 'Escape') {
+      setEditNameAnchorEl(null);
+    }
+  }, [handleEditNameSave]);
 
   // Setup PDD draggable and drop target for swapping
   useEffect(() => {
@@ -599,6 +664,8 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
   // Sync external name changes
   useEffect(() => {
     setName(player.name);
+    setSubmenuName(player.name); 
+    setEditNameValue(player.name)
   }, [player.name]);
 
   // Sync games played
@@ -629,7 +696,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
     const getCardDimensions = () => {
       return {
         width: isMobile ? '140': '160px',
-        height: isMobile ? '30px' : '28px',
+        height: isMobile ? '32px' : '30px',
         fontSize: isMobile ? '0.72rem' : '0.68rem',
         nameMaxWidth: isMobile ? '130px' : '120px',
       };
@@ -741,88 +808,60 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
             overflow: 'hidden',
             minWidth: 0,
             flex: 1,
-            gap: 0.1,
+            gap: 0,
           }}>
-            {/* TOP ROW: Player Name */}
+            {/* TOP ROW: Player Name with Edit Icon */}
             <Box sx={{ 
               width: '100%',
               overflow: 'hidden',
+              display: 'flex',
+              alignItems: 'center',
             }}>
-              {isEditing ? (
-                <TextField
-                  variant="standard"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  autoFocus
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      setIsEditing(false);
-                    }
-                  }}
-                  onBlur={() => setIsEditing(false)}
-                  slotProps={{
-                    input: {
-                      style: {
-                        fontSize: isInTeamZone 
-                          ? (isMobile ? '0.62rem' : '0.58rem')
-                          : (isMobile ? '0.72rem' : '0.68rem'),
-                        fontWeight: 'bold',
-                        padding: 0,
-                      },
-                    },
-                  }}
-                  sx={{
-                    '& .MuiInputBase-root': {
-                      lineHeight: 1.1,
-                      height: 'auto',
-                    },
-                  }}
-                />
-              ) : (
-                <Typography
-                  component="div"
-                  sx={{
-                    fontWeight: 'bold',
-                    fontSize: isInTeamZone 
-                      ? (isMobile ? '0.62rem' : '0.58rem')
-                      : (isMobile ? '0.72rem' : '0.68rem'),
-                    lineHeight: 1.1,
-                    cursor: 'pointer',
-                    textShadow: isMobile ? '1px 1px 2px rgba(0,0,0,0.1)' : 'none',
-                    maxWidth: isInTeamZone 
-                      ? (isMobile ? '75px' : '70px')
-                      : (isMobile ? '110px' : '100px'),
-                    display: '-webkit-box',
-                    WebkitLineClamp: 1,
-                    WebkitBoxOrient: 'vertical',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    wordBreak: 'break-word',
-                    '&:hover': {
-                      '&::after': {
-                        content: `"${player.name}"`,
-                        position: 'absolute',
-                        bottom: '100%',
-                        left: '50%',
-                        transform: 'translateX(-50%)',
-                        backgroundColor: 'rgba(0,0,0,0.8)',
-                        color: 'white',
-                        padding: '4px 8px',
-                        borderRadius: '4px',
-                        fontSize: '0.7rem',
-                        whiteSpace: 'nowrap',
-                        zIndex: 1000,
-                        pointerEvents: 'none',
-                        visibility: player.name.length > 12 ? 'visible' : 'hidden',
-                      },
-                    },
-                  }}
-                  title={player.name.length > 12 ? player.name : undefined}
-                  onClick={handleEditToggle}
-                >
-                  {player.name}
-                </Typography>
-              )}
+              {/* Pencil Edit Icon */}
+              <IconButton
+                size="small"
+                onClick={handlePencilClick}
+                sx={{
+                  minWidth: 'auto',
+                  width: '16px',  // Increased from 12px
+                  height: '16px', // Increased from 12px
+                  '& .MuiSvgIcon-root': {
+                    fontSize: '0.6rem', // Increased from 0.4rem
+                    width: '12px',       // Increased from 8px
+                    height: '12px',      // Increased from 8px
+                  },
+                  color: '#5C4033',
+                  '&:hover': {
+                    color: '#3E2723',
+                    backgroundColor: 'rgba(92, 64, 51, 0.1)',
+                  },
+                }}
+                title="Edit player name"
+              >
+                <EditIcon />
+              </IconButton>
+
+              <Typography
+                component="div"
+                sx={{
+                  fontWeight: 'bold',
+                  fontSize: isInTeamZone 
+                    ? (isMobile ? '0.62rem' : '0.58rem')
+                    : (isMobile ? '0.72rem' : '0.68rem'),
+                  lineHeight: 1.1,
+                  textShadow: isMobile ? '1px 1px 2px rgba(0,0,0,0.1)' : 'none',
+                  maxWidth: isInTeamZone 
+                    ? (isMobile ? '65px' : '60px')
+                    : (isMobile ? '100px' : '95px'),
+                  textOverflow: 'ellipsis',
+                  overflow: 'hidden',
+                  whiteSpace: 'nowrap',
+                  flex: 1,
+                }}
+                title={player.name}
+              >
+                {player.name}
+              </Typography>
             </Box>
 
             {/* BOTTOM ROW: Games and Timer */}
@@ -830,10 +869,13 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
               display: 'flex',
               alignItems: 'center',
               backgroundColor: 'rgba(255, 255, 255, 0.2)', 
-              borderRadius: '8px',
-              padding: '1px 4px',
+              borderRadius: '6px', // Reduced from 8px
+              padding: '0px 3px',  // Reduced padding
               border: '1px solid rgba(255, 255, 255, 0.3)',
-              gap: 0.75, 
+              gap: 0.5,  // Reduced from 0.75
+              minHeight: '16px', // Add minimum height to prevent cutoff
+              width: 'fit-content', // Ensure container fits content
+              marginTop: '-2.5px'
             }}>
               {/* Games played indicator */}
               <Typography 
@@ -1202,7 +1244,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
           paper: {
             sx: {
               minWidth: isMobile ? 200 : 180,
-              p: 0, // Remove padding, we'll add it per section
+              p: 0,
               borderRadius: 3,
               boxShadow: '0 12px 28px rgba(0,0,0,0.15)',
               border: '1px solid rgba(0,0,0,0.08)',
@@ -1219,22 +1261,66 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
           color: 'white'
         }}>
           <Typography variant="subtitle2" sx={{ 
-            fontSize: '0.8rem', 
+            fontSize: '0.85rem', // Standardized font size
             fontWeight: 600,
             display: 'flex',
             alignItems: 'center',
             gap: 1
           }}>
-            ⚙️ {player.name}
+            <SettingsIcon sx={{ fontSize: '1rem' }} />
+            {player.name}
           </Typography>
         </Box>
 
         {/* Content */}
         <Box sx={{ p: 2 }}>
+          {/* Player Name Edit Section */}
+          <Box sx={{ mb: 2 }}>
+            <Typography 
+              variant="caption" 
+              sx={{ 
+                color: 'text.secondary', 
+                fontSize: '0.75rem', // Standardized
+                fontWeight: 600,
+                mb: 1,
+                display: 'block'
+              }}
+            >
+              EDIT NAME
+            </Typography>
+            <TextField
+              value={submenuName}
+              onChange={handleSubmenuNameChange}
+              onBlur={handleSubmenuNameBlur}
+              onKeyDown={handleSubmenuNameKeyDown}
+              placeholder="Enter player name"
+              size="small"
+              fullWidth
+              variant="outlined"
+              slotProps={{
+                input: {
+                  sx: { 
+                    fontSize: '0.8rem', // Standardized
+                  }
+                }
+              }}
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: 2,
+                }
+              }}
+            />
+          </Box>
+
           {/* Games Field */}
           <Box sx={{ mb: 2 }}>
             <TextField
-              label="🎮 Games Played"
+              label={
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                  <SportsEsportsIcon sx={{ fontSize: '0.9rem' }} />
+                  Games Played
+                </Box>
+              }
               value={gamesPlayed}
               onChange={handleGamesChange}
               onBlur={handleGamesBlur}
@@ -1243,12 +1329,17 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
               variant="outlined"
               slotProps={{
                 input: {
-                  style: {
-                    fontSize: '0.8rem',
+                  sx: { 
+                    fontSize: '0.8rem', // Standardized
                   },
                 },
                 inputLabel: {
-                  sx: { fontSize: '0.8rem' }
+                  sx: { 
+                    fontSize: '0.75rem', // Standardized
+                    '& .MuiBox-root': {
+                      fontSize: '0.75rem',
+                    }
+                  }
                 }
               }}
               sx={{
@@ -1267,8 +1358,9 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
                 size="small"
                 onClick={handleHistoryOpen}
                 fullWidth
+                startIcon={<BarChartIcon sx={{ fontSize: '0.9rem' }} />}
                 sx={{ 
-                  fontSize: '0.8rem',
+                  fontSize: '0.75rem', // Standardized
                   fontWeight: 500,
                   borderRadius: 2,
                   textTransform: 'none',
@@ -1280,7 +1372,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
                   }
                 }}
               >
-                📊 View History
+                View History
               </Button>
             </Box>
           )}
@@ -1290,7 +1382,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
             <>
               <Typography variant="caption" sx={{ 
                 color: 'text.secondary', 
-                fontSize: '0.75rem',
+                fontSize: '0.75rem', // Standardized
                 fontWeight: 600,
                 mb: 1,
                 display: 'block'
@@ -1300,9 +1392,17 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
 
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, mb: 2 }}>
                 <FormControl size="small" fullWidth>
-                  <InputLabel sx={{ fontSize: '0.8rem' }}>🏸 Court</InputLabel>
+                  <InputLabel sx={{ 
+                    fontSize: '0.75rem', // Standardized
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 0.5
+                  }}>
+                    <SportsIcon sx={{ fontSize: '0.9rem' }} />
+                    Court
+                  </InputLabel>
                   <Select
-                    label="🏸 Court"
+                    label="Court"
                     value=""
                     onChange={(e) => {
                       const to = e.target.value;
@@ -1311,7 +1411,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
                     }}
                     size='small'
                     sx={{ 
-                      fontSize: '0.8rem',
+                      fontSize: '0.75rem', // Standardized
                       borderRadius: 2,
                     }}
                   >
@@ -1319,7 +1419,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
                       <MenuItem 
                         key={i} 
                         value={`court-${i}`}
-                        sx={{ fontSize: '0.8rem' }}
+                        sx={{ fontSize: '0.75rem' }} // Standardized
                       >
                         Court {i + 1}
                       </MenuItem>
@@ -1328,9 +1428,17 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
                 </FormControl>
 
                 <FormControl size="small" fullWidth>
-                  <InputLabel sx={{ fontSize: '0.8rem' }}>⏳ Queue</InputLabel>
+                  <InputLabel sx={{ 
+                    fontSize: '0.75rem', // Standardized
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 0.5
+                  }}>
+                    <QueueIcon sx={{ fontSize: '0.9rem' }} />
+                    Queue
+                  </InputLabel>
                   <Select
-                    label="⏳ Queue"
+                    label="Queue"
                     value=""
                     onChange={(e) => {
                       const to = e.target.value;
@@ -1339,7 +1447,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
                     }}
                     size='small'
                     sx={{ 
-                      fontSize: '0.8rem',
+                      fontSize: '0.75rem', // Standardized
                       borderRadius: 2,
                     }}
                   >
@@ -1347,7 +1455,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
                       <MenuItem 
                         key={queueId} 
                         value={queueId}
-                        sx={{ fontSize: '0.8rem' }}
+                        sx={{ fontSize: '0.75rem' }} // Standardized
                       >
                         Queue {index + 1}
                       </MenuItem>
@@ -1372,7 +1480,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
               startIcon={<DeleteIcon sx={{ fontSize: '0.9rem' }} />}
               fullWidth
               sx={{ 
-                fontSize: '0.8rem',
+                fontSize: '0.75rem', // Standardized
                 fontWeight: 600,
                 borderRadius: 2,
                 textTransform: 'none',
@@ -1383,6 +1491,95 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
               }}
             >
               Delete Player
+            </Button>
+          </Box>
+        </Box>
+      </Popover>
+
+      <Popover
+        open={Boolean(editNameAnchorEl)}
+        anchorEl={editNameAnchorEl}
+        onClose={handleEditNameClose}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+        transformOrigin={{ vertical: 'top', horizontal: 'left' }}
+        slotProps={{
+          paper: {
+            sx: {
+              p: 2,
+              borderRadius: 2,
+              boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
+              border: '1px solid rgba(0,0,0,0.08)',
+              minWidth: 180,
+            },
+          },
+        }}
+      >
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+          <Typography 
+            variant="subtitle2" 
+            sx={{ 
+              fontSize: '0.8rem',
+              fontWeight: 600,
+              color: '#5C4033',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 0.5
+            }}
+          >
+            <EditIcon sx={{ fontSize: '0.9rem' }} />
+            Edit Name
+          </Typography>
+          
+          <TextField
+            value={editNameValue}
+            onChange={handleEditNameChange}
+            onKeyDown={handleEditNameKeyDown}
+            placeholder="Enter player name"
+            size="small"
+            fullWidth
+            autoFocus
+            variant="outlined"
+            slotProps={{
+              input: {
+                sx: { 
+                  fontSize: '0.8rem',
+                }
+              }
+            }}
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                borderRadius: 1.5,
+              }
+            }}
+          />
+          
+          <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
+            <Button
+              size="small"
+              onClick={handleEditNameClose}
+              sx={{ 
+                fontSize: '0.7rem',
+                textTransform: 'none',
+                color: 'text.secondary'
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              size="small"
+              variant="contained"
+              onClick={handleEditNameSave}
+              disabled={editNameValue.trim() === '' || editNameValue === player.name}
+              sx={{ 
+                fontSize: '0.7rem',
+                textTransform: 'none',
+                backgroundColor: '#5C4033',
+                '&:hover': {
+                  backgroundColor: '#3E2723',
+                }
+              }}
+            >
+              Save
             </Button>
           </Box>
         </Box>
