@@ -387,8 +387,6 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
       return;
     }
 
-    element.style.touchAction = 'none';
-
     // Add context menu event listeners
     const handleElementContextMenu = (e: MouseEvent) => {
       if (contextMenuBlocked) {
@@ -541,7 +539,6 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
     return () => {
       cleanup();
       element.removeEventListener('contextmenu', handleElementContextMenu, { capture: true });
-      element.style.touchAction = '';
     };
   }, [player, zone, dispatch, isOnCooldown, cardColors, contextMenuBlocked, handleContextMenu, blockContextMenuTemporarily]);
 
