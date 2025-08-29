@@ -388,9 +388,6 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
     }
 
     element.style.touchAction = 'none';
-    element.style.userSelect = 'none';
-    (element.style as any).webkitTouchCallout = 'none';
-    (element.style as any).webkitTapHighlightColor = 'transparent';
 
     // Add context menu event listeners
     const handleElementContextMenu = (e: MouseEvent) => {
@@ -545,95 +542,92 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
       cleanup();
       element.removeEventListener('contextmenu', handleElementContextMenu, { capture: true });
       element.style.touchAction = '';
-      element.style.userSelect = '';
-      (element.style as any).webkitTouchCallout = '';
-      (element.style as any).webkitTapHighlightColor = '';
     };
   }, [player, zone, dispatch, isOnCooldown, cardColors, contextMenuBlocked, handleContextMenu, blockContextMenuTemporarily]);
 
   // Enhanced touch support with context menu prevention
-  // useEffect(() => {
-  //   if (!isTouchDevice) return;
+  useEffect(() => {
+    if (!isTouchDevice) return;
     
-  //   const element = cardRef.current;
-  //   if (!element) return;
+    const element = cardRef.current;
+    if (!element) return;
 
-  //   let touchStartTime = 0;
-  //   let touchMoved = false;
-  //   let longPressTimer: NodeJS.Timeout | null = null;
+    let touchStartTime = 0;
+    let touchMoved = false;
+    let longPressTimer: NodeJS.Timeout | null = null;
 
-  //   const handleTouchStart = (e: TouchEvent) => {
-  //     touchStartTime = Date.now();
-  //     touchMoved = false;
+    const handleTouchStart = (e: TouchEvent) => {
+      touchStartTime = Date.now();
+      touchMoved = false;
       
-  //     console.log('Touch start detected on player card:', player.name);
+      console.log('Touch start detected on player card:', player.name);
       
-  //     // Start long press timer for context menu prevention
-  //     longPressTimer = setTimeout(() => {
-  //       // This is likely a long press for dragging
-  //       blockContextMenuTemporarily();
-  //       console.log('Long press detected - blocking context menu');
+      // Start long press timer for context menu prevention
+      longPressTimer = setTimeout(() => {
+        // This is likely a long press for dragging
+        blockContextMenuTemporarily();
+        console.log('Long press detected - blocking context menu');
         
-  //       // Add visual feedback for long press
-  //       element.style.transform = 'scale(0.95)';
-  //       element.style.transition = 'transform 0.1s ease';
+        // Add visual feedback for long press
+        element.style.transform = 'scale(0.95)';
+        element.style.transition = 'transform 0.1s ease';
         
-  //       // Haptic feedback if available
-  //       if ('vibrate' in navigator) {
-  //         navigator.vibrate(50);
-  //       }
-  //     }, 250); // 250ms for long press detection
-  //   };
+        // Haptic feedback if available
+        if ('vibrate' in navigator) {
+          navigator.vibrate(50);
+        }
+      }, 250); // 250ms for long press detection
+    };
 
-  //   const handleTouchMove = (e: TouchEvent) => {
-  //     touchMoved = true;
+    const handleTouchMove = (e: TouchEvent) => {
+      touchMoved = true;
       
-  //     // Clear long press timer if user moves
-  //     if (longPressTimer) {
-  //       clearTimeout(longPressTimer);
-  //       longPressTimer = null;
-  //     }
+      // Clear long press timer if user moves
+      if (longPressTimer) {
+        clearTimeout(longPressTimer);
+        longPressTimer = null;
+      }
       
-  //     // If context menu is blocked and user is moving, likely dragging
-  //     if (contextMenuBlocked) {
-  //       e.preventDefault(); // Prevent scrolling during drag
-  //     }
-  //   };
+      // If context menu is blocked and user is moving, likely dragging
+      if (contextMenuBlocked) {
+        e.preventDefault(); // Prevent scrolling during drag
+      }
+    };
 
-  //   const handleTouchEnd = (e: TouchEvent) => {
-  //     const touchDuration = Date.now() - touchStartTime;
+    const handleTouchEnd = (e: TouchEvent) => {
+      const touchDuration = Date.now() - touchStartTime;
       
-  //     // Clear long press timer
-  //     if (longPressTimer) {
-  //       clearTimeout(longPressTimer);
-  //       longPressTimer = null;
-  //     }
+      // Clear long press timer
+      if (longPressTimer) {
+        clearTimeout(longPressTimer);
+        longPressTimer = null;
+      }
       
-  //     // Reset visual feedback
-  //     element.style.transform = '';
-  //     element.style.transition = '';
+      // Reset visual feedback
+      element.style.transform = '';
+      element.style.transition = '';
       
-  //     // If it was a quick tap (< 200ms) and no movement, allow normal interaction
-  //     if (touchDuration < 200 && !touchMoved) {
-  //       console.log('Quick tap - allowing normal interaction');
-  //     }
-  //   };
+      // If it was a quick tap (< 200ms) and no movement, allow normal interaction
+      if (touchDuration < 200 && !touchMoved) {
+        console.log('Quick tap - allowing normal interaction');
+      }
+    };
 
-  //   // Add touch event listeners with passive: false to allow preventDefault
-  //   element.addEventListener('touchstart', handleTouchStart, { passive: true });
-  //   element.addEventListener('touchmove', handleTouchMove, { passive: false });
-  //   element.addEventListener('touchend', handleTouchEnd, { passive: true });
+    // Add touch event listeners with passive: false to allow preventDefault
+    element.addEventListener('touchstart', handleTouchStart, { passive: true });
+    element.addEventListener('touchmove', handleTouchMove, { passive: false });
+    element.addEventListener('touchend', handleTouchEnd, { passive: true });
     
-  //   return () => {
-  //     element.removeEventListener('touchstart', handleTouchStart);
-  //     element.removeEventListener('touchmove', handleTouchMove);
-  //     element.removeEventListener('touchend', handleTouchEnd);
+    return () => {
+      element.removeEventListener('touchstart', handleTouchStart);
+      element.removeEventListener('touchmove', handleTouchMove);
+      element.removeEventListener('touchend', handleTouchEnd);
       
-  //     if (longPressTimer) {
-  //       clearTimeout(longPressTimer);
-  //     }
-  //   };
-  // }, [player, zone, isTouchDevice, contextMenuBlocked, blockContextMenuTemporarily]);
+      if (longPressTimer) {
+        clearTimeout(longPressTimer);
+      }
+    };
+  }, [player, zone, isTouchDevice, contextMenuBlocked, blockContextMenuTemporarily]);
 
   // Optimized timer effect
   useEffect(() => {
