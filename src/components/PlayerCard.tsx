@@ -31,17 +31,13 @@ import { Player, PlayerStatus } from '../types/Player';
 import { AppContext } from '../BadmintonQueueUI';
 import { Action } from '../app/Action';
 import KeyboardReturnIcon from '@mui/icons-material/KeyboardReturn';
-import HistoryIcon from '@mui/icons-material/History';
 import BadmintonIcon from './input/BadmintonIcon';
-import { getTimeAgo } from '../utils/getTimeAgo';
 import { formatMatchDuration, getMatchDescription, isToday } from '../utils/matchHistoryUtils';
 
 // Pragmatic Drag and Drop imports
 import { draggable, dropTargetForElements } from '@atlaskit/pragmatic-drag-and-drop/element/adapter';
 import { setCustomNativeDragPreview } from '@atlaskit/pragmatic-drag-and-drop/element/set-custom-native-drag-preview';
 import { combine } from '@atlaskit/pragmatic-drag-and-drop/combine';
-import { disableNativeDragPreview } from '@atlaskit/pragmatic-drag-and-drop/element/disable-native-drag-preview';
-import { preventUnhandled } from '@atlaskit/pragmatic-drag-and-drop/prevent-unhandled';
 
 const formatElapsedTime = (seconds: number) => {
   const mins = Math.floor(seconds / 60);
@@ -233,29 +229,6 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
     return (isUnassigned && !isOnCourt) || (zone === "all" && isOnCourt && !isInQueue);
   }, [playerStatus, zone]);
 
-  // Context menu prevention handlers
-  // const handleContextMenu = useCallback((e: React.MouseEvent | MouseEvent) => {
-  //   console.log('Context menu blocked during drag operation');
-  //   e.preventDefault();
-  //   e.stopPropagation();
-  //   return false;
-  // }, []);
-
-  // const blockContextMenuTemporarily = useCallback(() => {
-  //   setContextMenuBlocked(true);
-    
-  //   // Clear any existing timeout
-  //   if (contextMenuTimeoutRef.current) {
-  //     clearTimeout(contextMenuTimeoutRef.current);
-  //   }
-    
-  //   // Re-enable context menu after 2 seconds
-  //   contextMenuTimeoutRef.current = setTimeout(() => {
-  //     setContextMenuBlocked(false);
-  //     console.log('Context menu re-enabled');
-  //   }, 2000);
-  // }, []);
-
   // Optimized event handlers with useCallback
   const handleQuickAdd = useCallback(() => {
     if (availableZone) {
@@ -386,15 +359,6 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
     if (!canDrag) {
       return;
     }
-
-    // Add context menu event listeners
-    // const handleElementContextMenu = (e: MouseEvent) => {
-    //   if (contextMenuBlocked) {
-    //     handleContextMenu(e);
-    //   }
-    // };
-
-    // element.addEventListener('contextmenu', handleElementContextMenu, { capture: true });
 
     const cleanup = combine(
       // Make the card draggable
@@ -541,90 +505,6 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
       // element.removeEventListener('contextmenu', handleElementContextMenu, { capture: true });
     };
   }, [player, zone, dispatch, isOnCooldown, cardColors]);
-
-  // Enhanced touch support with context menu prevention
-  // useEffect(() => {
-  //   if (!isTouchDevice) return;
-    
-  //   const element = cardRef.current;
-  //   if (!element) return;
-
-  //   let touchStartTime = 0;
-  //   let touchMoved = false;
-  //   let longPressTimer: NodeJS.Timeout | null = null;
-
-  //   const handleTouchStart = (e: TouchEvent) => {
-  //     touchStartTime = Date.now();
-  //     touchMoved = false;
-      
-  //     console.log('Touch start detected on player card:', player.name);
-      
-  //     // Start long press timer for context menu prevention
-  //     longPressTimer = setTimeout(() => {
-  //       // This is likely a long press for dragging
-  //       blockContextMenuTemporarily();
-  //       console.log('Long press detected - blocking context menu');
-        
-  //       // Add visual feedback for long press
-  //       element.style.transform = 'scale(0.95)';
-  //       element.style.transition = 'transform 0.1s ease';
-        
-  //       // Haptic feedback if available
-  //       if ('vibrate' in navigator) {
-  //         navigator.vibrate(50);
-  //       }
-  //     }, 250); // 250ms for long press detection
-  //   };
-
-  //   const handleTouchMove = (e: TouchEvent) => {
-  //     touchMoved = true;
-      
-  //     // Clear long press timer if user moves
-  //     if (longPressTimer) {
-  //       clearTimeout(longPressTimer);
-  //       longPressTimer = null;
-  //     }
-      
-  //     // If context menu is blocked and user is moving, likely dragging
-  //     if (contextMenuBlocked) {
-  //       e.preventDefault(); // Prevent scrolling during drag
-  //     }
-  //   };
-
-  //   const handleTouchEnd = (e: TouchEvent) => {
-  //     const touchDuration = Date.now() - touchStartTime;
-      
-  //     // Clear long press timer
-  //     if (longPressTimer) {
-  //       clearTimeout(longPressTimer);
-  //       longPressTimer = null;
-  //     }
-      
-  //     // Reset visual feedback
-  //     element.style.transform = '';
-  //     element.style.transition = '';
-      
-  //     // If it was a quick tap (< 200ms) and no movement, allow normal interaction
-  //     if (touchDuration < 200 && !touchMoved) {
-  //       console.log('Quick tap - allowing normal interaction');
-  //     }
-  //   };
-
-  //   // Add touch event listeners with passive: false to allow preventDefault
-  //   element.addEventListener('touchstart', handleTouchStart, { passive: true });
-  //   element.addEventListener('touchmove', handleTouchMove, { passive: false });
-  //   element.addEventListener('touchend', handleTouchEnd, { passive: true });
-    
-  //   return () => {
-  //     element.removeEventListener('touchstart', handleTouchStart);
-  //     element.removeEventListener('touchmove', handleTouchMove);
-  //     element.removeEventListener('touchend', handleTouchEnd);
-      
-  //     if (longPressTimer) {
-  //       clearTimeout(longPressTimer);
-  //     }
-  //   };
-  // }, [player, zone, isTouchDevice, contextMenuBlocked, blockContextMenuTemporarily]);
 
   // Optimized timer effect
   useEffect(() => {
