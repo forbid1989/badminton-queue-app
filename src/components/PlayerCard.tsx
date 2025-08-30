@@ -1317,7 +1317,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, mb: 2 }}>
                 <FormControl size="small" fullWidth>
                   <InputLabel sx={{ 
-                    fontSize: '0.75rem', // Standardized
+                    fontSize: isMobile ? '0.7rem' : '0.65rem',
                     display: 'flex',
                     alignItems: 'center',
                     gap: 0.5
@@ -1330,30 +1330,71 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
                     value=""
                     onChange={(e) => {
                       const to = e.target.value;
-                      dispatch(Action.movePlayer(player.id, zone, to));
+                      // Calculate next available position
+                      const targetZonePlayers = state.courts.playersByCourt[to] || [];
+                      const usedPositions = targetZonePlayers
+                        .map(p => p.courtOrder)
+                        .filter(pos => pos !== null && pos !== undefined);
+                      
+                      let nextPosition = 0;
+                      while (usedPositions.includes(nextPosition) && nextPosition < 4) {
+                        nextPosition++;
+                      }
+                      
+                      // Use reliable position-specific action
+                      dispatch(Action.movePlayerToPosition(player.id, zone, to, nextPosition));
                       closePopover();
                     }}
                     size='small'
                     sx={{ 
-                      fontSize: '0.75rem', // Standardized
-                      borderRadius: 2,
+                      fontSize: isMobile ? '0.7rem' : '0.65rem',
+                      minHeight: isMobile ? '36px' : 'auto',
                     }}
                   >
-                    {Array.from({ length: courtCount }, (_, i) => (
-                      <MenuItem 
-                        key={i} 
-                        value={`court-${i}`}
-                        sx={{ fontSize: '0.75rem' }} // Standardized
-                      >
-                        Court {i + 1}
-                      </MenuItem>
-                    ))}
+                    {Array.from({ length: courtCount }, (_, i) => {
+                      const courtKey = `court-${i}`;
+                      const courtPlayers = state.courts.playersByCourt[courtKey] || [];
+                      const isCourtFull = courtPlayers.length >= 4;
+                      const occupancy = courtPlayers.length;
+
+                      return (
+                        <MenuItem
+                          key={courtKey}
+                          value={courtKey}
+                          disabled={isCourtFull}
+                          sx={{ 
+                            fontSize: isMobile ? '0.7rem' : '0.65rem',
+                            minHeight: isMobile ? '36px' : 'auto',
+                            opacity: isCourtFull ? 0.5 : 1,
+                            backgroundColor: isCourtFull ? 'rgba(255, 0, 0, 0.05)' : 'transparent',
+                            color: isCourtFull ? 'text.disabled' : 'text.primary',
+                            '&:hover': {
+                              backgroundColor: isCourtFull 
+                                ? 'rgba(255, 0, 0, 0.08)' 
+                                : 'rgba(0, 0, 0, 0.04)',
+                            },
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                          }}
+                        >
+                          <span>Court {i + 1}</span>
+                          <span style={{ 
+                            fontSize: '0.6rem', 
+                            color: isCourtFull ? '#d32f2f' : '#666',
+                            fontWeight: 'bold'
+                          }}>
+                            ({occupancy}/4)
+                          </span>
+                        </MenuItem>
+                      );
+                    })}
                   </Select>
                 </FormControl>
 
                 <FormControl size="small" fullWidth>
                   <InputLabel sx={{ 
-                    fontSize: '0.75rem', // Standardized
+                    fontSize: isMobile ? '0.7rem' : '0.65rem',
                     display: 'flex',
                     alignItems: 'center',
                     gap: 0.5
@@ -1366,24 +1407,68 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
                     value=""
                     onChange={(e) => {
                       const to = e.target.value;
-                      dispatch(Action.movePlayer(player.id, zone, to));
+  
+                      // Calculate next available position
+                      const targetZonePlayers = state.queue.playersByQueue[to] || [];
+                      const usedPositions = targetZonePlayers
+                        .map(p => p.queueOrder)
+                        .filter(pos => pos !== null && pos !== undefined);
+                      
+                      let nextPosition = 0;
+                      while (usedPositions.includes(nextPosition) && nextPosition < 4) {
+                        nextPosition++;
+                      }
+                      
+                      // Use reliable position-specific action
+                      dispatch(Action.movePlayerToPosition(player.id, zone, to, nextPosition));
                       closePopover();
+
                     }}
-                    size='small'
+                    size="small"
                     sx={{ 
-                      fontSize: '0.75rem', // Standardized
-                      borderRadius: 2,
+                      fontSize: isMobile ? '0.7rem' : '0.65rem',
+                      minHeight: isMobile ? '36px' : 'auto',
                     }}
                   >
-                    {Object.keys(state.queue.playersByQueue).map((queueId, index) => (
-                      <MenuItem 
-                        key={queueId} 
-                        value={queueId}
-                        sx={{ fontSize: '0.75rem' }} // Standardized
-                      >
-                        Queue {index + 1}
-                      </MenuItem>
-                    ))}
+                    {Object.keys(state.queue.playersByQueue).map((queueId, index) => {
+                      // 🔧 NEW: Check queue occupancy and disable if full
+                      const queuePlayers = state.queue.playersByQueue[queueId] || [];
+                      const isQueueFull = queuePlayers.length >= 4;
+                      const occupancy = queuePlayers.length;
+
+                      return (
+                        <MenuItem 
+                          key={queueId} 
+                          value={queueId}
+                          disabled={isQueueFull}  // 🔧 NEW: Disable when full
+                          sx={{ 
+                            fontSize: isMobile ? '0.7rem' : '0.65rem',
+                            minHeight: isMobile ? '36px' : 'auto',
+                            // 🎨 NEW: Enhanced visual feedback
+                            opacity: isQueueFull ? 0.5 : 1,
+                            backgroundColor: isQueueFull ? 'rgba(255, 152, 0, 0.05)' : 'transparent',
+                            color: isQueueFull ? 'text.disabled' : 'text.primary',
+                            '&:hover': {
+                              backgroundColor: isQueueFull 
+                                ? 'rgba(255, 152, 0, 0.08)' 
+                                : 'rgba(0, 0, 0, 0.04)',
+                            },
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                          }}
+                        >
+                          <span>Queue {index + 1}</span>
+                          <span style={{ 
+                            fontSize: '0.6rem', 
+                            color: isQueueFull ? '#f57c00' : '#666',
+                            fontWeight: 'bold'
+                          }}>
+                            ({occupancy}/4)
+                          </span>
+                        </MenuItem>
+                      );
+                    })}
                   </Select>
                 </FormControl>
               </Box>
