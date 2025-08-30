@@ -27,7 +27,8 @@ import SportsEsportsIcon from '@mui/icons-material/SportsEsports';
 import BarChartIcon from '@mui/icons-material/BarChart';
 import SportsIcon from '@mui/icons-material/Sports';
 import QueueIcon from '@mui/icons-material/Queue';
-import { Player, PlayerStatus } from '../types/Player';
+import { Badge } from '@mui/material';
+import { Player, getSkillLevelColor } from '../types/Player';
 import { AppContext } from '../BadmintonQueueUI';
 import { Action } from '../app/Action';
 import KeyboardReturnIcon from '@mui/icons-material/KeyboardReturn';
@@ -706,283 +707,309 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
 
   return (
     <div className="flipped">
-      <Card
-        ref={cardRef}
-        sx={enhancedCardStyles}
-        data-player-id={player.id}
-        data-zone={zone}
-        // Add context menu handler to the Card component
-        // onContextMenu={contextMenuBlocked ? handleContextMenu : undefined}
+
+
+      <Badge
+        badgeContent={player.skillLevel}
+        anchorOrigin={{
+          vertical: 'bottom',
+          horizontal: 'right',
+        }}
+        sx={{
+          width: '100%', // Ensure badge wrapper takes full width
+          '& .MuiBadge-badge': {
+            backgroundColor: getSkillLevelColor(player.skillLevel),
+            color: 'white',
+            fontWeight: 'bold',
+            fontSize: isInTeamZone ? '0.5rem' : '0.6rem',
+            minWidth: isInTeamZone ? '14px' : '16px',
+            height: isInTeamZone ? '14px' : '16px',
+            border: '1.5px solid white',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.4)',
+            zIndex: 1,
+            transform: isMobile ? 'scale(0.9)' : 'scale(1)',
+          }
+        }}
       >
-        <Box
-          sx={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            width: '100%',
-            gap: isInTeamZone ? 0.25 : 0.5,
-            pointerEvents: isDragging ? 'none' : 'auto',
-          }}
-        >
-          {/* LEFT SECTION: Name and Stats in Two Rows */}
-          <Box sx={{ 
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'flex-start',
-            overflow: 'hidden',
-            minWidth: 0,
-            flex: 1,
-            gap: 0,
-          }}>
-            {/* TOP ROW: Player Name with Edit Icon */}
-            <Box sx={{ 
-              width: '100%',
-              overflow: 'hidden',
-              display: 'flex',
-              alignItems: 'center',
-            }}>
-              {/* Pencil Edit Icon */}
-              <IconButton
-                size="small"
-                onClick={handlePencilClick}
-                sx={{
-                  minWidth: 'auto',
-                  width: '16px',  // Increased from 12px
-                  height: '16px', // Increased from 12px
-                  '& .MuiSvgIcon-root': {
-                    fontSize: '0.6rem', // Increased from 0.4rem
-                    width: '12px',       // Increased from 8px
-                    height: '12px',      // Increased from 8px
-                  },
-                  color: '#5C4033',
-                  '&:hover': {
-                    color: '#3E2723',
-                    backgroundColor: 'rgba(92, 64, 51, 0.1)',
-                  },
-                }}
-                title="Edit player name"
-              >
-                <EditIcon />
-              </IconButton>
-
-              <Typography
-                component="div"
-                sx={{
-                  fontWeight: 'bold',
-                  fontSize: isInTeamZone 
-                    ? (isMobile ? '0.62rem' : '0.58rem')
-                    : (isMobile ? '0.72rem' : '0.68rem'),
-                  lineHeight: 1.1,
-                  textShadow: isMobile ? '1px 1px 2px rgba(0,0,0,0.1)' : 'none',
-                  maxWidth: isInTeamZone 
-                    ? (isMobile ? '65px' : '60px')
-                    : (isMobile ? '100px' : '95px'),
-                  textOverflow: 'ellipsis',
-                  overflow: 'hidden',
-                  whiteSpace: 'nowrap',
-                  flex: 1,
-                }}
-                title={player.name}
-              >
-                {player.name}
-              </Typography>
-            </Box>
-
-            {/* BOTTOM ROW: Games and Timer */}
-            <Box sx={{
-              display: 'flex',
-              alignItems: 'center',
-              backgroundColor: 'rgba(255, 255, 255, 0.2)', 
-              borderRadius: '6px', // Reduced from 8px
-              padding: '0px 3px',  // Reduced padding
-              border: '1px solid rgba(255, 255, 255, 0.3)',
-              gap: 0.5,  // Reduced from 0.75
-              minHeight: '16px', // Add minimum height to prevent cutoff
-              width: 'fit-content', // Ensure container fits content
-              marginTop: '-2.5px'
-            }}>
-              {/* Games played indicator */}
-              <Typography 
-                variant="body2" 
-                onClick={handleGamesClick}
+        <Card
+            ref={cardRef}
+            sx={enhancedCardStyles}
+            data-player-id={player.id}
+            data-zone={zone}
+          >
+            
+              <Box
                 sx={{
                   display: 'flex',
+                  justifyContent: 'space-between',
                   alignItems: 'center',
-                  cursor: 'pointer',
-                  fontSize: isInTeamZone 
-                    ? (isMobile ? '0.65rem' : '0.6rem')   
-                    : (isMobile ? '0.75rem' : '0.7rem'),  
-                  gap: 0.3,
-                  fontWeight: 600, 
-                  color: cardColors.textColor,
-                  textShadow: '1px 1px 1px rgba(0,0,0,0.3)', 
-                  position: 'relative',
-                  transition: 'all 0.2s ease',
-                  '&::after': {
-                    content: '""',
-                    position: 'absolute',
-                    bottom: '-2px',
-                    left: 0,
-                    right: 0,
-                    height: '1px',
-                    backgroundColor: '#5C4033',
-                    transform: 'scaleX(0)',
-                    transition: 'transform 0.2s ease',
-                  },
-                  '&:hover': {
-                    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-                    borderRadius: '4px',
-                    '&::after': {
-                      transform: 'scaleX(1)',
-                    },
-                  },
-                  '&:active': {
-                    transform: 'scale(0.98)',
-                  },
+                  width: '100%',
+                  gap: isInTeamZone ? 0.25 : 0.5,
+                  pointerEvents: isDragging ? 'none' : 'auto',
                 }}
-                title="Click to view match history"
               >
-                {player.gamesPlayed}
-                <Box 
-                  component="span" 
-                  sx={{ 
-                    fontSize: '1em', 
-                    filter: 'brightness(1.2)', 
+                {/* LEFT SECTION: Name and Stats in Two Rows */}
+                <Box sx={{ 
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'flex-start',
+                  overflow: 'hidden',
+                  minWidth: 0,
+                  flex: 1,
+                  gap: 0,
+                }}>
+                  {/* TOP ROW: Player Name with Edit Icon */}
+                  <Box sx={{ 
+                    width: '100%',
+                    overflow: 'hidden',
+                    display: 'flex',
+                    alignItems: 'center',
+                  }}>
+                    {/* Pencil Edit Icon */}
+                    <IconButton
+                      size="small"
+                      onClick={handlePencilClick}
+                      sx={{
+                        minWidth: 'auto',
+                        width: '16px',  // Increased from 12px
+                        height: '16px', // Increased from 12px
+                        '& .MuiSvgIcon-root': {
+                          fontSize: '0.6rem', // Increased from 0.4rem
+                          width: '12px',       // Increased from 8px
+                          height: '12px',      // Increased from 8px
+                        },
+                        color: '#5C4033',
+                        '&:hover': {
+                          color: '#3E2723',
+                          backgroundColor: 'rgba(92, 64, 51, 0.1)',
+                        },
+                      }}
+                      title="Edit player name"
+                    >
+                      <EditIcon />
+                    </IconButton>
+
+                    <Typography
+                      component="div"
+                      sx={{
+                        fontWeight: 'bold',
+                        fontSize: isInTeamZone 
+                          ? (isMobile ? '0.62rem' : '0.58rem')
+                          : (isMobile ? '0.72rem' : '0.68rem'),
+                        lineHeight: 1.1,
+                        textShadow: isMobile ? '1px 1px 2px rgba(0,0,0,0.1)' : 'none',
+                        maxWidth: isInTeamZone 
+                          ? (isMobile ? '65px' : '60px')
+                          : (isMobile ? '100px' : '95px'),
+                        textOverflow: 'ellipsis',
+                        overflow: 'hidden',
+                        whiteSpace: 'nowrap',
+                        flex: 1,
+                      }}
+                      title={player.name}
+                    >
+                      {player.name}
+                    </Typography>
+                  </Box>
+
+                  {/* BOTTOM ROW: Games and Timer */}
+                  <Box sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    backgroundColor: 'rgba(255, 255, 255, 0.2)', 
+                    borderRadius: '6px', // Reduced from 8px
+                    padding: '0px 3px',  // Reduced padding
+                    border: '1px solid rgba(255, 255, 255, 0.3)',
+                    gap: 0.5,  // Reduced from 0.75
+                    minHeight: '16px', // Add minimum height to prevent cutoff
+                    width: 'fit-content', // Ensure container fits content
+                    marginTop: '-2.5px'
+                  }}>
+                    {/* Games played indicator */}
+                    <Typography 
+                      variant="body2" 
+                      onClick={handleGamesClick}
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        cursor: 'pointer',
+                        fontSize: isInTeamZone 
+                          ? (isMobile ? '0.65rem' : '0.6rem')   
+                          : (isMobile ? '0.75rem' : '0.7rem'),  
+                        gap: 0.3,
+                        fontWeight: 600, 
+                        color: cardColors.textColor,
+                        textShadow: '1px 1px 1px rgba(0,0,0,0.3)', 
+                        position: 'relative',
+                        transition: 'all 0.2s ease',
+                        '&::after': {
+                          content: '""',
+                          position: 'absolute',
+                          bottom: '-2px',
+                          left: 0,
+                          right: 0,
+                          height: '1px',
+                          backgroundColor: '#5C4033',
+                          transform: 'scaleX(0)',
+                          transition: 'transform 0.2s ease',
+                        },
+                        '&:hover': {
+                          backgroundColor: 'rgba(255, 255, 255, 0.15)',
+                          borderRadius: '4px',
+                          '&::after': {
+                            transform: 'scaleX(1)',
+                          },
+                        },
+                        '&:active': {
+                          transform: 'scale(0.98)',
+                        },
+                      }}
+                      title="Click to view match history"
+                    >
+                      {player.gamesPlayed}
+                      <Box 
+                        component="span" 
+                        sx={{ 
+                          fontSize: '1em', 
+                          filter: 'brightness(1.2)', 
+                        }}
+                      >
+                        🎮
+                      </Box>
+                    </Typography>
+
+                    {/* Timer */}
+                    <Typography 
+                      variant="body2" 
+                      sx={{
+                        fontWeight: elapsedSeconds > 900 ? 700 : 600, 
+                        color: elapsedSeconds > 900 ? '#8B0000' : cardColors.textColor,
+                        fontSize: isInTeamZone 
+                          ? (isMobile ? '0.65rem' : '0.6rem')   
+                          : (isMobile ? '0.75rem' : '0.7rem'),  
+                        minWidth: isInTeamZone ? '32px' : '36px', 
+                        textAlign: 'left',
+                        textShadow: '1px 1px 1px rgba(0,0,0,0.3)', 
+                      }}
+                    >
+                      {formattedTime}
+                    </Typography>
+                  </Box>
+                </Box>
+
+                {/* RIGHT SECTION: Action buttons */}
+                <Box
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: isInTeamZone 
+                      ? (isMobile ? 0.3 : 0.25)
+                      : (isMobile ? 0.5 : 0.4),
+                    flexShrink: 0,
                   }}
                 >
-                  🎮
+                  {/* Quick add button */}
+                  {!isInTeamZone && showQuickAddIcon && (
+                    <IconButton
+                      size="small"
+                      onClick={handleQuickAdd}
+                      disabled={isQuickAddDisabled}
+                      title={
+                        isQuickAddDisabled
+                          ? isOnCooldown 
+                            ? `On cooldown (${Math.ceil((900 - Math.floor((Date.now() - (player.courtEnteredTime || player.timeEntered)) / 1000)) / 60)} mins remaining)`
+                            : "No available court or queue"
+                          : "Quick Add"
+                      }
+                      sx={{
+                        padding: isMobile ? '2px' : '1px',
+                        borderRadius: '50%',
+                        border: `1px solid ${isQuickAddDisabled ? '#ccc' : '#2E7D32'}`,
+                        backgroundColor: isQuickAddDisabled ? '#f2f2f2' : '#E8F5E9',
+                        color: isQuickAddDisabled ? '#aaa' : '#2E7D32',
+                        minWidth: 'auto',
+                        minHeight: isMobile ? '28px' : 'auto',
+                        '&:hover': {
+                          backgroundColor: isQuickAddDisabled ? '#f2f2f2' : '#C8E6C9',
+                        },
+                      }}
+                    >
+                      <BadmintonIcon
+                        size={isMobile ? 12 : 10}
+                        playerSeed={player.name}
+                        isDisabled={isQuickAddDisabled}
+                      />
+                    </IconButton>
+                  )}
+
+                  {/* Enhanced Return button - now works from any zone back to player list */}
+                  {(playerStatus.isOnCourt || playerStatus.isInQueue || playerStatus.isCourtAndQueue) && (
+                    <IconButton
+                      size="small"
+                      onClick={handleReturnToRest}
+                      title={`Return ${player.name} to player list (clears all assignments)`}
+                      sx={{
+                        padding: isMobile ? '2px' : '1px',
+                        color: '#6D4C41',
+                        minHeight: isMobile ? '28px' : 'auto',
+                        // Enhanced styling to make it more prominent
+                        backgroundColor: 'rgba(109, 76, 65, 0.1)',
+                        border: '1px solid rgba(109, 76, 65, 0.3)',
+                        borderRadius: '50%',
+                        '&:hover': {
+                          color: '#3E2723',
+                          backgroundColor: 'rgba(109, 76, 65, 0.2)',
+                          transform: 'scale(1.1)',
+                        },
+                        // Special styling based on player status
+                        ...(playerStatus.isCourtAndQueue && {
+                          backgroundColor: 'rgba(0, 176, 189, 0.2)', // Teal background for advanced queue
+                          borderColor: 'rgba(0, 176, 189, 0.5)',
+                          color: '#6D4C41',
+                          '&:hover': {
+                            backgroundColor: 'rgba(0, 176, 189, 0.3)',
+                            color: '#6D4C41', // Darker teal on hover for better visibility
+                          },
+                          // FIXED: Ensure the icon itself is visible
+                          '& .MuiSvgIcon-root': {
+                            color: '#6D4C41',
+                            fontSize: isMobile 
+                              ? (isInTeamZone ? '0.8rem' : '0.9rem')
+                              : (isInTeamZone ? '0.7rem' : '0.8rem'),
+                          },
+                        }),
+                      }}
+                    >
+                      <KeyboardReturnIcon sx={{ 
+                        fontSize: isMobile 
+                          ? (isInTeamZone ? '0.7rem' : '0.8rem')
+                          : (isInTeamZone ? '0.6rem' : '0.75rem')
+                      }} />
+                    </IconButton>
+                  )}
+
+                  {/* Menu button */}
+                  <IconButton 
+                    size="small" 
+                    onClick={openPopover} 
+                    sx={{ 
+                      padding: isMobile ? '2px' : '1px',
+                      minHeight: isMobile ? '28px' : 'auto',
+                      '& .MuiSvgIcon-root': {
+                        fontSize: isMobile 
+                          ? (isInTeamZone ? '0.7rem' : '0.8rem')
+                          : (isInTeamZone ? '0.6rem' : '0.75rem'),
+                      },
+                    }}
+                  >
+                    <MoreVertIcon />
+                  </IconButton>
                 </Box>
-              </Typography>
+              </Box>
 
-              {/* Timer */}
-              <Typography 
-                variant="body2" 
-                sx={{
-                  fontWeight: elapsedSeconds > 900 ? 700 : 600, 
-                  color: elapsedSeconds > 900 ? '#8B0000' : cardColors.textColor,
-                  fontSize: isInTeamZone 
-                    ? (isMobile ? '0.65rem' : '0.6rem')   
-                    : (isMobile ? '0.75rem' : '0.7rem'),  
-                  minWidth: isInTeamZone ? '32px' : '36px', 
-                  textAlign: 'left',
-                  textShadow: '1px 1px 1px rgba(0,0,0,0.3)', 
-                }}
-              >
-                {formattedTime}
-              </Typography>
-            </Box>
-          </Box>
+        </Card>
+      </Badge>
 
-          {/* RIGHT SECTION: Action buttons */}
-          <Box
-            sx={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: isInTeamZone 
-                ? (isMobile ? 0.3 : 0.25)
-                : (isMobile ? 0.5 : 0.4),
-              flexShrink: 0,
-            }}
-          >
-            {/* Quick add button */}
-            {!isInTeamZone && showQuickAddIcon && (
-              <IconButton
-                size="small"
-                onClick={handleQuickAdd}
-                disabled={isQuickAddDisabled}
-                title={
-                  isQuickAddDisabled
-                    ? isOnCooldown 
-                      ? `On cooldown (${Math.ceil((900 - Math.floor((Date.now() - (player.courtEnteredTime || player.timeEntered)) / 1000)) / 60)} mins remaining)`
-                      : "No available court or queue"
-                    : "Quick Add"
-                }
-                sx={{
-                  padding: isMobile ? '2px' : '1px',
-                  borderRadius: '50%',
-                  border: `1px solid ${isQuickAddDisabled ? '#ccc' : '#2E7D32'}`,
-                  backgroundColor: isQuickAddDisabled ? '#f2f2f2' : '#E8F5E9',
-                  color: isQuickAddDisabled ? '#aaa' : '#2E7D32',
-                  minWidth: 'auto',
-                  minHeight: isMobile ? '28px' : 'auto',
-                  '&:hover': {
-                    backgroundColor: isQuickAddDisabled ? '#f2f2f2' : '#C8E6C9',
-                  },
-                }}
-              >
-                <BadmintonIcon
-                  size={isMobile ? 12 : 10}
-                  playerSeed={player.name}
-                  isDisabled={isQuickAddDisabled}
-                />
-              </IconButton>
-            )}
-
-            {/* Enhanced Return button - now works from any zone back to player list */}
-            {(playerStatus.isOnCourt || playerStatus.isInQueue || playerStatus.isCourtAndQueue) && (
-              <IconButton
-                size="small"
-                onClick={handleReturnToRest}
-                title={`Return ${player.name} to player list (clears all assignments)`}
-                sx={{
-                  padding: isMobile ? '2px' : '1px',
-                  color: '#6D4C41',
-                  minHeight: isMobile ? '28px' : 'auto',
-                  // Enhanced styling to make it more prominent
-                  backgroundColor: 'rgba(109, 76, 65, 0.1)',
-                  border: '1px solid rgba(109, 76, 65, 0.3)',
-                  borderRadius: '50%',
-                  '&:hover': {
-                    color: '#3E2723',
-                    backgroundColor: 'rgba(109, 76, 65, 0.2)',
-                    transform: 'scale(1.1)',
-                  },
-                  // Special styling based on player status
-                  ...(playerStatus.isCourtAndQueue && {
-                    backgroundColor: 'rgba(0, 176, 189, 0.2)', // Teal background for advanced queue
-                    borderColor: 'rgba(0, 176, 189, 0.5)',
-                    color: '#6D4C41',
-                    '&:hover': {
-                      backgroundColor: 'rgba(0, 176, 189, 0.3)',
-                      color: '#6D4C41', // Darker teal on hover for better visibility
-                    },
-                    // FIXED: Ensure the icon itself is visible
-                    '& .MuiSvgIcon-root': {
-                      color: '#6D4C41',
-                      fontSize: isMobile 
-                        ? (isInTeamZone ? '0.8rem' : '0.9rem')
-                        : (isInTeamZone ? '0.7rem' : '0.8rem'),
-                    },
-                  }),
-                }}
-              >
-                <KeyboardReturnIcon sx={{ 
-                  fontSize: isMobile 
-                    ? (isInTeamZone ? '0.7rem' : '0.8rem')
-                    : (isInTeamZone ? '0.6rem' : '0.75rem')
-                }} />
-              </IconButton>
-            )}
-
-            {/* Menu button */}
-            <IconButton 
-              size="small" 
-              onClick={openPopover} 
-              sx={{ 
-                padding: isMobile ? '2px' : '1px',
-                minHeight: isMobile ? '28px' : 'auto',
-                '& .MuiSvgIcon-root': {
-                  fontSize: isMobile 
-                    ? (isInTeamZone ? '0.7rem' : '0.8rem')
-                    : (isInTeamZone ? '0.6rem' : '0.75rem'),
-                },
-              }}
-            >
-              <MoreVertIcon />
-            </IconButton>
-          </Box>
-        </Box>
-      </Card>
 
       {/* Match History Popover */}
       <Popover

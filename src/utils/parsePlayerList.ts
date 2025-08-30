@@ -1,3 +1,5 @@
+// parsePlayerList.ts - Fixed to include skillLevel property
+
 import { Player } from "../types/Player";
 import { v4 as uuidv4 } from "uuid";
 
@@ -27,9 +29,11 @@ export function parsePlayerList(text: string): Player[] {
           status: [], // ✅ Condition 1: Unqueued
           timeEntered: Date.now(),
           waitingSince: undefined,
-          // ✨ NEW: Initialize order fields as null (unassigned)
+          // ✨ Initialize order fields as null (unassigned)
           courtOrder: null,
           queueOrder: null,
+          // ✨ NEW: Add default skill level for new players
+          skillLevel: "C", // Default to intermediate level
         });
       }
     }

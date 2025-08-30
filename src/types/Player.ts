@@ -1,9 +1,7 @@
 export type PlayerStatus = `queue-${number}` | `court-${number}`;
 
-// Note: Removed "rest", "queue", and "court" general types
-// Only queue-* and court-* variants are retained to enforce specificity
-
-// Enhanced Player.ts - Updated match history structure
+// Skill levels from strongest to weakest
+export type SkillLevel = "S" | "A" | "B" | "C" | "D" | "E" | "F";
 
 // 🆕 Payment information for each player
 export interface PaymentInfo {
@@ -37,7 +35,66 @@ export interface Player {
   courtOrder: number | null;
   queueOrder: number | null;
   paymentInfo?: PaymentInfo;
+  skillLevel: SkillLevel;
 }
+
+// Utility functions for skill levels
+export const getSkillLevelColor = (level: SkillLevel): string => {
+  switch (level) {
+    case "S":
+      return "#CC3E17"; // Darker red-orange for strongest
+    case "A":
+      return "#C7640A"; // Darker orange
+    case "B":
+      return "#B8860B"; // Dark goldenrod
+    case "C":
+      return "#228B22"; // Forest green
+    case "D":
+      return "#1565C0"; // Darker blue
+    case "E":
+      return "#6A1B99"; // Darker purple
+    case "F":
+      return "#5D5D5D"; // Darker gray for beginners
+    default:
+      return "#5D5D5D";
+  }
+};
+
+export const getSkillLevelDescription = (level: SkillLevel): string => {
+  switch (level) {
+    case "S":
+      return "Elite - Strongest players";
+    case "A":
+      return "Advanced - Very strong players";
+    case "B":
+      return "Intermediate+ - Good players";
+    case "C":
+      return "Intermediate - Solid players";
+    case "D":
+      return "Beginner+ - Developing players";
+    case "E":
+      return "Beginner - Learning players";
+    case "F":
+      return "New - Starting players";
+    default:
+      return "Unknown level";
+  }
+};
+
+// Sort skill levels by strength (S is strongest)
+export const skillLevelOrder: SkillLevel[] = [
+  "S",
+  "A",
+  "B",
+  "C",
+  "D",
+  "E",
+  "F",
+];
+
+export const compareSkillLevels = (a: SkillLevel, b: SkillLevel): number => {
+  return skillLevelOrder.indexOf(a) - skillLevelOrder.indexOf(b);
+};
 
 // Enhanced match history utility functions
 export const formatMatchDuration = (seconds: number): string => {

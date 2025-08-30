@@ -28,6 +28,7 @@ const ActionType = {
   TOGGLE_PLAYER_GUEST: "togglePlayerGuest",
   MARK_ALL_PLAYERS_PAID: "markAllPlayersPaid",
   CLEAR_ALL_PAYMENTS: "clearAllPayments",
+  UPDATE_PLAYER_SKILL_LEVEL: "updatePlayerSkillLevel",
 } as const;
 
 // 🧠 Action creators
@@ -225,6 +226,13 @@ const Action = {
   clearAllPayments() {
     return {
       type: ActionType.CLEAR_ALL_PAYMENTS,
+    };
+  },
+
+  updatePlayerSkillLevel(playerId: string, skillLevel: string) {
+    return {
+      type: ActionType.UPDATE_PLAYER_SKILL_LEVEL,
+      payload: { playerId, skillLevel },
     };
   },
 };

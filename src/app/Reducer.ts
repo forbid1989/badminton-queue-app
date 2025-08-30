@@ -1,5 +1,5 @@
 import { ActionType } from "./Action";
-import { Player, PlayerStatus } from "../types/Player";
+import { Player, PlayerStatus, SkillLevel } from "../types/Player";
 import { clearLocalStorage } from "../utils/localStorage";
 import { generateMatchHistoryEntries } from "../utils/matchHistoryUtils";
 
@@ -59,7 +59,11 @@ type Action =
   | { type: "togglePlayerPayment"; payload: { playerId: string } }
   | { type: "togglePlayerGuest"; payload: { playerId: string } }
   | { type: "markAllPlayersPaid" }
-  | { type: "clearAllPayments" };
+  | { type: "clearAllPayments" }
+  | {
+      type: "updatePlayerSkillLevel";
+      payload: { playerId: string; skillLevel: string };
+    };
 
 // Helper function to check if we should auto-create a new queue
 function shouldAutoCreateQueue(state: any): boolean {
@@ -1848,6 +1852,36 @@ export default function reducer(state: any, action: Action) {
       );
 
       console.log("✅ Game ended successfully with enhanced match history");
+
+      return {
+        ...state,
+        players: updatedPlayers,
+        courts: {
+          ...state.courts,
+          playersByCourt,
+        },
+        queue: {
+          ...state.queue,
+          playersByQueue,
+        },
+      };
+    }
+
+    case ActionType.UPDATE_PLAYER_SKILL_LEVEL: {
+      const { playerId, skillLevel } = action.payload;
+
+      const updatedPlayers = state.players.map((player: Player) =>
+        player.id === playerId
+          ? { ...player, skillLevel: skillLevel as SkillLevel }
+          : player
+      );
+
+      // Rebuild zone mappings
+      const { playersByCourt, playersByQueue } = rebuildZoneMappings(
+        updatedPlayers,
+        state.courts.count,
+        Object.keys(state.queue.playersByQueue)
+      );
 
       return {
         ...state,

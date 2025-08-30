@@ -10,9 +10,11 @@ import GroupAddIcon from '@mui/icons-material/GroupAdd';
 import AddRoadIcon from '@mui/icons-material/AddRoad';
 import PaymentIcon from '@mui/icons-material/Payment';
 import SettingsIcon from '@mui/icons-material/Settings';
+import ListIcon from '@mui/icons-material/List'; // New icon for player list
 import HomeIcon from '@mui/icons-material/Home';
 import { AppContext } from '../BadmintonQueueUI';
 import PlayerParserForm from './input/PlayerParserForm';
+import PlayerListModal from './input/PlayerListModal';
 import CourtControlPanel from './CourtControlPanel';
 import SettingsModal from './input/SettingsModal';
 import PaymentModal from './input/PaymentModal';
@@ -24,6 +26,7 @@ const MobileFooter: React.FC = () => {
   
   // State for modals and popovers
   const [openParser, setOpenParser] = useState(false);
+  const [openPlayerList, setOpenPlayerList] = useState(false); // New state
   const [openSettings, setOpenSettings] = useState(false);
   const [openPayment, setOpenPayment] = useState(false);
   const [courtAnchorEl, setCourtAnchorEl] = useState<null | HTMLElement>(null);
@@ -40,6 +43,9 @@ const MobileFooter: React.FC = () => {
   // Handlers
   const handleOpenParser = () => setOpenParser(true);
   const handleCloseParser = () => setOpenParser(false);
+
+  const handleOpenPlayerList = () => setOpenPlayerList(true);
+  const handleClosePlayerList = () => setOpenPlayerList(false);
   
   const handleOpenSettings = () => setOpenSettings(true);
   const handleCloseSettings = () => setOpenSettings(false);
@@ -113,6 +119,24 @@ const MobileFooter: React.FC = () => {
             </Badge>
           </IconButton>
         </Tooltip>
+
+        {/* Player List Button - NEW */}
+        <Tooltip title="Player List & Skills" placement="top">
+          <IconButton
+            onClick={handleOpenPlayerList}
+            sx={{
+              color: 'info.main',
+              '&:hover': {
+                backgroundColor: 'info.light',
+                color: 'white',
+              },
+            }}
+          >
+            <Badge badgeContent={totalPlayers} color="info" max={99}>
+              <ListIcon />
+            </Badge>
+          </IconButton>
+        </Tooltip>
         
         {/* Court Management Button */}
         <Tooltip title="Manage Courts" placement="top">
@@ -176,12 +200,13 @@ const MobileFooter: React.FC = () => {
       
       {/* Modals and Popovers */}
       <PlayerParserForm open={openParser} onClose={handleCloseParser} />
+      <PlayerListModal open={openPlayerList} onClose={handleClosePlayerList} />
       <SettingsModal open={openSettings} onClose={handleCloseSettings} />
       <PaymentModal open={openPayment} onClose={handleClosePayment} />
       
       {/* Court Control Popover */}
       <Popover
-        open={isCourtPopoverOpen}
+        open={Boolean(courtAnchorEl)}
         anchorEl={courtAnchorEl}
         onClose={handleCloseCourtControl}
         anchorOrigin={{
@@ -195,10 +220,9 @@ const MobileFooter: React.FC = () => {
         slotProps={{
           paper: {
             sx: {
-              padding: 2,
-              minWidth: '280px',
+              p: 2,
+              borderRadius: 2,
               maxWidth: '90vw',
-              marginBottom: 1,
             },
           },
         }}
