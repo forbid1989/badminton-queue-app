@@ -95,8 +95,8 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
   const nameUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Context menu prevention refs and state
-  const contextMenuTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const [contextMenuBlocked, setContextMenuBlocked] = useState(false);
+  // const contextMenuTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  // const [contextMenuBlocked, setContextMenuBlocked] = useState(false);
 
   // Memoized player status calculations
   const playerStatus = useMemo(() => {
@@ -234,27 +234,27 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
   }, [playerStatus, zone]);
 
   // Context menu prevention handlers
-  const handleContextMenu = useCallback((e: React.MouseEvent | MouseEvent) => {
-    console.log('Context menu blocked during drag operation');
-    e.preventDefault();
-    e.stopPropagation();
-    return false;
-  }, []);
+  // const handleContextMenu = useCallback((e: React.MouseEvent | MouseEvent) => {
+  //   console.log('Context menu blocked during drag operation');
+  //   e.preventDefault();
+  //   e.stopPropagation();
+  //   return false;
+  // }, []);
 
-  const blockContextMenuTemporarily = useCallback(() => {
-    setContextMenuBlocked(true);
+  // const blockContextMenuTemporarily = useCallback(() => {
+  //   setContextMenuBlocked(true);
     
-    // Clear any existing timeout
-    if (contextMenuTimeoutRef.current) {
-      clearTimeout(contextMenuTimeoutRef.current);
-    }
+  //   // Clear any existing timeout
+  //   if (contextMenuTimeoutRef.current) {
+  //     clearTimeout(contextMenuTimeoutRef.current);
+  //   }
     
-    // Re-enable context menu after 2 seconds
-    contextMenuTimeoutRef.current = setTimeout(() => {
-      setContextMenuBlocked(false);
-      console.log('Context menu re-enabled');
-    }, 2000);
-  }, []);
+  //   // Re-enable context menu after 2 seconds
+  //   contextMenuTimeoutRef.current = setTimeout(() => {
+  //     setContextMenuBlocked(false);
+  //     console.log('Context menu re-enabled');
+  //   }, 2000);
+  // }, []);
 
   // Optimized event handlers with useCallback
   const handleQuickAdd = useCallback(() => {
@@ -388,13 +388,13 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
     }
 
     // Add context menu event listeners
-    const handleElementContextMenu = (e: MouseEvent) => {
-      if (contextMenuBlocked) {
-        handleContextMenu(e);
-      }
-    };
+    // const handleElementContextMenu = (e: MouseEvent) => {
+    //   if (contextMenuBlocked) {
+    //     handleContextMenu(e);
+    //   }
+    // };
 
-    element.addEventListener('contextmenu', handleElementContextMenu, { capture: true });
+    // element.addEventListener('contextmenu', handleElementContextMenu, { capture: true });
 
     const cleanup = combine(
       // Make the card draggable
@@ -430,7 +430,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
         onDragStart: () => {
           setIsDragging(true);
           // Block context menu when drag starts
-          blockContextMenuTemporarily();
+          // blockContextMenuTemporarily();
           console.log('PDD Drag started:', player.name, 'from', zone, '- Context menu blocked');
         },
         onDrop: () => {
@@ -538,113 +538,93 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
     // Cleanup function
     return () => {
       cleanup();
-      element.removeEventListener('contextmenu', handleElementContextMenu, { capture: true });
+      // element.removeEventListener('contextmenu', handleElementContextMenu, { capture: true });
     };
-  }, [player, zone, dispatch, isOnCooldown, cardColors, contextMenuBlocked, handleContextMenu, blockContextMenuTemporarily]);
+  }, [player, zone, dispatch, isOnCooldown, cardColors]);
 
   // Enhanced touch support with context menu prevention
-  useEffect(() => {
-    if (!isTouchDevice) return;
-    
-    const element = cardRef.current;
-    if (!element) return;
-
-    let touchStartTime = 0;
-    let touchMoved = false;
-    let longPressTimer: NodeJS.Timeout | null = null;
-
-    const handleTouchStart = (e: TouchEvent) => {
-      touchStartTime = Date.now();
-      touchMoved = false;
-      
-      console.log('Touch start detected on player card:', player.name);
-      
-      // Start long press timer for context menu prevention
-      longPressTimer = setTimeout(() => {
-        // This is likely a long press for dragging
-        blockContextMenuTemporarily();
-        console.log('Long press detected - blocking context menu');
-        
-        // Add visual feedback for long press
-        element.style.transform = 'scale(0.95)';
-        element.style.transition = 'transform 0.1s ease';
-        
-        // Haptic feedback if available
-        if ('vibrate' in navigator) {
-          navigator.vibrate(50);
-        }
-      }, 250); // 250ms for long press detection
-    };
-
-    const handleTouchMove = (e: TouchEvent) => {
-      touchMoved = true;
-      
-      // Clear long press timer if user moves
-      if (longPressTimer) {
-        clearTimeout(longPressTimer);
-        longPressTimer = null;
-      }
-      
-      // If context menu is blocked and user is moving, likely dragging
-      if (contextMenuBlocked) {
-        e.preventDefault(); // Prevent scrolling during drag
-      }
-    };
-
-    const handleTouchEnd = (e: TouchEvent) => {
-      const touchDuration = Date.now() - touchStartTime;
-      
-      // Clear long press timer
-      if (longPressTimer) {
-        clearTimeout(longPressTimer);
-        longPressTimer = null;
-      }
-      
-      // Reset visual feedback
-      element.style.transform = '';
-      element.style.transition = '';
-      
-      // If it was a quick tap (< 200ms) and no movement, allow normal interaction
-      if (touchDuration < 200 && !touchMoved) {
-        console.log('Quick tap - allowing normal interaction');
-      }
-    };
-
-    // Add touch event listeners with passive: false to allow preventDefault
-    element.addEventListener('touchstart', handleTouchStart, { passive: true });
-    element.addEventListener('touchmove', handleTouchMove, { passive: false });
-    element.addEventListener('touchend', handleTouchEnd, { passive: true });
-    
-    return () => {
-      element.removeEventListener('touchstart', handleTouchStart);
-      element.removeEventListener('touchmove', handleTouchMove);
-      element.removeEventListener('touchend', handleTouchEnd);
-      
-      if (longPressTimer) {
-        clearTimeout(longPressTimer);
-      }
-    };
-  }, [player, zone, isTouchDevice, contextMenuBlocked, blockContextMenuTemporarily]);
   // useEffect(() => {
   //   if (!isTouchDevice) return;
     
   //   const element = cardRef.current;
   //   if (!element) return;
 
-  //   // Method 2: Check if element adapter handles touch natively
-  //   // The draggable() function in the main effect might already handle touch
-    
-  //   // Log to see if touch events are being handled
-  //   const touchStartHandler = (e: TouchEvent) => {
-  //     console.log('Touch detected on player card:', player.name);
+  //   let touchStartTime = 0;
+  //   let touchMoved = false;
+  //   let longPressTimer: NodeJS.Timeout | null = null;
+
+  //   const handleTouchStart = (e: TouchEvent) => {
+  //     touchStartTime = Date.now();
+  //     touchMoved = false;
+      
+  //     console.log('Touch start detected on player card:', player.name);
+      
+  //     // Start long press timer for context menu prevention
+  //     longPressTimer = setTimeout(() => {
+  //       // This is likely a long press for dragging
+  //       blockContextMenuTemporarily();
+  //       console.log('Long press detected - blocking context menu');
+        
+  //       // Add visual feedback for long press
+  //       element.style.transform = 'scale(0.95)';
+  //       element.style.transition = 'transform 0.1s ease';
+        
+  //       // Haptic feedback if available
+  //       if ('vibrate' in navigator) {
+  //         navigator.vibrate(50);
+  //       }
+  //     }, 250); // 250ms for long press detection
   //   };
-    
-  //   element.addEventListener('touchstart', touchStartHandler, { passive: true });
+
+  //   const handleTouchMove = (e: TouchEvent) => {
+  //     touchMoved = true;
+      
+  //     // Clear long press timer if user moves
+  //     if (longPressTimer) {
+  //       clearTimeout(longPressTimer);
+  //       longPressTimer = null;
+  //     }
+      
+  //     // If context menu is blocked and user is moving, likely dragging
+  //     if (contextMenuBlocked) {
+  //       e.preventDefault(); // Prevent scrolling during drag
+  //     }
+  //   };
+
+  //   const handleTouchEnd = (e: TouchEvent) => {
+  //     const touchDuration = Date.now() - touchStartTime;
+      
+  //     // Clear long press timer
+  //     if (longPressTimer) {
+  //       clearTimeout(longPressTimer);
+  //       longPressTimer = null;
+  //     }
+      
+  //     // Reset visual feedback
+  //     element.style.transform = '';
+  //     element.style.transition = '';
+      
+  //     // If it was a quick tap (< 200ms) and no movement, allow normal interaction
+  //     if (touchDuration < 200 && !touchMoved) {
+  //       console.log('Quick tap - allowing normal interaction');
+  //     }
+  //   };
+
+  //   // Add touch event listeners with passive: false to allow preventDefault
+  //   element.addEventListener('touchstart', handleTouchStart, { passive: true });
+  //   element.addEventListener('touchmove', handleTouchMove, { passive: false });
+  //   element.addEventListener('touchend', handleTouchEnd, { passive: true });
     
   //   return () => {
-  //     element.removeEventListener('touchstart', touchStartHandler);
+  //     element.removeEventListener('touchstart', handleTouchStart);
+  //     element.removeEventListener('touchmove', handleTouchMove);
+  //     element.removeEventListener('touchend', handleTouchEnd);
+      
+  //     if (longPressTimer) {
+  //       clearTimeout(longPressTimer);
+  //     }
   //   };
-  // }, [player, zone, isTouchDevice, cardColors]);
+  // }, [player, zone, isTouchDevice, contextMenuBlocked, blockContextMenuTemporarily]);
 
   // Optimized timer effect
   useEffect(() => {
@@ -702,9 +682,9 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
       if (nameUpdateTimeoutRef.current) {
         clearTimeout(nameUpdateTimeoutRef.current);
       }
-      if (contextMenuTimeoutRef.current) {
-        clearTimeout(contextMenuTimeoutRef.current);
-      }
+      // if (contextMenuTimeoutRef.current) {
+      //   clearTimeout(contextMenuTimeoutRef.current);
+      // }
     };
   }, []);
 
@@ -808,7 +788,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
         data-player-id={player.id}
         data-zone={zone}
         // Add context menu handler to the Card component
-        onContextMenu={contextMenuBlocked ? handleContextMenu : undefined}
+        // onContextMenu={contextMenuBlocked ? handleContextMenu : undefined}
       >
         <Box
           sx={{
