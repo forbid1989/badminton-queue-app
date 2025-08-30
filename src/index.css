@@ -1,6 +1,5 @@
 @import "./responsive-scaling.css";
-@import "./smart-context-prevention.css";
-/* @import "./smart-context-prevention.css"; */
+@import "./mobile.css";
 
 body {
   margin: 0;

@@ -1,0 +1,29 @@
+
+/* player-list-mobile.css - Only focuses on making player list two columns on mobile */
+
+@media only screen and (max-width: 768px) {
+  
+  /* Target ONLY the player list grid with specific className */
+  .player-list-grid {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 8px !important;
+    width: 100% !important;
+  }
+  
+  /* Override MUI Grid items inside ONLY the player list grid */
+  .player-list-grid > * {
+    width: 100% !important;
+    max-width: 100% !important;
+    flex-basis: unset !important;
+    flex-grow: 0 !important;
+    flex-shrink: 0 !important;
+  }
+  
+  /* Ensure player cards in the player list fit properly */
+  .player-list-grid [data-player-id] {
+    width: 100% !important;
+    max-width: none !important;
+  }
+  
+}
