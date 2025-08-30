@@ -112,12 +112,15 @@ const Dashboard: React.FC = React.memo(() => {
   const headerSx = useMemo(() => ({
     display: 'flex',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: { xs: 'flex-start', sm: 'center' },
+    flexDirection: { xs: 'column', sm: 'row' }, // Stack vertically on small screens, row on larger
+    gap: { xs: 1, sm: 0 }, // Add gap when stacked
   }), []);
 
   const buttonGroupSx = useMemo(() => ({
     display: 'flex', 
-    gap: 1
+    gap: 1,
+    flexWrap: 'nowrap',
   }), []);
 
   const popoverPaperSx = useMemo(() => ({

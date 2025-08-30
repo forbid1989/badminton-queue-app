@@ -58,12 +58,8 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
   // Memoize frequently used values
   const courtCount = useMemo(() => state.courts.count, [state.courts.count]);
   const queueCount = useMemo(() => state.queue.count, [state.queue.count]);
-  const isMobile = useMediaQuery('(max-width: 1110px)');
+  const isMobile = useMediaQuery('(max-width: 768px)');
   const playerCooldownsEnabled = useMemo(() => state.settings.playerCooldowns, [state.settings.playerCooldowns]);
-
-  const isTouchDevice = useMemo(() => {
-    return 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-  }, []);
   
   // Determine if this card is in a team zone (smaller layout needed)
   const isInTeamZone = useMemo(() => {
@@ -620,7 +616,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
   const enhancedCardStyles = useMemo(() => {
     const getCardDimensions = () => {
       return {
-        width: isMobile ? '140': '160px',
+        width: isMobile ? '140px': '100%',
         height: isMobile ? '32px' : '30px',
         fontSize: isMobile ? '0.72rem' : '0.68rem',
         nameMaxWidth: isMobile ? '130px' : '120px',
@@ -705,31 +701,38 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
     };
   }, [isInTeamZone, isMobile, cardColors, isDragging, isDropTarget, isSwapping, isOnCooldown, zone]);
 
+  const enhancedBadgeStyle = useMemo(() => {
+
+    const muiBadge = {
+      '& .MuiBadge-badge':{
+      backgroundColor: getSkillLevelColor(player.skillLevel),
+      color: 'white',
+      fontWeight: 'bold',
+      fontSize: isInTeamZone ? '0.5rem' : '0.6rem',
+      minWidth: isInTeamZone ? '14px' : '16px',
+      height: isInTeamZone ? '14px' : '16px',
+      border: '1.5px solid white',
+      boxShadow: '0 1px 3px rgba(0,0,0,0.4)',
+      zIndex: 1,
+      transform: isMobile ? 'scale(0.9)' : 'scale(1)',
+    }}
+    
+    return isMobile ? {
+      ...muiBadge,
+      width: '100%',
+    } : muiBadge
+          
+  }, [isInTeamZone, isMobile, player.skillLevel])
+
   return (
     <div className="flipped">
-
-
       <Badge
         badgeContent={player.skillLevel}
         anchorOrigin={{
           vertical: 'bottom',
           horizontal: 'right',
         }}
-        sx={{
-          width: '100%', // Ensure badge wrapper takes full width
-          '& .MuiBadge-badge': {
-            backgroundColor: getSkillLevelColor(player.skillLevel),
-            color: 'white',
-            fontWeight: 'bold',
-            fontSize: isInTeamZone ? '0.5rem' : '0.6rem',
-            minWidth: isInTeamZone ? '14px' : '16px',
-            height: isInTeamZone ? '14px' : '16px',
-            border: '1.5px solid white',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.4)',
-            zIndex: 1,
-            transform: isMobile ? 'scale(0.9)' : 'scale(1)',
-          }
-        }}
+        sx={enhancedBadgeStyle}
       >
         <Card
             ref={cardRef}
