@@ -348,6 +348,48 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
     }
   }, [handleEditNameSave]);
 
+    // Smart context menu prevention for tablets/stylus
+  useEffect(() => {
+    const element = cardRef.current;
+    if (!element) return;
+
+    let dragStartTime = 0;
+    let isDragOperation = false;
+
+    // Only prevent context menu during actual drag operations
+    const handleContextMenu = (e: MouseEvent) => {
+      // Check if this is happening during a drag
+      const timeSinceDragStart = Date.now() - dragStartTime;
+      
+      // If we're dragging or just started dragging (within 1 second)
+      if (isDragging || isDragOperation || timeSinceDragStart < 1000) {
+        e.preventDefault();
+        e.stopPropagation();
+        return false;
+      }
+    };
+
+    // Track when drag operations start
+    const handlePointerDown = () => {
+      dragStartTime = Date.now();
+      isDragOperation = true;
+      
+      // Reset drag operation flag after a delay
+      setTimeout(() => {
+        isDragOperation = false;
+      }, 1500);
+    };
+
+    // Add event listeners
+    element.addEventListener('contextmenu', handleContextMenu);
+    element.addEventListener('pointerdown', handlePointerDown);
+
+    return () => {
+      element.removeEventListener('contextmenu', handleContextMenu);
+      element.removeEventListener('pointerdown', handlePointerDown);
+    };
+  }, [isDragging]);
+
   // Setup PDD draggable and drop target for swapping
   useEffect(() => {
     const element = cardRef.current;
@@ -393,13 +435,15 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
         },
         onDragStart: () => {
           setIsDragging(true);
-          // Block context menu when drag starts
-          // blockContextMenuTemporarily();
-          console.log('PDD Drag started:', player.name, 'from', zone, '- Context menu blocked');
+          // Add dragging class for CSS targeting
+          element.classList.add('dragging');
+          console.log('🚀 PDD Drag started:', player.name, 'from', zone);
         },
         onDrop: () => {
           setIsDragging(false);
-          console.log('PDD Drag ended');
+          // Remove dragging class
+          element.classList.remove('dragging');
+          console.log('🎯 PDD Drag ended');
         }
       }),
       
