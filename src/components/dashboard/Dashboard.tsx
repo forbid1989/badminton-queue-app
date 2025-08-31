@@ -112,8 +112,8 @@ const Dashboard: React.FC = React.memo(() => {
   const headerSx = useMemo(() => ({
     display: 'flex',
     justifyContent: 'space-between',
-    alignItems: { xs: 'flex-start', sm: 'center' },
-    flexDirection: { xs: 'column', sm: 'row' }, // Stack vertically on small screens, row on larger
+    alignItems: { xs: 'flex-start', sm: 'flex-start', md: 'flex-start', lg: 'center', xl: 'center' },
+    flexDirection: { xs: 'column', sm: 'column', md: 'flex-start', lg: 'row', xl: 'row' }, // Stack vertically on small screens, row on larger
     gap: { xs: 1, sm: 0 }, // Add gap when stacked
   }), []);
 
@@ -147,7 +147,9 @@ const Dashboard: React.FC = React.memo(() => {
   }), []);
 
   const headerContent = useMemo(() => (
-    <Box sx={headerSx}>
+    <Box 
+      sx={headerSx}
+    >
       <Typography variant="subtitle1" sx={{ fontSize: '0.95rem' }}>
         Total Players: {totalPlayers}
       </Typography>
