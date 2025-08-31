@@ -257,13 +257,13 @@ const CourtItem = React.memo<{
 
   return (
     <Grid 
-      size={{ xs: 12, sm: 6, md: 6, lg: 6, xl: 4 }}
+      size={{ xs: 12, sm: 12, md: 6, lg: 6, xl: 4 }}
       sx={{
         '@media (min-width: 600px) and (max-width: 1024px) and (orientation: portrait)': {
-        width: '100% !important',
-        maxWidth: '100% !important',
-        flexBasis: '100% !important',
-      }
+          width: '100% !important',
+          maxWidth: '100% !important',
+          flexBasis: '100% !important',
+        },
       }}
     >
       <DroppableZone 
