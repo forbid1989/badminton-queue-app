@@ -27,8 +27,9 @@ import SportsEsportsIcon from '@mui/icons-material/SportsEsports';
 import BarChartIcon from '@mui/icons-material/BarChart';
 import SportsIcon from '@mui/icons-material/Sports';
 import QueueIcon from '@mui/icons-material/Queue';
-import { Badge } from '@mui/material';
-import { Player, getSkillLevelColor } from '../types/Player';
+import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
+import { Badge, Chip, Tooltip } from '@mui/material';
+import { Player, getSkillLevelColor, SkillLevel, skillLevelOrder, getSkillLevelDescription } from '../types/Player';
 import { AppContext } from '../BadmintonQueueUI';
 import { Action } from '../app/Action';
 import KeyboardReturnIcon from '@mui/icons-material/KeyboardReturn';
@@ -1303,6 +1304,87 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
               }}
             />
           </Box>
+
+          {/* Skill Level Section */}
+          {!isInTeamZone && (
+            <>
+              <Typography variant="caption" sx={{ 
+                color: 'text.secondary', 
+                fontSize: '0.75rem',
+                fontWeight: 600,
+                mb: 1,
+                display: 'block'
+              }}>
+                SKILL LEVEL
+              </Typography>
+
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mb: 2 }}>
+                <FormControl size="small" fullWidth>
+                  <InputLabel sx={{ 
+                    fontSize: isMobile ? '0.7rem' : '0.65rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 0.5
+                  }}>
+                    <EmojiEventsIcon sx={{ fontSize: '0.9rem' }} />
+                    Skill Level
+                  </InputLabel>
+                  <Select
+                    value={player.skillLevel}
+                    onChange={(e) => {
+                      dispatch(Action.updatePlayerSkillLevel(player.id, e.target.value as SkillLevel));
+                      closePopover();
+                    }}
+                    label="Skill Level"
+                    size="small"
+                    sx={{ 
+                      fontSize: isMobile ? '0.7rem' : '0.65rem',
+                      minHeight: isMobile ? '36px' : 'auto',
+                    }}
+                  >
+                    {skillLevelOrder.map(level => (
+                      <MenuItem key={level} value={level}>
+                        <Box sx={{ 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          gap: 1,
+                          width: '100%'
+                        }}>
+                          <Chip
+                            label={level}
+                            size="small"
+                            sx={{
+                              backgroundColor: 'white',
+                              color: getSkillLevelColor(level),
+                              border: `1.5px solid ${getSkillLevelColor(level)}`,
+                              fontWeight: 'bold',
+                              minWidth: '24px',
+                              height: '20px',
+                            }}
+                          />
+                          <Box sx={{ flex: 1 }}>
+                            <Typography sx={{ 
+                              fontSize: isMobile ? '0.7rem' : '0.65rem',
+                              fontWeight: 'medium'
+                            }}>
+                              Level {level}
+                            </Typography>
+                            <Typography sx={{ 
+                              fontSize: '0.6rem',
+                              color: 'text.secondary',
+                              lineHeight: 1.2
+                            }}>
+                              {getSkillLevelDescription(level)}
+                            </Typography>
+                          </Box>
+                        </Box>
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Box>
+            </>
+          )}
 
           {/* View History Button */}
           {!isInTeamZone && (
