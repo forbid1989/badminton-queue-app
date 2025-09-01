@@ -1306,8 +1306,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
           </Box>
 
           {/* Skill Level Section */}
-          {!isInTeamZone && (
-            <>
+          <>
               <Typography variant="caption" sx={{ 
                 color: 'text.secondary', 
                 fontSize: '0.75rem',
@@ -1384,12 +1383,10 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
                 </FormControl>
               </Box>
             </>
-          )}
 
           {/* View History Button */}
-          {!isInTeamZone && (
-            <Box sx={{ mb: 2 }}>
-              <Button
+          <Box sx={{ mb: 2 }}>
+            <Button
                 variant="outlined"
                 size="small"
                 onClick={handleHistoryOpen}
@@ -1409,9 +1406,8 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
                 }}
               >
                 View History
-              </Button>
-            </Box>
-          )}
+            </Button>
+          </Box>
 
           {/* Movement Options */}
           {!isInTeamZone && (
