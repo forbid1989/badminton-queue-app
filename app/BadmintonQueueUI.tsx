@@ -5,7 +5,7 @@ import { ThemeProvider, CssBaseline, Box, AppBar, Toolbar, Typography } from '@m
 import theme from './theme';
 import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/react';
-import reducer from './lib/store/reducer';
+import reducer from './lib/store/Reducer';
 import InitialState from './lib/store/InitialState';
 import { RootState } from './lib/store/rootState';
 import Dashboard from './components/dashboard/Dashboard';
