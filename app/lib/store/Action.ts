@@ -1,4 +1,4 @@
-import { Player } from "../types/Player";
+import { Player } from "../../components/types/Player";
 
 const ActionType = {
   SET_COURT_COUNT: "setCourtCount",

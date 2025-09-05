@@ -1,6 +1,6 @@
 // src/utils/matchHistoryUtils.ts
 
-import { Player, MatchHistoryEntry } from "../types/Player";
+import { Player, MatchHistoryEntry } from "../../components/types/Player";
 
 // Utility to format match duration
 export const formatMatchDuration = (seconds: number): string => {

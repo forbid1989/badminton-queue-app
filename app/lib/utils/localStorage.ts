@@ -1,6 +1,6 @@
 // src/utils/localStorage.ts
-import { RootState } from "../app/rootState";
-import { Player } from "../types/Player";
+import { RootState } from "../store/rootState";
+import { Player } from "../../components/types/Player";
 
 const STORAGE_KEY = "badminton-queue-state";
 const VERSION_KEY = "badminton-queue-version";
@@ -28,6 +28,11 @@ interface PersistedState {
  * Save state to localStorage
  */
 export const saveToLocalStorage = (state: RootState): void => {
+  // Guard against server-side execution
+  if (!isLocalStorageAvailable()) {
+    return;
+  }
+
   try {
     const persistedState: PersistedState = {
       players: state.players,
@@ -59,6 +64,11 @@ export const saveToLocalStorage = (state: RootState): void => {
  * Load state from localStorage
  */
 export const loadFromLocalStorage = (): Partial<RootState> | null => {
+  // Guard against server-side execution
+  if (!isLocalStorageAvailable()) {
+    return null;
+  }
+
   try {
     const savedData = localStorage.getItem(STORAGE_KEY);
     const savedVersion = localStorage.getItem(VERSION_KEY);
@@ -115,6 +125,10 @@ export const loadFromLocalStorage = (): Partial<RootState> | null => {
  * Clear localStorage data
  */
 export const clearLocalStorage = (): void => {
+  if (!isLocalStorageAvailable()) {
+    return;
+  }
+
   try {
     localStorage.removeItem(STORAGE_KEY);
     localStorage.removeItem(VERSION_KEY);
@@ -128,6 +142,10 @@ export const clearLocalStorage = (): void => {
  * Check if localStorage is available
  */
 export const isLocalStorageAvailable = (): boolean => {
+  if (typeof window === "undefined") {
+    return false;
+  }
+
   try {
     const test = "__localStorage_test__";
     localStorage.setItem(test, test);

@@ -31,8 +31,8 @@ import SportsIcon from '@mui/icons-material/Sports';
 import PaidIcon from '@mui/icons-material/Paid';
 import PendingIcon from '@mui/icons-material/Pending';
 import { AppContext } from '../../BadmintonQueueUI';
-import { Action } from '../../app/Action';
-import { Player } from '../../types/Player';
+import { Action } from '../../lib/store/Action';
+import { Player } from '../types/Player';
 
 interface PaymentModalProps {
   open: boolean;

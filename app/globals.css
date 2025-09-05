@@ -1,0 +1,65 @@
+/* Base styles from index.css and App.css */
+@import './responsive-scaling.css';
+@import './mobile.css';
+/* @import './context-menu-prevention.css'; */
+
+/* Base body and html styles */
+html,
+body {
+  margin: 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+    monospace;
+}
+
+/* Animation styles from App.css that you're using */
+.flipped-enter {
+  opacity: 0;
+  transform: scale(0.95);
+}
+.flipped-enter-active {
+  opacity: 1;
+  transform: scale(1);
+  transition: all 300ms ease;
+}
+.flipped-exit {
+  opacity: 1;
+  transform: scale(1);
+}
+.flipped-exit-active {
+  opacity: 0;
+  transform: scale(0.95);
+  transition: all 300ms ease;
+}
+
+@keyframes swapFlash {
+  0% {
+    border-color: #E91E63;
+    border-width: 3px;
+    box-shadow: 0 0 10px rgba(233, 30, 99, 0.6);
+  }
+  50% {
+    border-color: #FF4081;
+    border-width: 4px;
+    box-shadow: 0 0 20px rgba(255, 64, 129, 0.8);
+  }
+  100% {
+    border-color: rgba(0, 0, 0, 0.06);
+    border-width: 1px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  }
+}
+
+/* Remove unused App.css styles like .App-logo, .App-header since you're not using them */

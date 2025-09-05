@@ -29,12 +29,12 @@ import SportsIcon from '@mui/icons-material/Sports';
 import QueueIcon from '@mui/icons-material/Queue';
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
 import { Badge, Chip, Tooltip } from '@mui/material';
-import { Player, getSkillLevelColor, SkillLevel, skillLevelOrder, getSkillLevelDescription } from '../types/Player';
+import { Player, getSkillLevelColor, SkillLevel, skillLevelOrder, getSkillLevelDescription } from './types/Player';
 import { AppContext } from '../BadmintonQueueUI';
-import { Action } from '../app/Action';
+import { Action } from '../lib/store/Action';
 import KeyboardReturnIcon from '@mui/icons-material/KeyboardReturn';
 import BadmintonIcon from './input/BadmintonIcon';
-import { formatMatchDuration, getMatchDescription, isToday } from '../utils/matchHistoryUtils';
+import { formatMatchDuration, getMatchDescription, isToday } from '../lib/utils/matchHistoryUtils';
 
 // Pragmatic Drag and Drop imports
 import { draggable, dropTargetForElements } from '@atlaskit/pragmatic-drag-and-drop/element/adapter';

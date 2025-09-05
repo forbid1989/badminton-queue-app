@@ -31,8 +31,8 @@ import ClearIcon from '@mui/icons-material/Clear';
 import SportsIcon from '@mui/icons-material/Sports';
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
 import { AppContext } from '../../BadmintonQueueUI';
-import { Action } from '../../app/Action';
-import { Player, SkillLevel, getSkillLevelColor, getSkillLevelDescription, skillLevelOrder } from '../../types/Player';
+import { Action } from '../../lib/store/Action';
+import { Player, SkillLevel, getSkillLevelColor, getSkillLevelDescription, skillLevelOrder } from '../types/Player';
 
 interface PlayerListModalProps {
   open: boolean;

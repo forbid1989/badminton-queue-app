@@ -1,4 +1,4 @@
-import { Player } from "../types/Player";
+import { Player } from "../../components/types/Player";
 
 // ✅ Only valid formats are allowed; no "rest", "queue", or "court" alone
 export type PlayerStatus = `queue-${number}` | `court-${number}`;

@@ -14,7 +14,7 @@ import {
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import { AppContext } from '../../BadmintonQueueUI';
-import { Action } from '../../app/Action';
+import { Action } from '../../lib/store/Action';
 
 interface SettingsModalProps {
   open: boolean;

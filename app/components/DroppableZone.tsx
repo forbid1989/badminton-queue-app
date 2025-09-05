@@ -1,8 +1,10 @@
+'use client'
+
 import React, { useContext, useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { Box, Typography } from '@mui/material';
 import { AppContext } from '../BadmintonQueueUI';
-import { Action } from '../app/Action';
-import { Player } from '../types/Player';
+import { Action } from '../lib/store/Action';
+import { Player } from './types/Player';
 
 // Pragmatic Drag and Drop imports
 import { dropTargetForElements } from '@atlaskit/pragmatic-drag-and-drop/element/adapter';
@@ -21,14 +23,28 @@ const DroppableZone: React.FC<DroppableZoneProps> = React.memo(({ zone, players,
   const { dispatch } = useContext(AppContext);
   const [isHovered, setIsHovered] = useState(false);
   const [isDragOverValid, setIsDragOverValid] = useState(false);
+  const [isMobileDevice, setIsMobileDevice] = useState(false);
   const elementRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    // Only run on client-side
+    if (typeof window !== 'undefined' && typeof navigator !== 'undefined') {
+      const checkMobileDevice = () => {
+        return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+              window.innerWidth <= 768 ||
+              'ontouchstart' in window;
+      };
+      setIsMobileDevice(checkMobileDevice());
+    }
+  }, []);
+
   
   // 📱 Mobile device detection
-  const isMobileDevice = useMemo(() => {
-    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
-           window.innerWidth <= 768 ||
-           'ontouchstart' in window;
-  }, []);
+  // const isMobileDevice = useMemo(() => {
+  //   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+  //          window.innerWidth <= 768 ||
+  //          'ontouchstart' in window;
+  // }, []);
   
   // Determine if this is a position-specific zone
   const isPositionZone = position !== undefined;

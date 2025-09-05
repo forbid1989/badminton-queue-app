@@ -1,8 +1,8 @@
 import React, { useState, useContext, useEffect } from 'react';
 import { Modal, Box, Button, Stack, TextField, Typography, Chip } from '@mui/material';
 import { AppContext } from '../../BadmintonQueueUI'; // 👈 your own context
-import { Action } from '../../app/Action';
-import { parsePlayerList } from '../../utils/parsePlayerList';
+import { Action } from '../../lib/store/Action';
+import { parsePlayerList } from '../../lib/utils/parsePlayerList';
 
 type PlayerParserModalProps = {
   open: boolean;

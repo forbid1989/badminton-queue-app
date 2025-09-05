@@ -1,13 +1,15 @@
+'use client'
+
 import React, { useReducer, useEffect } from 'react';
 import { ThemeProvider, CssBaseline, Box, AppBar, Toolbar, Typography } from '@mui/material';
 import theme from './theme';
 import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/react';
-import reducer from './app/Reducer';
-import InitialState from './app/InitialState';
-import { RootState } from './app/rootState';
+import reducer from './lib/store/reducer';
+import InitialState from './lib/store/InitialState';
+import { RootState } from './lib/store/rootState';
 import Dashboard from './components/dashboard/Dashboard';
-import { debouncedSave, isLocalStorageAvailable } from './utils/localStorage';
+import { debouncedSave, isLocalStorageAvailable } from './lib/utils/localStorage';
 
 export const AppContext = React.createContext<{
 	state: RootState;

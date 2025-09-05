@@ -1,5 +1,9 @@
 import { ActionType } from "./Action";
-import { Player, PlayerStatus, SkillLevel } from "../types/Player";
+import {
+  Player,
+  PlayerStatus,
+  SkillLevel,
+} from "../../components/types/Player";
 import { clearLocalStorage } from "../utils/localStorage";
 import { generateMatchHistoryEntries } from "../utils/matchHistoryUtils";
 

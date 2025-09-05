@@ -1,6 +1,6 @@
 // parsePlayerList.ts - Fixed to include skillLevel property
 
-import { Player } from "../types/Player";
+import { Player } from "../../components/types/Player";
 import { v4 as uuidv4 } from "uuid";
 
 export function parsePlayerList(text: string): Player[] {

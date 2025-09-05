@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Typography, Grid, TextField, Box, InputAdornment } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import ClearIcon from '@mui/icons-material/Clear';
-import { Player } from '../types/Player';
+import { Player } from './types/Player';
 import PlayerCard from './PlayerCard';
 import DroppableZone from './DroppableZone';
 

@@ -3,12 +3,12 @@ import Grid from '@mui/material/Grid';
 import { Typography, Button, Box, Chip, IconButton } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import CloseIcon from '@mui/icons-material/Close';
-import { Player } from '../types/Player';
+import { Player } from './types/Player';
 import PlayerCard from './PlayerCard';
 import DroppableZone from './DroppableZone';
-import { Action } from '../app/Action';
+import { Action } from '../lib/store/Action';
 import { AppContext } from '../BadmintonQueueUI';
-import { PlayerStatus } from '../types/Player';
+import { PlayerStatus } from './types/Player';
 
 type QueueZoneProps = {
   courtCount: number;

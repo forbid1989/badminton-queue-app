@@ -1,5 +1,5 @@
 import { useState, useContext } from 'react';
-import { Action } from '../app/Action';
+import { Action } from '../lib/store/Action';
 import { AppContext } from '../BadmintonQueueUI';
 import { TextField, Button, Stack, useTheme  } from '@mui/material';
 

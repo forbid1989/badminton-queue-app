@@ -2,7 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './index.css';
 import App from './App';
-import BadmintonQueueUI from './BadmintonQueueUI';
+import BadmintonQueueUI from '../app/BadmintonQueueUI';
 import reportWebVitals from './reportWebVitals';
 
 const root = ReactDOM.createRoot(

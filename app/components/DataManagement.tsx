@@ -12,8 +12,8 @@ import {
 import DeleteIcon from '@mui/icons-material/Delete';
 import SaveIcon from '@mui/icons-material/Save';
 import { AppContext } from '../BadmintonQueueUI';
-import { Action } from '../app/Action';
-import { clearLocalStorage, saveToLocalStorage } from '../utils/localStorage';
+import { Action } from '../lib/store/Action';
+import { clearLocalStorage, saveToLocalStorage } from '../lib/utils/localStorage';
 
 const DataManagement: React.FC = () => {
   const { state, dispatch } = useContext(AppContext);

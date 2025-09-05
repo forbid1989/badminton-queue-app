@@ -2,12 +2,12 @@ import React, { useContext, useState, useEffect, useMemo, useCallback } from 're
 import Grid from '@mui/material/Grid';
 import { Card, Button , Typography, Box, TextField, IconButton, Chip } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
-import { Player } from '../types/Player';
+import { Player } from './types/Player';
 import DroppableZone from './DroppableZone';
 import PlayerCard from './PlayerCard';
 import { AppContext } from '../BadmintonQueueUI';
-import { Action } from '../app/Action';
-import { PlayerStatus } from '../types/Player';
+import { Action } from '../lib/store/Action';
+import { PlayerStatus } from './types/Player';
 
 type CourtZoneProps = {
   courtCount: number;

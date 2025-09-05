@@ -1,4 +1,4 @@
-import { Player } from "../types/Player";
+import { Player } from "../../components/types/Player";
 import { loadFromLocalStorage } from "../utils/localStorage";
 
 // Base initial state
@@ -167,59 +167,69 @@ function generateQueueMappings(
   return mappings;
 }
 
-// Load from localStorage and merge with base state
-const loadedState = loadFromLocalStorage();
+// Create initial state function that handles server/client differences
+const createInitialState = () => {
+  // 🚨 SERVER-SIDE GUARD: If running on server, return base state only
+  if (typeof window === "undefined") {
+    return baseInitialState;
+  }
 
-// Migrate players to include order fields
-const migratedPlayers = loadedState?.players
-  ? migratePlayersWithOrderFields(loadedState.players)
-  : [];
+  // CLIENT-SIDE: Load from localStorage and merge
+  const loadedState = loadFromLocalStorage();
 
-// Generate initial mappings (this will be overridden by assignOrderFieldsFromZonePosition)
-const initialCourtMappings = generateCourtMappings(
-  migratedPlayers,
-  loadedState?.courts?.count || 2
-);
+  // Migrate players to include order fields
+  const migratedPlayers = loadedState?.players
+    ? migratePlayersWithOrderFields(loadedState.players)
+    : [];
 
-const initialQueueMappings = generateQueueMappings(
-  migratedPlayers,
-  loadedState?.queue?.playersByQueue || { "queue-0": [] }
-);
+  // Generate initial mappings (this will be overridden by assignOrderFieldsFromZonePosition)
+  const initialCourtMappings = generateCourtMappings(
+    migratedPlayers,
+    loadedState?.courts?.count || 2
+  );
 
-// Assign order fields based on the loaded zone positions
-const playersWithOrderFields = assignOrderFieldsFromZonePosition(
-  migratedPlayers,
-  initialCourtMappings,
-  initialQueueMappings
-);
+  const initialQueueMappings = generateQueueMappings(
+    migratedPlayers,
+    loadedState?.queue?.playersByQueue || { "queue-0": [] }
+  );
 
-// Rebuild mappings with the newly assigned order fields
-const finalCourtMappings = generateCourtMappings(
-  playersWithOrderFields,
-  loadedState?.courts?.count || 2
-);
+  // Assign order fields based on the loaded zone positions
+  const playersWithOrderFields = assignOrderFieldsFromZonePosition(
+    migratedPlayers,
+    initialCourtMappings,
+    initialQueueMappings
+  );
 
-const finalQueueMappings = generateQueueMappings(
-  playersWithOrderFields,
-  loadedState?.queue?.playersByQueue || { "queue-0": [] }
-);
+  // Rebuild mappings with the newly assigned order fields
+  const finalCourtMappings = generateCourtMappings(
+    playersWithOrderFields,
+    loadedState?.courts?.count || 2
+  );
 
-const InitialState = {
-  ...baseInitialState,
-  ...(loadedState || {}),
-  // Use migrated players with order fields
-  players: playersWithOrderFields,
-  // Always rebuild these from the players array with order fields
-  courts: {
-    ...baseInitialState.courts,
-    ...(loadedState?.courts || {}),
-    playersByCourt: finalCourtMappings,
-  },
-  queue: {
-    ...baseInitialState.queue,
-    ...(loadedState?.queue || {}),
-    playersByQueue: finalQueueMappings,
-  },
+  const finalQueueMappings = generateQueueMappings(
+    playersWithOrderFields,
+    loadedState?.queue?.playersByQueue || { "queue-0": [] }
+  );
+
+  return {
+    ...baseInitialState,
+    ...(loadedState || {}),
+    // Use migrated players with order fields
+    players: playersWithOrderFields,
+    // Always rebuild these from the players array with order fields
+    courts: {
+      ...baseInitialState.courts,
+      ...(loadedState?.courts || {}),
+      playersByCourt: finalCourtMappings,
+    },
+    queue: {
+      ...baseInitialState.queue,
+      ...(loadedState?.queue || {}),
+      playersByQueue: finalQueueMappings,
+    },
+  };
 };
+
+const InitialState = createInitialState();
 
 export default InitialState;
