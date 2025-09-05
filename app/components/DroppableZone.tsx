@@ -38,14 +38,6 @@ const DroppableZone: React.FC<DroppableZoneProps> = React.memo(({ zone, players,
     }
   }, []);
 
-  
-  // 📱 Mobile device detection
-  // const isMobileDevice = useMemo(() => {
-  //   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
-  //          window.innerWidth <= 768 ||
-  //          'ontouchstart' in window;
-  // }, []);
-  
   // Determine if this is a position-specific zone
   const isPositionZone = position !== undefined;
 
