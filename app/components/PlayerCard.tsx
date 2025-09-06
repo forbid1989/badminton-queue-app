@@ -715,7 +715,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
       border: '1.5px solid white',
       boxShadow: '0 1px 3px rgba(0,0,0,0.4)',
       zIndex: 1,
-      transform: isMobile ? 'scale(0.9)' : 'scale(1)',
+      transform: `translate(-50%, 0%)`,
     }}
     
     return isMobile ? {
@@ -730,8 +730,8 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
       <Badge
         badgeContent={player.skillLevel}
         anchorOrigin={{
-          vertical: 'bottom',
-          horizontal: 'right',
+          vertical: 'top',
+          horizontal: 'left',
         }}
         sx={enhancedBadgeStyle}
       >
@@ -770,7 +770,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
                     alignItems: 'center',
                   }}>
                     {/* Pencil Edit Icon */}
-                    <IconButton
+                    {/* <IconButton
                       size="small"
                       onClick={handlePencilClick}
                       sx={{
@@ -791,7 +791,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
                       title="Edit player name"
                     >
                       <EditIcon />
-                    </IconButton>
+                    </IconButton> */}
 
                     <Typography
                       component="div"
@@ -803,12 +803,13 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
                         lineHeight: 1.1,
                         textShadow: isMobile ? '1px 1px 2px rgba(0,0,0,0.1)' : 'none',
                         maxWidth: isInTeamZone 
-                          ? (isMobile ? '65px' : '60px')
-                          : (isMobile ? '100px' : '95px'),
+                          ? (isMobile ? '85px' : '80px')
+                          : (isMobile ? '120px' : '115px'),
                         textOverflow: 'ellipsis',
                         overflow: 'hidden',
                         whiteSpace: 'nowrap',
                         flex: 1,
+                        paddingLeft: '6px'
                       }}
                       title={player.name}
                     >
