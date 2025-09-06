@@ -27,13 +27,13 @@ import SportsEsportsIcon from '@mui/icons-material/SportsEsports';
 import BarChartIcon from '@mui/icons-material/BarChart';
 import SportsIcon from '@mui/icons-material/Sports';
 import QueueIcon from '@mui/icons-material/Queue';
+import AddIcon from '@mui/icons-material/Add';
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
 import { Badge, Chip, Tooltip } from '@mui/material';
 import { Player, getSkillLevelColor, SkillLevel, skillLevelOrder, getSkillLevelDescription } from './types/Player';
 import { AppContext } from '../BadmintonQueueUI';
 import { Action } from '../lib/store/Action';
 import KeyboardReturnIcon from '@mui/icons-material/KeyboardReturn';
-import BadmintonIcon from './input/BadmintonIcon';
 import { formatMatchDuration, getMatchDescription, isToday } from '../lib/utils/matchHistoryUtils';
 
 // Pragmatic Drag and Drop imports
@@ -929,20 +929,21 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
                       sx={{
                         padding: isMobile ? '2px' : '1px',
                         borderRadius: '50%',
-                        border: `1px solid ${isQuickAddDisabled ? '#ccc' : '#2E7D32'}`,
-                        backgroundColor: isQuickAddDisabled ? '#f2f2f2' : '#E8F5E9',
-                        color: isQuickAddDisabled ? '#aaa' : '#2E7D32',
+                        border: `1px solid ${isQuickAddDisabled ? '#ccc' : '#6D4C41'}`, // Change from '#2E7D32'
+                        backgroundColor: isQuickAddDisabled ? '#f2f2f2' : 'rgba(109, 76, 65, 0.1)', // Change from '#E8F5E9'
+                        color: isQuickAddDisabled ? '#aaa' : '#6D4C41', // Change from '#2E7D32'
                         minWidth: 'auto',
                         minHeight: isMobile ? '28px' : 'auto',
                         '&:hover': {
-                          backgroundColor: isQuickAddDisabled ? '#f2f2f2' : '#C8E6C9',
+                          backgroundColor: isQuickAddDisabled ? '#f2f2f2' : 'rgba(109, 76, 65, 0.2)', // Change from '#C8E6C9'
                         },
                       }}
                     >
-                      <BadmintonIcon
-                        size={isMobile ? 12 : 10}
-                        playerSeed={player.name}
-                        isDisabled={isQuickAddDisabled}
+                      <AddIcon
+                        sx={{ 
+                          fontSize: isMobile ? '0.8rem' : '0.7rem',
+                          color: isQuickAddDisabled ? '#aaa' : '#6D4C41'
+                        }}
                       />
                     </IconButton>
                   )}
