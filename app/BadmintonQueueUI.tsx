@@ -3,6 +3,7 @@
 import React, { useReducer, useEffect } from 'react';
 import { ThemeProvider, CssBaseline, Box, AppBar, Toolbar, Typography } from '@mui/material';
 import theme from './theme';
+import QueueMaestroLogo from './components/QueueMaestroLogo';
 import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/react';
 import reducer from './lib/store/Reducer';
@@ -35,8 +36,24 @@ const BadmintonQueueUI: React.FC = () => {
 			<CssBaseline />
 			<AppContext.Provider value={{ state, dispatch }}>
 				<AppBar position="static" color="primary">
-					<Toolbar sx={{ display: 'flex', justifyContent: 'space-between' }}>
-						<Typography variant="h6" color="inherit">🏸 Queue Maestro</Typography>
+					<Toolbar sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+						<Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+							<QueueMaestroLogo 
+								variant="white" 
+								size={32} 
+								priority 
+							/>
+							<Typography 
+								variant="h6" 
+								color="inherit"
+								sx={{ 
+									fontWeight: 'bold',
+									fontSize: { xs: '1.1rem', sm: '1.25rem' }
+								}}
+							>
+								Queue Maestro
+							</Typography>
+						</Box>
 					</Toolbar>
 				</AppBar>
 				<Box sx={{ 

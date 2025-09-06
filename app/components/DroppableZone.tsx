@@ -1,7 +1,7 @@
 'use client'
 
-import React, { useContext, useState, useCallback, useMemo, useEffect, useRef } from 'react';
-import { Box, Typography } from '@mui/material';
+import React, { useContext, useState, useMemo, useEffect, useRef } from 'react';
+import { Box } from '@mui/material';
 import { AppContext } from '../BadmintonQueueUI';
 import { Action } from '../lib/store/Action';
 import { Player } from './types/Player';
