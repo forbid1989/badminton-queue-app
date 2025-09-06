@@ -2,7 +2,7 @@
 'use client'
 
 import Image from 'next/image'
-import { Box, useTheme } from '@mui/material'
+import { Box } from '@mui/material'
 import { useMemo } from 'react'
 
 interface QueueMaestroLogoProps {
@@ -24,7 +24,6 @@ const QueueMaestroLogo: React.FC<QueueMaestroLogoProps> = ({
   priority = false,
   className = ''
 }) => {
-  const theme = useTheme()
 
   // Smart logo variant selection - brown vs white based on context
   const logoVariant = useMemo(() => {

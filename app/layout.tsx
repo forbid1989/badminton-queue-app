@@ -4,7 +4,7 @@ import './globals.css'
 export const metadata: Metadata = {
   title: 'Queue Maestro - Professional Racket Sports Court Management',
   description: 'Efficiently manage court queues and player rotations for badminton, tennis, pickleball, and other racket sports. Real-time drag-and-drop interface with skill-based tracking and payment management for sports facilities.',
-  keywords: ['racket sports', 'court management', 'queue system', 'badminton', 'tennis', 'pickleball', 'sports facility', 'player tracking', 'racket'],
+  keywords: ['racket sports', 'court management', 'queue system', 'badminton', 'tennis', 'pickleball', 'sports facility', 'player tracking', 'racket', 'table tennis'],
   authors: [{ name: 'Queue Maestro Team' }],
   openGraph: {
     title: 'Queue Maestro - Racket Sports Court Management',
