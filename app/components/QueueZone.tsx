@@ -74,7 +74,7 @@ const QueueFormatChip = React.memo<{ format: string; playerCount: number }>(
 QueueFormatChip.displayName = 'QueueFormatChip';
 
 // Position labels for queue grid
-const QUEUE_POSITION_LABELS = ['P1', 'P2', 'P3', 'P4'];
+const QUEUE_POSITION_LABELS = ['Team A P1', 'Team B P1', 'Team A P2', 'Team B P2'];
 
 // ✨ Memoized Queue Background SVG Component (similar to court)
 const QueueBackground = React.memo(() => (

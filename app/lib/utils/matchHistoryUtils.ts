@@ -63,7 +63,10 @@ export const analyzeMatch = (
     case 4:
       return {
         matchType: "2v2",
-        teams: [players.slice(0, 2), players.slice(2, 4)],
+        teams: [
+          [players[0], players[2]],
+          [players[1], players[3]],
+        ],
       };
     default:
       return { matchType: "1v1", teams: [] };
@@ -107,14 +110,15 @@ export const generateMatchHistoryEntries = (
         break;
 
       case "2v2":
-        if (index < 2) {
-          // Player is in team 1
-          partner = players.find((p, i) => i < 2 && p.id !== player.id)?.name;
-          opponents = players.slice(2, 4).map((p) => p.name);
+        // FIXED: Updated logic for P1&P3 vs P2&P4 formation
+        if (index === 0 || index === 2) {
+          // Player is in team 1 (P1 or P3)
+          partner = index === 0 ? players[2]?.name : players[0]?.name; // P1 partners with P3
+          opponents = [players[1]?.name, players[3]?.name].filter(Boolean); // vs P2&P4
         } else {
-          // Player is in team 2
-          partner = players.find((p, i) => i >= 2 && p.id !== player.id)?.name;
-          opponents = players.slice(0, 2).map((p) => p.name);
+          // Player is in team 2 (P2 or P4)
+          partner = index === 1 ? players[3]?.name : players[1]?.name; // P2 partners with P4
+          opponents = [players[0]?.name, players[2]?.name].filter(Boolean); // vs P1&P3
         }
         break;
     }

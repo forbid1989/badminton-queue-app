@@ -147,7 +147,7 @@ const MatchFormatChip = React.memo<{ format: string; playerCount: number }>(
 MatchFormatChip.displayName = 'MatchFormatChip';
 
 // Position labels for court grid
-const POSITION_LABELS = ['P1', 'P2', 'P3', 'P4'];
+const POSITION_LABELS = ['Team A P1', 'Team B P1', 'Team A P2', 'Team B P2'];
 
 // Memoized Court Item Component
 const CourtItem = React.memo<{
