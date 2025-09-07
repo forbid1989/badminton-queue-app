@@ -40,7 +40,7 @@ export const getMatchDescription = (
   }
 };
 
-// Utility to determine match type and organize players
+// FIXED: Correct team formation for badminton
 export const analyzeMatch = (
   players: Player[]
 ): {
@@ -63,9 +63,10 @@ export const analyzeMatch = (
     case 4:
       return {
         matchType: "2v2",
+        // CORRECT: P1&P3 vs P2&P4 (diagonal partners)
         teams: [
-          [players[0], players[2]],
-          [players[1], players[3]],
+          [players[0], players[2]], // Team A: positions 0,2
+          [players[1], players[3]], // Team B: positions 1,3
         ],
       };
     default:
@@ -73,57 +74,92 @@ export const analyzeMatch = (
   }
 };
 
-// Generate match history entries for all players
+// FIXED: Generate match history entries with ID-based lookup instead of index mapping
 export const generateMatchHistoryEntries = (
   players: Player[],
   courtName: string,
   startTime: number,
   endTime: number
 ): MatchHistoryEntry[] => {
-  const { matchType, teams } = analyzeMatch(players);
+  // Sort players by courtOrder to ensure consistent positioning
+  const sortedPlayers = [...players].sort((a, b) => {
+    const orderA = a.courtOrder ?? 999;
+    const orderB = b.courtOrder ?? 999;
+    return orderA - orderB;
+  });
+
+  console.log(
+    `🔍 MATCH HISTORY: Sorted players by courtOrder:`,
+    sortedPlayers.map((p) => `${p.name} (order: ${p.courtOrder})`)
+  );
+
+  const { matchType } = analyzeMatch(sortedPlayers);
   const duration = Math.floor((endTime - startTime) / 1000);
   const matchId = `match_${startTime}_${Math.random()
     .toString(36)
     .substr(2, 9)}`;
 
-  return players.map((player, index) => {
+  // Create a map of playerID -> match entry instead of relying on array indices
+  const entriesMap = new Map<string, MatchHistoryEntry>();
+
+  sortedPlayers.forEach((player, index) => {
     let partner: string | undefined;
     let opponents: string[] = [];
 
-    // Determine partner and opponents based on match type and player position
     switch (matchType) {
       case "1v1":
-        opponents = players
+        opponents = sortedPlayers
           .filter((p) => p.id !== player.id)
           .map((p) => p.name);
         break;
 
       case "2v1":
         if (index < 2) {
-          // Player is in the team of 2
-          partner = players.find((p, i) => i < 2 && p.id !== player.id)?.name;
-          opponents = players.slice(2).map((p) => p.name);
+          partner = sortedPlayers.find(
+            (p, i) => i < 2 && p.id !== player.id
+          )?.name;
+          opponents = sortedPlayers.slice(2).map((p) => p.name);
         } else {
-          // Player is the solo player
-          opponents = players.slice(0, 2).map((p) => p.name);
+          opponents = sortedPlayers.slice(0, 2).map((p) => p.name);
         }
         break;
 
       case "2v2":
-        // FIXED: Updated logic for P1&P3 vs P2&P4 formation
         if (index === 0 || index === 2) {
-          // Player is in team 1 (P1 or P3)
-          partner = index === 0 ? players[2]?.name : players[0]?.name; // P1 partners with P3
-          opponents = [players[1]?.name, players[3]?.name].filter(Boolean); // vs P2&P4
+          // Team A: positions 0,2 partner together
+          partner =
+            index === 0 ? sortedPlayers[2]?.name : sortedPlayers[0]?.name;
+          opponents = [sortedPlayers[1]?.name, sortedPlayers[3]?.name].filter(
+            Boolean
+          );
+
+          console.log(
+            `🏸 TEAM A: ${
+              player.name
+            } (pos ${index}) partners with ${partner}, vs [${opponents.join(
+              ", "
+            )}]`
+          );
         } else {
-          // Player is in team 2 (P2 or P4)
-          partner = index === 1 ? players[3]?.name : players[1]?.name; // P2 partners with P4
-          opponents = [players[0]?.name, players[2]?.name].filter(Boolean); // vs P1&P3
+          // Team B: positions 1,3 partner together
+          partner =
+            index === 1 ? sortedPlayers[3]?.name : sortedPlayers[1]?.name;
+          opponents = [sortedPlayers[0]?.name, sortedPlayers[2]?.name].filter(
+            Boolean
+          );
+
+          console.log(
+            `🏸 TEAM B: ${
+              player.name
+            } (pos ${index}) partners with ${partner}, vs [${opponents.join(
+              ", "
+            )}]`
+          );
         }
         break;
     }
 
-    return {
+    const entry: MatchHistoryEntry = {
       matchId,
       partner,
       opponents,
@@ -133,7 +169,12 @@ export const generateMatchHistoryEntries = (
       matchType,
       courtName,
     };
+
+    entriesMap.set(player.id, entry);
   });
+
+  // Return entries in original player order for backward compatibility
+  return players.map((player) => entriesMap.get(player.id)!).filter(Boolean);
 };
 
 // Helper function to check if a date is today
