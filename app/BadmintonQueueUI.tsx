@@ -11,6 +11,10 @@ import InitialState from './lib/store/InitialState';
 import { RootState } from './lib/store/rootState';
 import Dashboard from './components/dashboard/Dashboard';
 import { debouncedSave, isLocalStorageAvailable } from './lib/utils/localStorage';
+import { Player } from './components/types/Player';
+
+import PartnershipWarningSnackbar from './components/PartnershipWarningSnackbar';
+import {usePartnershipWarnings} from './lib/hooks/usePartnershipWarnings'
 
 export const AppContext = React.createContext<{
 	state: RootState;
@@ -23,6 +27,17 @@ export const AppContext = React.createContext<{
 const BadmintonQueueUI: React.FC = () => {
 	const [state, dispatch] = useReducer(reducer, InitialState);
 
+	const {
+		warnings,
+		dismissWarning,
+		dismissAllWarnings,
+		clearWarnings,
+	} = usePartnershipWarnings({
+		maxPartnershipCount: 2,
+		maxOpponentCount: 2,
+		enableWarnings: true,
+	});
+
 	// Save state to localStorage whenever it changes
 	useEffect(() => {
 		// Only save if localStorage is available (this check helps with development)
@@ -30,6 +45,18 @@ const BadmintonQueueUI: React.FC = () => {
 			debouncedSave(state);
 		}
 	}, [state]);
+
+	useEffect(() => {
+		const courtValues = Object.values(state.courts.playersByCourt) as Player[][];
+		const queueValues = Object.values(state.queue.playersByQueue) as Player[][];
+		
+		const allCourtsEmpty = courtValues.every(players => players.length === 0);
+		const allQueuesEmpty = queueValues.every(players => players.length === 0);
+		
+		if (allCourtsEmpty && allQueuesEmpty && warnings.length > 0) {
+			clearWarnings();
+		}
+	}, [state.courts.playersByCourt, state.queue.playersByQueue, warnings.length, clearWarnings]);
 
 	return (
 		<ThemeProvider theme={theme}>
@@ -65,6 +92,12 @@ const BadmintonQueueUI: React.FC = () => {
 				}}>
 					<Dashboard />
 				</Box>
+
+				<PartnershipWarningSnackbar
+					warnings={warnings}
+					onDismiss={dismissWarning}
+					onDismissAll={dismissAllWarnings}
+				/>
 				<Analytics />
 				<SpeedInsights />
 			</AppContext.Provider>

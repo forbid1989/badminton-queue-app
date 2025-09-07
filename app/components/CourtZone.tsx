@@ -233,7 +233,7 @@ const CourtItem = React.memo<{
             players={playerInPosition ? [playerInPosition] : []}
           >
             {playerInPosition ? (
-              <PlayerCard player={playerInPosition} zone={courtId} />
+              <PlayerCard player={playerInPosition} zone={courtId} zonePlayers={players} />
             ) : (
               <Typography 
                 variant="body2" 

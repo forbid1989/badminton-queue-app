@@ -35,6 +35,7 @@ import { AppContext } from '../BadmintonQueueUI';
 import { Action } from '../lib/store/Action';
 import KeyboardReturnIcon from '@mui/icons-material/KeyboardReturn';
 import { formatMatchDuration, getMatchDescription, isToday } from '../lib/utils/matchHistoryUtils';
+import { usePartnershipWarnings } from '../lib/hooks/usePartnershipWarnings';
 
 // Pragmatic Drag and Drop imports
 import { draggable, dropTargetForElements } from '@atlaskit/pragmatic-drag-and-drop/element/adapter';
@@ -50,6 +51,8 @@ const formatElapsedTime = (seconds: number) => {
 type PlayerCardProps = {
   player: Player;
   zone: string;
+  zonePlayers?: Player[];
+  onPartnershipWarning?: (hasWarning: boolean) => void;
 };
 
 const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
@@ -61,6 +64,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
   const queueCount = useMemo(() => state.queue.count, [state.queue.count]);
   const isMobile = useMediaQuery('(max-width: 768px)');
   const playerCooldownsEnabled = useMemo(() => state.settings.playerCooldowns, [state.settings.playerCooldowns]);
+  const { getPlayerWarningLevel } = usePartnershipWarnings();
   
   // Determine if this card is in a team zone (smaller layout needed)
   const isInTeamZone = useMemo(() => {
@@ -613,7 +617,124 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
   // Memoized formatted time
   const formattedTime = useMemo(() => formatElapsedTime(elapsedSeconds), [elapsedSeconds]);
 
+  const playersInZone = useMemo(() => {
+    if (zone.startsWith('court-')) {
+      const courtIndex = parseInt(zone.split('-')[1]);
+      return state.courts.playersByCourt[courtIndex] || [];
+    } else if (zone.startsWith('queue-')) {
+      const queueIndex = parseInt(zone.split('-')[1]);
+      return state.queue.playersByQueue[queueIndex] || [];
+    }
+    return [];
+  }, [zone, state.courts.playersByCourt, state.queue.playersByQueue]);
+
+  const warningLevel = useMemo(() => {
+    if (playersInZone.length < 2) return 'none';
+    return getPlayerWarningLevel(player.id, playersInZone);
+  }, [player.id, playersInZone, getPlayerWarningLevel]);
+
   // Enhanced card styles with mobile optimizations and context menu prevention
+  // const enhancedCardStyles = useMemo(() => {
+  //   const getCardDimensions = () => {
+  //     return {
+  //       width: isMobile ? '140px': '100%',
+  //       height: isMobile ? '32px' : '30px',
+  //       fontSize: isMobile ? '0.72rem' : '0.68rem',
+  //       nameMaxWidth: isMobile ? '130px' : '120px',
+  //     };
+  //   };
+
+  //   const dimensions = getCardDimensions();
+
+  //   return {
+  //     display: 'flex',
+  //     flexDirection: 'row' as const,
+  //     width: dimensions.width,
+  //     height: dimensions.height,
+  //     justifyContent: 'space-between',
+  //     alignItems: 'center',
+  //     padding: '3px 8px',
+  //     backgroundColor: isDropTarget 
+  //       ? '#E8F5E9'
+  //       : cardColors.backgroundColor,
+  //     borderRadius: '14px',
+  //     boxShadow: isDropTarget 
+  //     ? '0 4px 12px rgba(233, 30, 99, 0.3)'
+  //     : isSwapping
+  //       ? '0 0 20px rgba(233, 30, 99, 0.8)'
+  //       : warningLevel === 'critical'
+  //         ? '0 0 12px rgba(211, 47, 47, 0.4)'
+  //         : warningLevel === 'warning'
+  //           ? '0 0 12px rgba(156, 39, 176, 0.4)'
+  //           : '0 1px 3px rgba(0,0,0,0.2), inset 0 1px 1px rgba(255,255,255,0.2)',
+  //     cursor: isOnCooldown && zone === "all" ? 'not-allowed' : 'grab',
+  //     margin: '0 auto 2px',
+  //     color: cardColors.textColor,
+  //     border: isSwapping
+  //     ? '2px solid #E91E63'
+  //     : isDropTarget 
+  //       ? '2px solid #E91E63'
+  //       : warningLevel === 'critical'
+  //         ? '3px solid #d32f2f'
+  //         : warningLevel === 'warning'
+  //           ? '3px solid #9c27b0'
+  //           : `1px solid ${cardColors.backgroundColor}`,
+  //     opacity: isDragging ? 0.5 : 1,
+  //     transform: isDropTarget 
+  //       ? 'scale(1.05)' 
+  //       : (isDragging ? 'scale(0.95)' : 'scale(1)'),
+  //     transition: isSwapping 
+  //       ? 'border-color 0.15s ease-in-out, border-width 0.15s ease-in-out, box-shadow 0.15s ease-in-out'
+  //       : 'all 0.2s ease-in-out',
+  //     animation: isSwapping 
+  //       ? 'swapFlash 0.6s ease-in-out'
+  //       : warningLevel === 'critical'
+  //         ? 'partnershipCriticalPulse 2s ease-in-out infinite'
+  //         : warningLevel === 'warning'
+  //           ? 'partnershipWarningPulse 3s ease-in-out infinite'
+  //           : 'none',
+  //     userSelect: 'none',
+  //     WebkitUserSelect: 'none',
+  //     WebkitTapHighlightColor: 'transparent',
+  //     WebkitTouchCallout: 'none',
+  //     // Enhanced context menu prevention
+  //     MozUserSelect: 'none',
+  //     msUserSelect: 'none',
+  //     '&:active': {
+  //       cursor: 'grabbing',
+  //       transform: 'scale(0.95)',
+  //     },
+  //     willChange: 'transform, opacity',
+  //     backfaceVisibility: 'hidden',
+  //     backgroundImage: `
+  //       linear-gradient(0deg, 
+  //         ${cardColors.backgroundColor} 0%, 
+  //         ${cardColors.backgroundColor}f0 25%,
+  //         ${cardColors.backgroundColor}e0 50%, 
+  //         ${cardColors.backgroundColor}f0 75%,
+  //         ${cardColors.backgroundColor} 100%),
+  //       repeating-linear-gradient(0deg, 
+  //         transparent 0px, 
+  //         rgba(0,0,0,0.02) 0.5px, 
+  //         transparent 1px)`,
+  //     position: 'relative',
+  //     '&::before': {
+  //       content: '""',
+  //       position: 'absolute',
+  //       top: 0,
+  //       left: 0,
+  //       right: 0,
+  //       bottom: 0,
+  //       background: `repeating-linear-gradient(90deg, 
+  //         transparent 0px, 
+  //         rgba(0,0,0,0.03) 1px, 
+  //         transparent 2px)`,
+  //       pointerEvents: 'none',
+  //     },
+  //   };
+  // }, [isMobile, cardColors, isDragging, isDropTarget, isSwapping, isOnCooldown, zone, warningLevel]);
+  // Replace your enhancedCardStyles calculation with this fixed version:
+
   const enhancedCardStyles = useMemo(() => {
     const getCardDimensions = () => {
       return {
@@ -625,6 +746,52 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
     };
 
     const dimensions = getCardDimensions();
+
+    // Calculate warning styles first
+    const getWarningStyles = () => {
+      if (warningLevel === 'critical') {
+        return {
+          border: '3px solid #d32f2f',
+          boxShadow: '0 0 12px rgba(211, 47, 47, 0.4)',
+          animation: 'partnershipCriticalPulse 2s ease-in-out infinite',
+        };
+      } else if (warningLevel === 'warning') {
+        return {
+          border: '3px solid #9c27b0',
+          boxShadow: '0 0 12px rgba(156, 39, 176, 0.4)',
+          animation: 'partnershipWarningPulse 3s ease-in-out infinite',
+        };
+      }
+      return {
+        border: `1px solid ${cardColors.backgroundColor}`,
+        boxShadow: '0 1px 3px rgba(0,0,0,0.2), inset 0 1px 1px rgba(255,255,255,0.2)',
+        animation: 'none',
+      };
+    };
+
+    const warningStyles = getWarningStyles();
+
+    // Override styles based on state priority
+    let finalBorder = warningStyles.border;
+    let finalBoxShadow = warningStyles.boxShadow;
+    let finalAnimation = warningStyles.animation;
+
+    // Swapping has highest priority
+    if (isSwapping) {
+      finalBorder = '2px solid #E91E63';
+      finalBoxShadow = '0 0 20px rgba(233, 30, 99, 0.8)';
+      finalAnimation = 'swapFlash 0.6s ease-in-out';
+    }
+    // Drop target has second priority
+    else if (isDropTarget) {
+      finalBorder = '2px solid #E91E63';
+      finalBoxShadow = '0 4px 12px rgba(233, 30, 99, 0.3)';
+      // Keep warning animation if present
+      if (warningStyles.animation === 'none') {
+        finalAnimation = 'none';
+      }
+    }
+    // Warning styles are default (already set above)
 
     return {
       display: 'flex',
@@ -638,19 +805,11 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
         ? '#E8F5E9'
         : cardColors.backgroundColor,
       borderRadius: '14px',
-      boxShadow: isDropTarget 
-      ? '0 4px 12px rgba(233, 30, 99, 0.3)'
-      : isSwapping
-        ? '0 0 20px rgba(233, 30, 99, 0.8)'
-        : '0 1px 3px rgba(0,0,0,0.2), inset 0 1px 1px rgba(255,255,255,0.2)',
+      boxShadow: finalBoxShadow,
       cursor: isOnCooldown && zone === "all" ? 'not-allowed' : 'grab',
       margin: '0 auto 2px',
       color: cardColors.textColor,
-      border: isSwapping
-      ? '2px solid #E91E63'
-      : isDropTarget 
-        ? '2px solid #E91E63'
-        : `1px solid ${cardColors.backgroundColor}`,
+      border: finalBorder,
       opacity: isDragging ? 0.5 : 1,
       transform: isDropTarget 
         ? 'scale(1.05)' 
@@ -658,14 +817,11 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
       transition: isSwapping 
         ? 'border-color 0.15s ease-in-out, border-width 0.15s ease-in-out, box-shadow 0.15s ease-in-out'
         : 'all 0.2s ease-in-out',
-      animation: isSwapping 
-        ? 'swapFlash 0.6s ease-in-out'
-        : 'none',
+      animation: finalAnimation,
       userSelect: 'none',
       WebkitUserSelect: 'none',
       WebkitTapHighlightColor: 'transparent',
       WebkitTouchCallout: 'none',
-      // Enhanced context menu prevention
       MozUserSelect: 'none',
       msUserSelect: 'none',
       '&:active': {
@@ -700,7 +856,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
         pointerEvents: 'none',
       },
     };
-  }, [isInTeamZone, isMobile, cardColors, isDragging, isDropTarget, isSwapping, isOnCooldown, zone]);
+  }, [isMobile, cardColors, isDragging, isDropTarget, isSwapping, isOnCooldown, zone, warningLevel]);
 
   const enhancedBadgeStyle = useMemo(() => {
 

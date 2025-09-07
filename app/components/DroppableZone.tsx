@@ -10,6 +10,7 @@ import { Player } from './types/Player';
 import { dropTargetForElements } from '@atlaskit/pragmatic-drag-and-drop/element/adapter';
 import { combine } from '@atlaskit/pragmatic-drag-and-drop/combine';
 import { autoScrollForElements } from '@atlaskit/pragmatic-drag-and-drop-auto-scroll/element';
+import { usePartnershipWarnings } from '../lib/hooks/usePartnershipWarnings';
 
 type DroppableZoneProps = {
   zone: string;
@@ -25,6 +26,7 @@ const DroppableZone: React.FC<DroppableZoneProps> = React.memo(({ zone, players,
   const [isDragOverValid, setIsDragOverValid] = useState(false);
   const [isMobileDevice, setIsMobileDevice] = useState(false);
   const elementRef = useRef<HTMLDivElement>(null);
+  const { checkPlayers, getPlayerWarningLevel } = usePartnershipWarnings();
 
   useEffect(() => {
     // Only run on client-side
@@ -37,6 +39,18 @@ const DroppableZone: React.FC<DroppableZoneProps> = React.memo(({ zone, players,
       setIsMobileDevice(checkMobileDevice());
     }
   }, []);
+
+  useEffect(() => {
+    // Check for partnership warnings when players change in court/queue zones
+    if (players.length >= 2 && (zone.startsWith('court-') || zone.startsWith('queue-'))) {
+      // Small delay to ensure state has updated
+      const timeoutId = setTimeout(() => {
+        checkPlayers(players, zone);
+      }, 100);
+      
+      return () => clearTimeout(timeoutId);
+    }
+  }, [players, zone, checkPlayers]);
 
   // Determine if this is a position-specific zone
   const isPositionZone = position !== undefined;
@@ -285,62 +299,160 @@ const DroppableZone: React.FC<DroppableZoneProps> = React.memo(({ zone, players,
     );
   }, [zone, position, dispatch, isPositionZone, isFull, players, isPlayerListZone]);
 
+  // Check for zone-level warnings
+  const zoneWarningLevel = useMemo(() => {
+    if (players.length < 2 || isPlayerListZone || isPositionZone) return 'none';
+    
+    // Check if any player in this zone has warnings
+    let maxWarningLevel = 'none';
+    
+    players.forEach(player => {
+      const playerWarning = getPlayerWarningLevel(player.id, players);
+      if (playerWarning === 'critical') {
+        maxWarningLevel = 'critical';
+      } else if (playerWarning === 'warning' && maxWarningLevel !== 'critical') {
+        maxWarningLevel = 'warning';
+      }
+    });
+    
+    return maxWarningLevel;
+  }, [players, getPlayerWarningLevel, isPlayerListZone, isPositionZone]);
+
+  // Calculate zone warning styles with explicit typing
+  const zoneWarningStyles = useMemo(() => {
+    // Define the return type explicitly
+    const styles: {
+      background?: string;
+      borderColor?: string;
+      animation?: string;
+    } = {};
+
+    switch (zoneWarningLevel) {
+      case 'critical':
+        styles.background = 'linear-gradient(135deg, rgba(211, 47, 47, 0.1) 0%, rgba(211, 47, 47, 0.05) 100%)';
+        styles.borderColor = 'rgba(211, 47, 47, 0.5)';
+        styles.animation = 'partnershipCriticalPulse 2s ease-in-out infinite';
+        break;
+      case 'warning':
+        styles.background = 'linear-gradient(135deg, rgba(156, 39, 176, 0.1) 0%, rgba(156, 39, 176, 0.05) 100%)';
+        styles.borderColor = 'rgba(156, 39, 176, 0.5)';
+        styles.animation = 'partnershipWarningPulse 3s ease-in-out infinite';
+        break;
+      default:
+        // No warning styles needed
+        break;
+    }
+    
+    return styles;
+  }, [zoneWarningLevel]);
+
+
   // Memoized combined styles
-  const combinedSx = useMemo(() => ({
-    border: `2px ${isPositionZone ? 'solid' : 'dashed'} ${borderColor}`,
-    borderRadius: isPositionZone ? 1 : 2,
-    padding: isPositionZone ? 0.5 : 2,
-    marginBottom: isPositionZone ? 0 : 3,
-    backgroundColor,
-    minHeight: isPositionZone 
-    ? (isMobileDevice ? 40 : 35)
-    : isPlayerListZone
-    ? (isMobileDevice ? 150 : 120) // Keep player list dimensions
-    : zone.startsWith('queue-')
-    ? '140px' // 🔧 NEW: Match court box height for queue zones
-    : (isMobileDevice ? 90 : 80), // Keep original for other zones
-    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-    transform,
-    boxShadow,
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    // 📱 Allow scrolling - remove touchAction restrictions
-    WebkitTapHighlightColor: 'transparent',
-    WebkitTouchCallout: 'none',
-    userSelect: 'none',
-    WebkitUserSelect: 'none',
-    // 🔧 Improve scrolling for main player list zone
-    ...(zone === 'all' && {
-      overflowY: 'auto',
-      WebkitOverflowScrolling: 'touch',
-      scrollBehavior: 'smooth',
-    }),
-    // 🆕 Special styling when this is the player list zone receiving drops
-    ...(isPlayerListZone && {
-      position: 'relative',
-      '&::after': isDragOverValid ? {
-        content: '"Drop here to return players to the list"',
-        position: 'absolute',
-        top: '8px',
-        left: '50%',
-        transform: 'translateX(-50%)',
-        backgroundColor: 'rgba(76, 175, 80, 0.9)',
-        color: 'white',
-        padding: '4px 8px',
-        borderRadius: '4px',
-        fontSize: '0.7rem',
-        fontWeight: 'bold',
-        zIndex: 10,
-        whiteSpace: 'nowrap',
-        pointerEvents: 'none',
-      } : {},
-    }),
-    ...sx
-  }), [
-    borderColor, backgroundColor, transform, boxShadow, isPositionZone, 
-    isMobileDevice, sx, zone, isPlayerListZone, isDragOverValid
+  const combinedSx = useMemo(() => {
+    // Calculate base border color
+    const baseBorderColor = (() => {
+      const anyHover = isHovered && isDragOverValid;
+      
+      if (isPlayerListZone) {
+        if (anyHover) return '#4CAF50';
+        return '#d8c9aa';
+      }
+      
+      if (isPositionZone) {
+        if (isFull) return '#D5C96A';
+        if (anyHover) return '#FF6B35';
+        return players.length > 0 ? 'rgba(255,255,255,0.6)' : 'rgba(255,255,255,0.3)';
+      }
+      
+      if (isFull) return '#D5C96A';
+      if (anyHover) return '#4CAF50';
+      return '#CAD4CC';
+    })();
+
+    // Calculate base background
+    const baseBackground = (() => {
+      const anyHover = isHovered && isDragOverValid;
+      
+      if (isPlayerListZone) {
+        if (anyHover) return '#E8F5E9';
+        return zoneBackground;
+      }
+      
+      if (isPositionZone) {
+        if (anyHover) return 'rgba(255, 107, 53, 0.3)';
+        return players.length > 0 ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.1)';
+      }
+      
+      if (anyHover) return '#E8F5E9';
+      return zoneBackground;
+    })();
+
+    // Apply warning overrides with proper fallbacks
+    const finalBorderColor = zoneWarningStyles.borderColor || baseBorderColor;
+    const finalBackground = zoneWarningStyles.background || baseBackground;
+
+    // Base styles object
+    const styles: any = {
+      border: `2px ${isPositionZone ? 'solid' : 'dashed'} ${finalBorderColor}`,
+      borderRadius: isPositionZone ? 1 : 2,
+      padding: isPositionZone ? 0.5 : 2,
+      marginBottom: isPositionZone ? 0 : 3,
+      backgroundColor: finalBackground,
+      minHeight: isPositionZone 
+      ? (isMobileDevice ? 40 : 35)
+      : isPlayerListZone
+      ? (isMobileDevice ? 150 : 120)
+      : zone.startsWith('queue-')
+      ? '140px'
+      : (isMobileDevice ? 90 : 80),
+      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+      transform,
+      boxShadow,
+      cursor: 'pointer',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      WebkitTapHighlightColor: 'transparent',
+      WebkitTouchCallout: 'none',
+      userSelect: 'none',
+      WebkitUserSelect: 'none',
+      ...(zone === 'all' && {
+        overflowY: 'auto',
+        WebkitOverflowScrolling: 'touch',
+        scrollBehavior: 'smooth',
+      }),
+      ...(isPlayerListZone && {
+        position: 'relative',
+        '&::after': isDragOverValid ? {
+          content: '"Drop here to return players to the list"',
+          position: 'absolute',
+          top: '8px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          backgroundColor: 'rgba(76, 175, 80, 0.9)',
+          color: 'white',
+          padding: '4px 8px',
+          borderRadius: '4px',
+          fontSize: '0.7rem',
+          fontWeight: 'bold',
+          zIndex: 10,
+          whiteSpace: 'nowrap',
+          pointerEvents: 'none',
+        } : {},
+      }),
+      ...sx
+    };
+
+    // Add animation if it exists
+    if (zoneWarningStyles.animation) {
+      styles.animation = zoneWarningStyles.animation;
+    }
+
+    return styles;
+  }, [
+    isHovered, isDragOverValid, isPlayerListZone, isPositionZone, isFull, players.length,
+    zoneBackground, transform, boxShadow, isMobileDevice, zone, isDragOverValid, sx,
+    zoneWarningStyles
   ]);
 
   return (

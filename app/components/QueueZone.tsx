@@ -205,7 +205,7 @@ const QueueItem = React.memo<{
             players={playerInPosition ? [playerInPosition] : []}
           >
             {playerInPosition ? (
-              <PlayerCard player={playerInPosition} zone={queueId} />
+              <PlayerCard player={playerInPosition} zone={queueId} zonePlayers={players} />
             ) : (
               <Typography 
                 variant="body2" 

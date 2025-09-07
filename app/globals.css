@@ -62,4 +62,61 @@ code {
   }
 }
 
-/* Remove unused App.css styles like .App-logo, .App-header since you're not using them */
+/* Add this to your globals.css file */
+
+/* Partnership warning animations */
+@keyframes partnershipWarningPulse {
+  0% {
+    border-color: #9c27b0;
+    box-shadow: 0 0 12px rgba(156, 39, 176, 0.4);
+  }
+  50% {
+    border-color: #ba68c8;
+    box-shadow: 0 0 20px rgba(156, 39, 176, 0.6);
+  }
+  100% {
+    border-color: #9c27b0;
+    box-shadow: 0 0 12px rgba(156, 39, 176, 0.4);
+  }
+}
+
+@keyframes partnershipCriticalPulse {
+  0% {
+    border-color: #d32f2f;
+    box-shadow: 0 0 12px rgba(211, 47, 47, 0.4);
+  }
+  50% {
+    border-color: #f44336;
+    box-shadow: 0 0 24px rgba(211, 47, 47, 0.7);
+  }
+  100% {
+    border-color: #d32f2f;
+    box-shadow: 0 0 12px rgba(211, 47, 47, 0.4);
+  }
+}
+
+/* Partnership warning border colors */
+.partnership-warning-border {
+  border: 3px solid #9c27b0 !important;
+  box-shadow: 0 0 12px rgba(156, 39, 176, 0.4) !important;
+}
+
+.partnership-critical-border {
+  border: 3px solid #d32f2f !important;
+  box-shadow: 0 0 12px rgba(211, 47, 47, 0.4) !important;
+}
+
+/* Partnership warning indicators for zone backgrounds */
+.zone-partnership-warning {
+  background: linear-gradient(135deg, 
+    rgba(156, 39, 176, 0.1) 0%, 
+    rgba(156, 39, 176, 0.05) 100%) !important;
+  border-color: rgba(156, 39, 176, 0.3) !important;
+}
+
+.zone-partnership-critical {
+  background: linear-gradient(135deg, 
+    rgba(211, 47, 47, 0.1) 0%, 
+    rgba(211, 47, 47, 0.05) 100%) !important;
+  border-color: rgba(211, 47, 47, 0.3) !important;
+}
