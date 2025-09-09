@@ -1,10 +1,10 @@
 // src/utils/localStorage.ts
 import { RootState } from "../store/rootState";
-import { Player } from "../../components/types/Player";
+import { Player, SkillLevel } from "../../components/types/Player";
 
 const STORAGE_KEY = "badminton-queue-state";
 const VERSION_KEY = "badminton-queue-version";
-const CURRENT_VERSION = "1.0";
+const CURRENT_VERSION = "1.1";
 
 // Define what we want to persist - only the essential data
 interface PersistedState {
@@ -77,14 +77,50 @@ export const loadFromLocalStorage = (): Partial<RootState> | null => {
       return null;
     }
 
-    // Check version compatibility
-    if (savedVersion !== CURRENT_VERSION) {
+    // Check version compatibility - allow migration from 1.0 to 1.1
+    if (savedVersion !== CURRENT_VERSION && savedVersion !== "1.0") {
       console.warn("localStorage version mismatch, clearing data");
       clearLocalStorage();
       return null;
     }
 
     const persistedState: PersistedState = JSON.parse(savedData);
+
+    // 🆕 Migrate match history from old format (strings) to new format (MatchPlayerRef)
+    if (persistedState.players) {
+      persistedState.players = persistedState.players.map((player) => {
+        if (player.matchHistory && player.matchHistory.length > 0) {
+          // Check if this is old format (first opponent is a string)
+          const firstMatch = player.matchHistory[0];
+          if (
+            firstMatch.opponents &&
+            typeof firstMatch.opponents[0] === "string"
+          ) {
+            console.log(
+              `Migrating match history for player ${player.name} from old format`
+            );
+
+            // Convert old format to new format
+            player.matchHistory = player.matchHistory.map((oldEntry: any) => ({
+              ...oldEntry,
+              partner: oldEntry.partner
+                ? {
+                    id: "unknown", // Can't recover old IDs
+                    name: oldEntry.partner, // Remove 'as string' cast
+                    skillLevel: "C" as SkillLevel, // Default skill level
+                  }
+                : undefined,
+              opponents: oldEntry.opponents.map((opponentName: any) => ({
+                id: "unknown", // Can't recover old IDs
+                name: opponentName, // Remove 'as string' cast
+                skillLevel: "C" as SkillLevel, // Default skill level
+              })),
+            }));
+          }
+        }
+        return player;
+      });
+    }
 
     // Validate the structure
     if (!persistedState.players || !Array.isArray(persistedState.players)) {

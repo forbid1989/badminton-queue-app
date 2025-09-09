@@ -1,8 +1,13 @@
 // src/utils/matchHistoryUtils.ts
 
-import { Player, MatchHistoryEntry } from "../../components/types/Player";
+import {
+  Player,
+  MatchHistoryEntry,
+  MatchPlayerRef,
+  createMatchPlayerRef,
+} from "../../components/types/Player";
 
-// Utility to format match duration
+// Utility to format match duration (unchanged)
 export const formatMatchDuration = (seconds: number): string => {
   const hours = Math.floor(seconds / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);
@@ -17,30 +22,7 @@ export const formatMatchDuration = (seconds: number): string => {
   }
 };
 
-// Utility to get match description for display
-export const getMatchDescription = (
-  entry: MatchHistoryEntry,
-  playerName: string
-): string => {
-  const { partner, opponents, matchType } = entry;
-
-  switch (matchType) {
-    case "1v1":
-      return `vs ${opponents[0]}`;
-    case "2v1":
-      if (partner) {
-        return `${partner} & ${playerName} vs ${opponents[0]}`;
-      } else {
-        return `${playerName} vs ${opponents.join(" & ")}`;
-      }
-    case "2v2":
-      return `${partner} & ${playerName} vs ${opponents.join(" & ")}`;
-    default:
-      return `with ${opponents.join(", ")}`;
-  }
-};
-
-// FIXED: Correct team formation for badminton
+// FIXED: Correct team formation for badminton (unchanged)
 export const analyzeMatch = (
   players: Player[]
 ): {
@@ -74,7 +56,7 @@ export const analyzeMatch = (
   }
 };
 
-// FIXED: Generate match history entries with ID-based lookup instead of index mapping
+// 🔄 UPDATED: Generate match history entries with MatchPlayerRef instead of strings
 export const generateMatchHistoryEntries = (
   players: Player[],
   courtName: string,
@@ -103,57 +85,66 @@ export const generateMatchHistoryEntries = (
   const entriesMap = new Map<string, MatchHistoryEntry>();
 
   sortedPlayers.forEach((player, index) => {
-    let partner: string | undefined;
-    let opponents: string[] = [];
+    let partner: MatchPlayerRef | undefined; // 🔄 Changed from string | undefined
+    let opponents: MatchPlayerRef[] = []; // 🔄 Changed from string[]
 
     switch (matchType) {
       case "1v1":
         opponents = sortedPlayers
           .filter((p) => p.id !== player.id)
-          .map((p) => p.name);
+          .map((p) => createMatchPlayerRef(p)); // 🔄 Create MatchPlayerRef instead of using p.name
         break;
 
       case "2v1":
         if (index < 2) {
-          partner = sortedPlayers.find(
+          const partnerPlayer = sortedPlayers.find(
             (p, i) => i < 2 && p.id !== player.id
-          )?.name;
-          opponents = sortedPlayers.slice(2).map((p) => p.name);
+          );
+          if (partnerPlayer) {
+            partner = createMatchPlayerRef(partnerPlayer); // 🔄 Create MatchPlayerRef instead of using .name
+          }
+          opponents = sortedPlayers
+            .slice(2)
+            .map((p) => createMatchPlayerRef(p)); // 🔄 Create MatchPlayerRef
         } else {
-          opponents = sortedPlayers.slice(0, 2).map((p) => p.name);
+          opponents = sortedPlayers
+            .slice(0, 2)
+            .map((p) => createMatchPlayerRef(p)); // 🔄 Create MatchPlayerRef
         }
         break;
 
       case "2v2":
         if (index === 0 || index === 2) {
           // Team A: positions 0,2 partner together
-          partner =
-            index === 0 ? sortedPlayers[2]?.name : sortedPlayers[0]?.name;
-          opponents = [sortedPlayers[1]?.name, sortedPlayers[3]?.name].filter(
-            Boolean
-          );
+          const partnerPlayer =
+            index === 0 ? sortedPlayers[2] : sortedPlayers[0];
+          if (partnerPlayer) {
+            partner = createMatchPlayerRef(partnerPlayer); // 🔄 Create MatchPlayerRef instead of using .name
+          }
+          opponents = [sortedPlayers[1], sortedPlayers[3]]
+            .filter(Boolean)
+            .map((p) => createMatchPlayerRef(p)); // 🔄 Create MatchPlayerRef
 
           console.log(
-            `🏸 TEAM A: ${
-              player.name
-            } (pos ${index}) partners with ${partner}, vs [${opponents.join(
-              ", "
-            )}]`
+            `🏸 TEAM A: ${player.name} (pos ${index}) partners with ${
+              partner?.name
+            }, vs [${opponents.map((o) => o.name).join(", ")}]`
           );
         } else {
           // Team B: positions 1,3 partner together
-          partner =
-            index === 1 ? sortedPlayers[3]?.name : sortedPlayers[1]?.name;
-          opponents = [sortedPlayers[0]?.name, sortedPlayers[2]?.name].filter(
-            Boolean
-          );
+          const partnerPlayer =
+            index === 1 ? sortedPlayers[3] : sortedPlayers[1];
+          if (partnerPlayer) {
+            partner = createMatchPlayerRef(partnerPlayer); // 🔄 Create MatchPlayerRef instead of using .name
+          }
+          opponents = [sortedPlayers[0], sortedPlayers[2]]
+            .filter(Boolean)
+            .map((p) => createMatchPlayerRef(p)); // 🔄 Create MatchPlayerRef
 
           console.log(
-            `🏸 TEAM B: ${
-              player.name
-            } (pos ${index}) partners with ${partner}, vs [${opponents.join(
-              ", "
-            )}]`
+            `🏸 TEAM B: ${player.name} (pos ${index}) partners with ${
+              partner?.name
+            }, vs [${opponents.map((o) => o.name).join(", ")}]`
           );
         }
         break;
@@ -177,8 +168,95 @@ export const generateMatchHistoryEntries = (
   return players.map((player) => entriesMap.get(player.id)!).filter(Boolean);
 };
 
-// Helper function to check if a date is today
+// Helper function to check if a date is today (unchanged)
 export const isToday = (date: Date): boolean => {
   const today = new Date();
   return date.toDateString() === today.toDateString();
+};
+
+// 🆕 NEW: Enhanced utility functions using the MatchPlayerRef data
+
+// Get detailed rivalry information
+export const getRivalryStats = (
+  playerMatchHistory: MatchHistoryEntry[],
+  allPlayers: Player[]
+): Array<{
+  opponent: MatchPlayerRef;
+  currentPlayer: Player | null;
+  matchesAgainst: number;
+  lastPlayed: number;
+  winStreak?: number; // Could be added later with match results
+}> => {
+  const rivalryMap = new Map<
+    string,
+    {
+      opponent: MatchPlayerRef;
+      matches: MatchHistoryEntry[];
+    }
+  >();
+
+  // Collect all matches against each opponent
+  playerMatchHistory.forEach((match) => {
+    match.opponents.forEach((opponent) => {
+      if (!rivalryMap.has(opponent.id)) {
+        rivalryMap.set(opponent.id, {
+          opponent,
+          matches: [],
+        });
+      }
+      rivalryMap.get(opponent.id)!.matches.push(match);
+    });
+  });
+
+  // Convert to sorted stats array
+  return Array.from(rivalryMap.values())
+    .map(({ opponent, matches }) => ({
+      opponent,
+      currentPlayer: allPlayers.find((p) => p.id === opponent.id) || null,
+      matchesAgainst: matches.length,
+      lastPlayed: Math.max(...matches.map((m) => m.endTime)),
+    }))
+    .sort((a, b) => b.matchesAgainst - a.matchesAgainst); // Most played against first
+};
+
+// Get partnership statistics
+export const getPartnershipStats = (
+  playerMatchHistory: MatchHistoryEntry[],
+  allPlayers: Player[]
+): Array<{
+  partner: MatchPlayerRef;
+  currentPlayer: Player | null;
+  matchesWith: number;
+  lastPlayed: number;
+}> => {
+  const partnershipMap = new Map<
+    string,
+    {
+      partner: MatchPlayerRef;
+      matches: MatchHistoryEntry[];
+    }
+  >();
+
+  // Collect all matches with each partner
+  playerMatchHistory.forEach((match) => {
+    if (match.partner) {
+      if (!partnershipMap.has(match.partner.id)) {
+        partnershipMap.set(match.partner.id, {
+          partner: match.partner,
+          matches: [],
+        });
+      }
+      partnershipMap.get(match.partner.id)!.matches.push(match);
+    }
+  });
+
+  // Convert to sorted stats array
+  return Array.from(partnershipMap.values())
+    .map(({ partner, matches }) => ({
+      partner,
+      currentPlayer: allPlayers.find((p) => p.id === partner.id) || null,
+      matchesWith: matches.length,
+      lastPlayed: Math.max(...matches.map((m) => m.endTime)),
+    }))
+    .sort((a, b) => b.matchesWith - a.matchesWith); // Most played with first
 };

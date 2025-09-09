@@ -12,10 +12,18 @@ export interface PaymentInfo {
   notes?: string; // Optional notes about payment
 }
 
+// 🆕 Simple player reference for match history
+export interface MatchPlayerRef {
+  id: string; // Player ID for lookups
+  name: string; // Name at the time of the match (snapshot)
+  skillLevel: SkillLevel; // Skill level at the time of the match (snapshot)
+}
+
+// 🔄 Updated MatchHistoryEntry interface to use MatchPlayerRef instead of strings
 export interface MatchHistoryEntry {
   matchId: string; // Unique identifier for the match
-  partner?: string; // Partner's name (undefined for 1v1)
-  opponents: string[]; // Opponent names (1 for 1v1, 2 for 2v2)
+  partner?: MatchPlayerRef; // Partner's info (undefined for 1v1)
+  opponents: MatchPlayerRef[]; // Opponent info (1 for 1v1, 2 for 2v2)
   startTime: number; // Match start timestamp
   endTime: number; // Match end timestamp
   duration: number; // Match duration in seconds
@@ -96,6 +104,21 @@ export const compareSkillLevels = (a: SkillLevel, b: SkillLevel): number => {
   return skillLevelOrder.indexOf(a) - skillLevelOrder.indexOf(b);
 };
 
+// 🆕 Utility function to create MatchPlayerRef from Player
+export const createMatchPlayerRef = (player: Player): MatchPlayerRef => ({
+  id: player.id,
+  name: player.name,
+  skillLevel: player.skillLevel,
+});
+
+// 🆕 Utility function to get current Player from MatchPlayerRef (for enhanced features)
+export const getPlayerFromRef = (
+  playerRef: MatchPlayerRef,
+  allPlayers: Player[]
+): Player | null => {
+  return allPlayers.find((p) => p.id === playerRef.id) || null;
+};
+
 // Enhanced match history utility functions
 export const formatMatchDuration = (seconds: number): string => {
   const hours = Math.floor(seconds / 3600);
@@ -111,6 +134,7 @@ export const formatMatchDuration = (seconds: number): string => {
   }
 };
 
+// 🔄 Updated getMatchDescription function to work with MatchPlayerRef
 export const getMatchDescription = (
   entry: MatchHistoryEntry,
   playerName: string
@@ -119,17 +143,19 @@ export const getMatchDescription = (
 
   switch (matchType) {
     case "1v1":
-      return `vs ${opponents[0]}`;
+      return `vs ${opponents[0].name}`;
     case "2v1":
       if (partner) {
-        return `${partner} & ${playerName} vs ${opponents[0]}`;
+        return `${partner.name} & ${playerName} vs ${opponents[0].name}`;
       } else {
-        return `${playerName} vs ${opponents.join(" & ")}`;
+        return `${playerName} vs ${opponents.map((o) => o.name).join(" & ")}`;
       }
     case "2v2":
-      return `${partner} & ${playerName} vs ${opponents.join(" & ")}`;
+      return `${partner?.name} & ${playerName} vs ${opponents
+        .map((o) => o.name)
+        .join(" & ")}`;
     default:
-      return `with ${opponents.join(", ")}`;
+      return `with ${opponents.map((o) => o.name).join(", ")}`;
   }
 };
 
@@ -163,7 +189,7 @@ export const analyzeMatch = (
   }
 };
 
-// Generate match history entries for all players
+// 🔄 Updated generateMatchHistoryEntries to create MatchPlayerRef objects
 export const generateMatchHistoryEntries = (
   players: Player[],
   courtName: string,
@@ -177,37 +203,52 @@ export const generateMatchHistoryEntries = (
     .substr(2, 9)}`;
 
   return players.map((player, index) => {
-    let partner: string | undefined;
-    let opponents: string[] = [];
+    let partner: MatchPlayerRef | undefined;
+    let opponents: MatchPlayerRef[] = [];
 
     // Determine partner and opponents based on match type and player position
     switch (matchType) {
       case "1v1":
         opponents = players
           .filter((p) => p.id !== player.id)
-          .map((p) => p.name);
+          .map((p) => createMatchPlayerRef(p));
         break;
 
       case "2v1":
         if (index < 2) {
           // Player is in the team of 2
-          partner = players.find((p, i) => i < 2 && p.id !== player.id)?.name;
-          opponents = players.slice(2).map((p) => p.name);
+          const partnerPlayer = players.find(
+            (p, i) => i < 2 && p.id !== player.id
+          );
+          if (partnerPlayer) {
+            partner = createMatchPlayerRef(partnerPlayer);
+          }
+          opponents = players.slice(2).map((p) => createMatchPlayerRef(p));
         } else {
           // Player is the solo player
-          opponents = players.slice(0, 2).map((p) => p.name);
+          opponents = players.slice(0, 2).map((p) => createMatchPlayerRef(p));
         }
         break;
 
       case "2v2":
         if (index < 2) {
           // Player is in team 1
-          partner = players.find((p, i) => i < 2 && p.id !== player.id)?.name;
-          opponents = players.slice(2, 4).map((p) => p.name);
+          const partnerPlayer = players.find(
+            (p, i) => i < 2 && p.id !== player.id
+          );
+          if (partnerPlayer) {
+            partner = createMatchPlayerRef(partnerPlayer);
+          }
+          opponents = players.slice(2, 4).map((p) => createMatchPlayerRef(p));
         } else {
           // Player is in team 2
-          partner = players.find((p, i) => i >= 2 && p.id !== player.id)?.name;
-          opponents = players.slice(0, 2).map((p) => p.name);
+          const partnerPlayer = players.find(
+            (p, i) => i >= 2 && p.id !== player.id
+          );
+          if (partnerPlayer) {
+            partner = createMatchPlayerRef(partnerPlayer);
+          }
+          opponents = players.slice(0, 2).map((p) => createMatchPlayerRef(p));
         }
         break;
     }
@@ -223,4 +264,52 @@ export const generateMatchHistoryEntries = (
       courtName,
     };
   });
+};
+
+// 🆕 Enhanced match analysis with skill level data
+export const analyzeMatchSkills = (
+  entry: MatchHistoryEntry
+): {
+  averageSkillLevel: number;
+  skillRange: string;
+  teamBalance: "balanced" | "unbalanced";
+} => {
+  const allPlayers = [
+    ...(entry.partner ? [entry.partner] : []),
+    ...entry.opponents,
+  ];
+  const skillLevels = allPlayers.map((p) =>
+    skillLevelOrder.indexOf(p.skillLevel)
+  );
+
+  const avgSkill =
+    skillLevels.reduce((sum, level) => sum + level, 0) / skillLevels.length;
+  const minSkill = Math.min(...skillLevels);
+  const maxSkill = Math.max(...skillLevels);
+
+  return {
+    averageSkillLevel: avgSkill,
+    skillRange: `${skillLevelOrder[minSkill]} - ${skillLevelOrder[maxSkill]}`,
+    teamBalance: maxSkill - minSkill <= 2 ? "balanced" : "unbalanced",
+  };
+};
+
+// 🆕 Get match rivalry stats (how many times played against specific players)
+export const getMatchRivalries = (
+  playerMatchHistory: MatchHistoryEntry[],
+  targetPlayerId: string
+): number => {
+  return playerMatchHistory.filter((match) =>
+    match.opponents.some((opponent) => opponent.id === targetPlayerId)
+  ).length;
+};
+
+// 🆕 Get partnership stats
+export const getPartnershipStats = (
+  playerMatchHistory: MatchHistoryEntry[],
+  partnerPlayerId: string
+): number => {
+  return playerMatchHistory.filter(
+    (match) => match.partner?.id === partnerPlayerId
+  ).length;
 };

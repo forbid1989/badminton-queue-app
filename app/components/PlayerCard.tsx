@@ -30,11 +30,11 @@ import QueueIcon from '@mui/icons-material/Queue';
 import AddIcon from '@mui/icons-material/Add';
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
 import { Badge, Chip, Tooltip } from '@mui/material';
-import { Player, getSkillLevelColor, SkillLevel, skillLevelOrder, getSkillLevelDescription } from './types/Player';
+import { Player, getSkillLevelColor, SkillLevel, skillLevelOrder, getSkillLevelDescription, getMatchDescription, MatchHistoryEntry } from './types/Player';
 import { AppContext } from '../BadmintonQueueUI';
 import { Action } from '../lib/store/Action';
 import KeyboardReturnIcon from '@mui/icons-material/KeyboardReturn';
-import { formatMatchDuration, getMatchDescription, isToday } from '../lib/utils/matchHistoryUtils';
+import { formatMatchDuration, isToday } from '../lib/utils/matchHistoryUtils';
 
 // Pragmatic Drag and Drop imports
 import { draggable, dropTargetForElements } from '@atlaskit/pragmatic-drag-and-drop/element/adapter';
@@ -1082,6 +1082,42 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
                   }
                 };
 
+                // 🆕 NEW: Enhanced skill level display showing progression
+                const getSkillBadges = (entry: MatchHistoryEntry) => {
+                  const allRefs = [...(entry.partner ? [entry.partner] : []), ...entry.opponents];
+                  return allRefs.map(ref => {
+                    const currentPlayer = state.players.find(p => p.id === ref.id);
+                    const hasChanged = currentPlayer && currentPlayer.skillLevel !== ref.skillLevel;
+                    
+                    return (
+                      <Tooltip 
+                        key={ref.id} 
+                        title={hasChanged 
+                          ? `${ref.name}: was ${ref.skillLevel}, now ${currentPlayer.skillLevel}` 
+                          : `${ref.name}: ${ref.skillLevel}`
+                        }
+                        arrow
+                      >
+                        <Chip
+                          label={hasChanged ? `${ref.skillLevel}→${currentPlayer.skillLevel}` : ref.skillLevel}
+                          size="small"
+                          sx={{
+                            fontSize: '0.6rem',
+                            height: '18px',
+                            backgroundColor: getSkillLevelColor(ref.skillLevel),
+                            color: 'white',
+                            fontWeight: 'bold',
+                            cursor: 'help',
+                            ...(hasChanged && {
+                              background: `linear-gradient(45deg, ${getSkillLevelColor(ref.skillLevel)} 50%, ${getSkillLevelColor(currentPlayer.skillLevel)} 50%)`,
+                            })
+                          }}
+                        />
+                      </Tooltip>
+                    );
+                  });
+                };
+
                 return (
                   <Box
                     key={`${entry.matchId}-${i}`}
@@ -1109,7 +1145,17 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
                       {matchDescription}
                     </Typography>
 
-                    {/* Court and timing info */}
+                    {/* 🆕 NEW: Skill level badges for opponents/partners */}
+                    {entry.opponents.length > 0 && (
+                      <Box sx={{ display: 'flex', gap: 0.5, mb: 1, flexWrap: 'wrap' }}>
+                        <Typography variant="caption" sx={{ fontSize: '0.65rem', color: 'text.secondary', mr: 0.5 }}>
+                          Players:
+                        </Typography>
+                        {getSkillBadges(entry)}
+                      </Box>
+                    )}
+
+                    {/* Court and timing info - UNCHANGED */}
                     <Typography
                       variant="caption"
                       sx={{
@@ -1148,7 +1194,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
                       Duration: {durationStr}
                     </Typography>
 
-                    {/* Show date if not today */}
+                    {/* Show date if not today - UNCHANGED */}
                     {!isToday(startTime) && (
                       <Typography
                         variant="caption"

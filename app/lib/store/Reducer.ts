@@ -1783,7 +1783,7 @@ export default function reducer(state: any, action: Action) {
       );
 
       if (playersOnCourt.length === 0) {
-        console.log("❌ No players found on court", courtId);
+        console.log("⛔ No players found on court", courtId);
         return state;
       }
 
@@ -1803,7 +1803,7 @@ export default function reducer(state: any, action: Action) {
         ...playersOnCourt.map((p) => p.courtEnteredTime || p.timeEntered)
       );
 
-      // Step 4: Generate enhanced match history entries
+      // Step 4: Generate enhanced match history entries using the updated function
       const matchHistoryEntries = generateMatchHistoryEntries(
         playersOnCourt,
         courtName,
