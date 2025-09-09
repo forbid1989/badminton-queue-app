@@ -88,10 +88,6 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const nameUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Context menu prevention refs and state
-  // const contextMenuTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  // const [contextMenuBlocked, setContextMenuBlocked] = useState(false);
-
   // Memoized player status calculations
   const playerStatus = useMemo(() => {
     const isOnCourt = player.status.some(s => s.startsWith('court'));
@@ -145,7 +141,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
   // Memoized color calculations
   const cardColors = useMemo(() => {
     const getBackgroundColor = () => {
-      const { isConflict, isCourtAndQueue, isIdleTooLong, isOnCourt, isInQueue, isUnassigned } = playerStatus;
+      const { isConflict, isCourtAndQueue, isIdleTooLong, isOnCourt, isInQueue } = playerStatus;
       
       // Check for cooldown state (gray card when on court < 15 mins)
       if (isOnCooldown && zone === "all") {
@@ -700,7 +696,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
         pointerEvents: 'none',
       },
     };
-  }, [isInTeamZone, isMobile, cardColors, isDragging, isDropTarget, isSwapping, isOnCooldown, zone]);
+  }, [isMobile, cardColors, isDragging, isDropTarget, isSwapping, isOnCooldown, zone]);
 
   const enhancedBadgeStyle = useMemo(() => {
 

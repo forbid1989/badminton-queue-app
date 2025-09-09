@@ -1,4 +1,4 @@
-import React, { useContext, useState, useCallback, useMemo } from 'react';
+import React, { useContext, useState, useCallback, useMemo, useEffect } from 'react';
 import { Typography, IconButton, Box, Divider, useTheme } from '@mui/material';
 import AddIcon from '@mui/icons-material/GroupAdd';
 import SettingsIcon from '@mui/icons-material/Settings';
@@ -26,7 +26,8 @@ const Dashboard: React.FC = React.memo(() => {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [openSettings, setOpenSettings] = useState(false);
   const [openPayment, setOpenPayment] = useState(false);
-   const [openPlayerList, setOpenPlayerList] = useState(false);
+  const [openPlayerList, setOpenPlayerList] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   // Memoized calculations
   const totalPlayers = useMemo(() => state.players.length, [state.players.length]);
@@ -72,6 +73,10 @@ const Dashboard: React.FC = React.memo(() => {
 
   const handleClosePlayerList = useCallback(() => {
     setOpenPlayerList(false);
+  }, []);
+
+  useEffect(() => {
+    setMounted(true);
   }, []);
 
   // Memoized style objects with responsive breakpoints
@@ -150,8 +155,8 @@ const Dashboard: React.FC = React.memo(() => {
     <Box 
       sx={headerSx}
     >
-      <Typography variant="subtitle1" sx={{ fontSize: '0.95rem' }}>
-        Total Players: {totalPlayers}
+      <Typography variant="subtitle1" sx={{ fontSize: '0.95rem' }} suppressHydrationWarning>
+        Total Players: {mounted ? totalPlayers : 0}
       </Typography>
       <Box sx={buttonGroupSx}>
         <IconButton onClick={handleOpenParser} title="Add Players">
@@ -171,7 +176,7 @@ const Dashboard: React.FC = React.memo(() => {
         </IconButton>
       </Box>
     </Box>
-  ), [totalPlayers, headerSx, buttonGroupSx, handleOpenParser, handleOpenPlayerList, handleOpenPopover, handleOpenPayment, handleOpenSettings]);
+  ), [totalPlayers, headerSx, buttonGroupSx, mounted, handleOpenParser, handleOpenPlayerList, handleOpenPopover, handleOpenPayment, handleOpenSettings]);
 
   // Memoized popover content
   const popoverContent = useMemo(() => (
