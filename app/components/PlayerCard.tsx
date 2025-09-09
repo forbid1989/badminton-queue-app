@@ -140,37 +140,58 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
   }, [player.gamesPlayed, player.matchHistory, player.paymentInfo]);
 
   const hasExcessivePartnership = useMemo(() => {
-    // Only check if player is currently on a court or being placed on a court
-    if (!zone.startsWith('court-')) {
+    // Check if player is currently on a court, in a queue, or being placed in either
+    const isOnCourt = zone.startsWith('court-');
+    const isInQueue = zone.startsWith('queue-');
+    
+    if (!isOnCourt && !isInQueue) {
       return false;
     }
 
-    const courtId = zone;
-    const courtPlayers = state.courts.playersByCourt[courtId] || [];
+    const currentZoneId = zone;
+    let currentZonePlayers: Player[] = [];
     
-    // Find other players on the same court
-    const otherPlayersOnCourt = courtPlayers.filter(p => p.id !== player.id);
+    // Get players from the appropriate zone
+    if (isOnCourt) {
+      currentZonePlayers = state.courts.playersByCourt[currentZoneId] || [];
+    } else if (isInQueue) {
+      currentZonePlayers = state.queue.playersByQueue[currentZoneId] || [];
+    }
     
-    // Check if current player has excessive partnership with any other player on court
-    for (const otherPlayer of otherPlayersOnCourt) {
+    // Find other players in the same zone
+    const otherPlayersInZone = currentZonePlayers.filter(p => p.id !== player.id);
+    
+    // Check if current player has excessive partnership with any other player in the zone
+    for (const otherPlayer of otherPlayersInZone) {
       if (checkExcessivePartnership(player, otherPlayer) || 
           checkExcessivePartnership(otherPlayer, player)) {
-        console.log(`⚠️  Excessive partnership detected: ${player.name} & ${otherPlayer.name}`);
+        console.log(`⚠️  Excessive partnership detected: ${player.name} & ${otherPlayer.name} in ${zone}`);
         return true;
       }
     }
     
     return false;
-  }, [player, zone, state.courts.playersByCourt]);
+  }, [player, zone, state.courts.playersByCourt, state.queue.playersByQueue]);
 
   const partnershipDetails = useMemo(() => {
-    if (!zone.startsWith('court-')) return null;
-
-    const courtId = zone;
-    const courtPlayers = state.courts.playersByCourt[courtId] || [];
-    const otherPlayersOnCourt = courtPlayers.filter(p => p.id !== player.id);
+    const isOnCourt = zone.startsWith('court-');
+    const isInQueue = zone.startsWith('queue-');
     
-    const partnerships = otherPlayersOnCourt
+    if (!isOnCourt && !isInQueue) return null;
+
+    const currentZoneId = zone;
+    let currentZonePlayers: Player[] = [];
+    
+    // Get players from the appropriate zone
+    if (isOnCourt) {
+      currentZonePlayers = state.courts.playersByCourt[currentZoneId] || [];
+    } else if (isInQueue) {
+      currentZonePlayers = state.queue.playersByQueue[currentZoneId] || [];
+    }
+    
+    const otherPlayersInZone = currentZonePlayers.filter(p => p.id !== player.id);
+    
+    const partnerships = otherPlayersInZone
       .map(otherPlayer => {
         const count1 = (player.matchHistory || []).filter(
           match => match.partner?.id === otherPlayer.id
@@ -188,7 +209,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
       .filter(p => p.count >= 2);
 
     return partnerships;
-  }, [player, zone, state.courts.playersByCourt]);
+  }, [player, zone, state.courts.playersByCourt, state.queue.playersByQueue]);
 
   // Memoized color calculations
   const cardColors = useMemo(() => {

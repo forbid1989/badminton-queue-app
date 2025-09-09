@@ -603,6 +603,12 @@ export default function reducer(state: any, action: Action) {
           p.status.includes(zone as PlayerStatus)
         );
         logPartnershipWarnings(zone, courtPlayers);
+      } else if (zone.startsWith("queue-")) {
+        // 🆕 NEW: Also check partnerships in queues
+        const queuePlayers = updatedPlayers.filter((p: Player) =>
+          p.status.includes(zone as PlayerStatus)
+        );
+        logPartnershipWarnings(zone, queuePlayers);
       }
 
       return {
@@ -841,6 +847,7 @@ export default function reducer(state: any, action: Action) {
         )} court=${updatedPlayer.courtOrder} queue=${updatedPlayer.queueOrder}`
       );
 
+      // 🆕 UPDATED: Check partnerships for both courts and queues
       if (isToCourt || (isFromCourt && to.startsWith("court-"))) {
         const targetCourtId = isToCourt ? to : isFromCourt ? from : "";
         if (targetCourtId.startsWith("court-")) {
@@ -848,6 +855,17 @@ export default function reducer(state: any, action: Action) {
             p.status.includes(targetCourtId as PlayerStatus)
           );
           logPartnershipWarnings(targetCourtId, courtPlayers);
+        }
+      }
+
+      // 🆕 NEW: Also check for queue partnerships
+      if (isToQueue || (isFromQueue && to.startsWith("queue-"))) {
+        const targetQueueId = isToQueue ? to : isFromQueue ? from : "";
+        if (targetQueueId.startsWith("queue-")) {
+          const queuePlayers = updatedPlayers.filter((p: Player) =>
+            p.status.includes(targetQueueId as PlayerStatus)
+          );
+          logPartnershipWarnings(targetQueueId, queuePlayers);
         }
       }
 
@@ -1116,6 +1134,12 @@ export default function reducer(state: any, action: Action) {
           p.status.includes(to as PlayerStatus)
         );
         logPartnershipWarnings(to, courtPlayers);
+      } else if (isToQueue) {
+        // 🆕 NEW: Also check partnerships when moving to queues
+        const queuePlayers = updatedPlayers.filter((p: Player) =>
+          p.status.includes(to as PlayerStatus)
+        );
+        logPartnershipWarnings(to, queuePlayers);
       }
 
       return {
