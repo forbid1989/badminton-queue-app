@@ -1,4 +1,4 @@
-import React, { useContext, useMemo, useCallback } from 'react';
+import React, { useContext, useMemo, useCallback, useState, useEffect } from 'react';
 import Grid from '@mui/material/Grid';
 import { Typography, Button, Box, Chip, IconButton } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
@@ -139,7 +139,8 @@ const QueueItem = React.memo<{
   canRemove: boolean;
   onTransferToCourt: (queueId: string) => void;
   onRemoveQueue: (queueId: string) => void;
-}>(({ queueId, index, players, courtCount, courtOccupancy, canRemove, onTransferToCourt, onRemoveQueue }) => {
+  mounted: boolean;
+}>(({ queueId, index, players, courtCount, courtOccupancy, canRemove, onTransferToCourt, onRemoveQueue, mounted }) => {
   
   // Memoized queue format calculation
   const queueFormat = useMemo(() => getQueueFormat(players), [players]);
@@ -283,7 +284,7 @@ const QueueItem = React.memo<{
               </Typography>
               
               {/* Remove queue button - only show if we can remove */}
-              {canRemove && (
+              {mounted && canRemove && (
                 <IconButton
                   size="small"
                   onClick={handleRemove}
@@ -406,7 +407,13 @@ const AddQueueButton = React.memo<{ onAddQueue: () => void }>(({ onAddQueue }) =
 AddQueueButton.displayName = 'AddQueueButton';
 
 const QueueZone: React.FC<QueueZoneProps> = ({ courtCount }) => {
+
+  const [mounted, setMounted] = useState(false);
   const { state, dispatch } = useContext(AppContext);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Memoize court occupancy calculation - use pre-calculated zone mappings
   const courtOccupancy = useMemo(() => {
@@ -458,7 +465,11 @@ const QueueZone: React.FC<QueueZoneProps> = ({ courtCount }) => {
   }, [dispatch]);
 
   // Determine if queues can be removed (need at least 1)
-  const canRemoveQueues = useMemo(() => queueData.length > 1, [queueData.length]);
+  const canRemoveQueues = useMemo(() => {
+    // On server or before hydration, always return false to prevent showing remove buttons
+    if (!mounted) return false;
+    return queueData.length > 1;
+  }, [queueData.length, mounted]);
 
   // Memoized the queue items
   const queueItems = useMemo(() => 
@@ -473,9 +484,10 @@ const QueueZone: React.FC<QueueZoneProps> = ({ courtCount }) => {
         canRemove={canRemoveQueues}
         onTransferToCourt={handleTransferToCourt}
         onRemoveQueue={handleRemoveQueue}
+        mounted={mounted}
       />
     )), 
-    [queueData, courtCount, courtOccupancy, canRemoveQueues, handleTransferToCourt, handleRemoveQueue]
+    [queueData, courtCount, courtOccupancy, canRemoveQueues, handleTransferToCourt, handleRemoveQueue, mounted]
   );
 
   return (

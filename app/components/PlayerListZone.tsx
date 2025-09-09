@@ -192,19 +192,19 @@ const PlayerListZone: React.FC<PlayerListZoneProps> = ({ state }) => {
   }, [searchQuery, activeTab]);
 
   // ✅ Memoize the player grid with better responsive sizing
-  const playerGrid = useMemo(() => (
-    <Grid container spacing={{ xs: 0.5, sm: 1 }}>
-      {filteredAndSortedPlayers.map((player) => (
-        <Grid 
-          key={player.id} 
-          size={{ xs: 6, sm: 12, md: 12, lg: 6, xl: 4 }}
-        >
-          {/* IMPORTANT: Always pass "all" as the zone for cards in PlayerListZone */}
-          <PlayerCard player={player} zone="all" />
-        </Grid>
-      ))}
-    </Grid>
-  ), [filteredAndSortedPlayers]);
+  // const playerGrid = useMemo(() => (
+  //   <Grid container spacing={{ xs: 0.5, sm: 1 }}>
+  //     {filteredAndSortedPlayers.map((player) => (
+  //       <Grid 
+  //         key={player.id} 
+  //         size={{ xs: 6, sm: 12, md: 12, lg: 6, xl: 4 }}
+  //       >
+  //         {/* IMPORTANT: Always pass "all" as the zone for cards in PlayerListZone */}
+  //         <PlayerCard player={player} zone="all" />
+  //       </Grid>
+  //     ))}
+  //   </Grid>
+  // ), [filteredAndSortedPlayers]);
 
   // 🆕 Calculate whether to show the drop message
   const shouldShowDropMessage = useMemo(() => {
@@ -410,13 +410,37 @@ const PlayerListZone: React.FC<PlayerListZoneProps> = ({ state }) => {
           },
         }}
       >
-        {filteredAndSortedPlayers.length === 0 ? (
-          <Typography variant="body2" sx={{ color: '#555555', textAlign: 'center', py: 2 }}>
-            {emptyMessage}
-          </Typography>
-        ) : (
-          playerGrid
-        )}
+        <Grid container spacing={{ xs: 0.5, sm: 1 }}>
+          {mounted && filteredAndSortedPlayers.length === 0 ? (
+            // Show empty message in a Grid item to maintain structure
+            <Grid size={12}>
+              <Typography 
+                variant="body2" 
+                sx={{ 
+                  color: '#555555', 
+                  textAlign: 'center', 
+                  py: 2 
+                }}
+                suppressHydrationWarning
+              >
+                {emptyMessage}
+              </Typography>
+            </Grid>
+          ) : mounted ? (
+            // Show player cards when mounted and has players
+            filteredAndSortedPlayers.map((player) => (
+              <Grid 
+                key={player.id} 
+                size={{ xs: 6, sm: 12, md: 12, lg: 6, xl: 4 }}
+              >
+                <PlayerCard player={player} zone="all" />
+              </Grid>
+            ))
+          ) : (
+            // Show nothing initially to prevent hydration mismatch
+            null
+          )}
+        </Grid>
       </DroppableZone>
     </Box>
   );
