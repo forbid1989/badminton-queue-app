@@ -35,6 +35,7 @@ import { AppContext } from '../BadmintonQueueUI';
 import { Action } from '../lib/store/Action';
 import KeyboardReturnIcon from '@mui/icons-material/KeyboardReturn';
 import { formatMatchDuration, isToday } from '../lib/utils/matchHistoryUtils';
+import { checkExcessivePartnership } from '../lib/utils/matchHistoryUtils';
 
 // Pragmatic Drag and Drop imports
 import { draggable, dropTargetForElements } from '@atlaskit/pragmatic-drag-and-drop/element/adapter';
@@ -137,6 +138,57 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
       hasPaymentInfo: Boolean(player.paymentInfo?.hasPaid || player.paymentInfo?.isGuest)
     };
   }, [player.gamesPlayed, player.matchHistory, player.paymentInfo]);
+
+  const hasExcessivePartnership = useMemo(() => {
+    // Only check if player is currently on a court or being placed on a court
+    if (!zone.startsWith('court-')) {
+      return false;
+    }
+
+    const courtId = zone;
+    const courtPlayers = state.courts.playersByCourt[courtId] || [];
+    
+    // Find other players on the same court
+    const otherPlayersOnCourt = courtPlayers.filter(p => p.id !== player.id);
+    
+    // Check if current player has excessive partnership with any other player on court
+    for (const otherPlayer of otherPlayersOnCourt) {
+      if (checkExcessivePartnership(player, otherPlayer) || 
+          checkExcessivePartnership(otherPlayer, player)) {
+        console.log(`⚠️  Excessive partnership detected: ${player.name} & ${otherPlayer.name}`);
+        return true;
+      }
+    }
+    
+    return false;
+  }, [player, zone, state.courts.playersByCourt]);
+
+  const partnershipDetails = useMemo(() => {
+    if (!zone.startsWith('court-')) return null;
+
+    const courtId = zone;
+    const courtPlayers = state.courts.playersByCourt[courtId] || [];
+    const otherPlayersOnCourt = courtPlayers.filter(p => p.id !== player.id);
+    
+    const partnerships = otherPlayersOnCourt
+      .map(otherPlayer => {
+        const count1 = (player.matchHistory || []).filter(
+          match => match.partner?.id === otherPlayer.id
+        ).length;
+        const count2 = (otherPlayer.matchHistory || []).filter(
+          match => match.partner?.id === player.id
+        ).length;
+        const totalCount = Math.max(count1, count2); // Take the higher count
+        
+        return {
+          partner: otherPlayer,
+          count: totalCount
+        };
+      })
+      .filter(p => p.count >= 2);
+
+    return partnerships;
+  }, [player, zone, state.courts.playersByCourt]);
 
   // Memoized color calculations
   const cardColors = useMemo(() => {
@@ -635,33 +687,40 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
         : cardColors.backgroundColor,
       borderRadius: '14px',
       boxShadow: isDropTarget 
-      ? '0 4px 12px rgba(233, 30, 99, 0.3)'
-      : isSwapping
-        ? '0 0 20px rgba(233, 30, 99, 0.8)'
-        : '0 1px 3px rgba(0,0,0,0.2), inset 0 1px 1px rgba(255,255,255,0.2)',
+        ? '0 4px 12px rgba(233, 30, 99, 0.3)'
+        : isSwapping
+          ? '0 0 20px rgba(233, 30, 99, 0.8)'
+          : hasExcessivePartnership // 🆕 NEW: Purple glow for excessive partnerships
+            ? '0 0 12px rgba(156, 39, 176, 0.6)'
+            : '0 1px 3px rgba(0,0,0,0.2), inset 0 1px 1px rgba(255,255,255,0.2)',
       cursor: isOnCooldown && zone === "all" ? 'not-allowed' : 'grab',
       margin: '0 auto 2px',
       color: cardColors.textColor,
-      border: isSwapping
-      ? '2px solid #E91E63'
-      : isDropTarget 
-        ? '2px solid #E91E63'
-        : `1px solid ${cardColors.backgroundColor}`,
+      border: hasExcessivePartnership // 🆕 NEW: Purple border for excessive partnerships
+        ? '2px solid #9C27B0'
+        : isSwapping
+          ? '2px solid #E91E63'
+          : isDropTarget 
+            ? '2px solid #E91E63'
+            : `1px solid ${cardColors.backgroundColor}`,
       opacity: isDragging ? 0.5 : 1,
       transform: isDropTarget 
         ? 'scale(1.05)' 
         : (isDragging ? 'scale(0.95)' : 'scale(1)'),
-      transition: isSwapping 
-        ? 'border-color 0.15s ease-in-out, border-width 0.15s ease-in-out, box-shadow 0.15s ease-in-out'
-        : 'all 0.2s ease-in-out',
-      animation: isSwapping 
-        ? 'swapFlash 0.6s ease-in-out'
-        : 'none',
+      transition: hasExcessivePartnership // 🆕 NEW: Different transition for partnerships
+        ? 'border-color 0.3s ease-in-out, box-shadow 0.3s ease-in-out'
+        : isSwapping 
+          ? 'border-color 0.15s ease-in-out, border-width 0.15s ease-in-out, box-shadow 0.15s ease-in-out'
+          : 'all 0.2s ease-in-out',
+      animation: hasExcessivePartnership // 🆕 NEW: Purple pulse animation for partnerships
+        ? 'purplePulse 2s ease-in-out infinite'
+        : isSwapping 
+          ? 'swapFlash 0.6s ease-in-out'
+          : 'none',
       userSelect: 'none',
       WebkitUserSelect: 'none',
       WebkitTapHighlightColor: 'transparent',
       WebkitTouchCallout: 'none',
-      // Enhanced context menu prevention
       MozUserSelect: 'none',
       msUserSelect: 'none',
       '&:active': {
@@ -696,7 +755,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
         pointerEvents: 'none',
       },
     };
-  }, [isMobile, cardColors, isDragging, isDropTarget, isSwapping, isOnCooldown, zone]);
+  }, [isMobile, cardColors, isDragging, isDropTarget, isSwapping, isOnCooldown, zone, hasExcessivePartnership]);
 
   const enhancedBadgeStyle = useMemo(() => {
 

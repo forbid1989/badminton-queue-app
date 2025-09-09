@@ -29,6 +29,9 @@ const ActionType = {
   MARK_ALL_PLAYERS_PAID: "markAllPlayersPaid",
   CLEAR_ALL_PAYMENTS: "clearAllPayments",
   UPDATE_PLAYER_SKILL_LEVEL: "updatePlayerSkillLevel",
+  VALIDATE_COURT_PARTNERSHIPS: "validateCourtPartnerships",
+  SHOW_PARTNERSHIP_WARNING: "showPartnershipWarning",
+  CLEAR_PARTNERSHIP_WARNINGS: "clearPartnershipWarnings",
 } as const;
 
 // 🧠 Action creators
@@ -233,6 +236,32 @@ const Action = {
     return {
       type: ActionType.UPDATE_PLAYER_SKILL_LEVEL,
       payload: { playerId, skillLevel },
+    };
+  },
+
+  // 🆕 NEW: Validate partnerships on a specific court
+  validateCourtPartnerships(courtId: string) {
+    return {
+      type: ActionType.VALIDATE_COURT_PARTNERSHIPS,
+      payload: { courtId },
+    };
+  },
+
+  // 🆕 NEW: Show partnership warning in UI
+  showPartnershipWarning(
+    courtId: string,
+    partnerships: Array<{ player1: string; player2: string; count: number }>
+  ) {
+    return {
+      type: ActionType.SHOW_PARTNERSHIP_WARNING,
+      payload: { courtId, partnerships },
+    };
+  },
+
+  // 🆕 NEW: Clear all partnership warnings
+  clearPartnershipWarnings() {
+    return {
+      type: ActionType.CLEAR_PARTNERSHIP_WARNINGS,
     };
   },
 };

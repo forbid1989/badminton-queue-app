@@ -1,5 +1,3 @@
-// src/utils/matchHistoryUtils.ts
-
 import {
   Player,
   MatchHistoryEntry,
@@ -259,4 +257,65 @@ export const getPartnershipStats = (
       lastPlayed: Math.max(...matches.map((m) => m.endTime)),
     }))
     .sort((a, b) => b.matchesWith - a.matchesWith); // Most played with first
+};
+
+// Check if two players have excessive partnership (2+ games together)
+export const checkExcessivePartnership = (
+  player1: Player,
+  player2: Player
+): boolean => {
+  if (!player1.matchHistory || player1.matchHistory.length === 0) {
+    return false;
+  }
+
+  // Count how many times player1 has partnered with player2
+  const partnershipCount = player1.matchHistory.filter(
+    (match) => match.partner?.id === player2.id
+  ).length;
+
+  console.log(
+    `🔍 Partnership check: ${player1.name} & ${player2.name} = ${partnershipCount} games`
+  );
+
+  return partnershipCount >= 2;
+};
+
+// Check if any player in a group has excessive partnerships with others in the same group
+export const checkGroupForExcessivePartnerships = (
+  players: Player[]
+): { player1: Player; player2: Player }[] => {
+  const excessivePartnerships: { player1: Player; player2: Player }[] = [];
+
+  // Check all pairs in the group
+  for (let i = 0; i < players.length; i++) {
+    for (let j = i + 1; j < players.length; j++) {
+      const player1 = players[i];
+      const player2 = players[j];
+
+      // Check partnership in both directions (either could have the history)
+      const hasExcessivePartnership =
+        checkExcessivePartnership(player1, player2) ||
+        checkExcessivePartnership(player2, player1);
+
+      if (hasExcessivePartnership) {
+        excessivePartnerships.push({ player1, player2 });
+      }
+    }
+  }
+
+  return excessivePartnerships;
+};
+
+//  Get partnership count between two specific players
+export const getPartnershipCount = (
+  player1: Player,
+  player2: Player
+): number => {
+  if (!player1.matchHistory || player1.matchHistory.length === 0) {
+    return 0;
+  }
+
+  return player1.matchHistory.filter(
+    (match) => match.partner?.id === player2.id
+  ).length;
 };

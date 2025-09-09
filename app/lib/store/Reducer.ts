@@ -5,7 +5,11 @@ import {
   SkillLevel,
 } from "../../components/types/Player";
 import { clearLocalStorage } from "../utils/localStorage";
-import { generateMatchHistoryEntries } from "../utils/matchHistoryUtils";
+import {
+  generateMatchHistoryEntries,
+  checkExcessivePartnership,
+} from "../utils/matchHistoryUtils";
+import { validateCourtAssignment } from "../utils/courtAssignmentUtils";
 
 type Action =
   | { type: "setCourtCount"; payload: number }
@@ -68,6 +72,22 @@ type Action =
       type: "updatePlayerSkillLevel";
       payload: { playerId: string; skillLevel: string };
     };
+
+function logPartnershipWarnings(courtId: string, players: Player[]): void {
+  if (players.length >= 2) {
+    const validation = validateCourtAssignment(players);
+
+    if (validation.hasExcessivePartnerships) {
+      console.warn(`⚠️  PARTNERSHIP WARNING on ${courtId}:`);
+      validation.warnings.forEach((warning) => {
+        console.warn(`   ${warning}`);
+      });
+
+      // Optional: Add visual notification or dispatch a warning action
+      // You could dispatch a new action to show warnings in the UI
+    }
+  }
+}
 
 // Helper function to check if we should auto-create a new queue
 function shouldAutoCreateQueue(state: any): boolean {
@@ -578,6 +598,13 @@ export default function reducer(state: any, action: Action) {
         `✅ Position move completed: ${updatedPlayer.name} from "${from}" → ${zone} position ${position}`
       );
 
+      if (zone.startsWith("court-")) {
+        const courtPlayers = updatedPlayers.filter((p: Player) =>
+          p.status.includes(zone as PlayerStatus)
+        );
+        logPartnershipWarnings(zone, courtPlayers);
+      }
+
       return {
         ...state,
         players: updatedPlayers,
@@ -813,6 +840,16 @@ export default function reducer(state: any, action: Action) {
           updatedPlayer.status
         )} court=${updatedPlayer.courtOrder} queue=${updatedPlayer.queueOrder}`
       );
+
+      if (isToCourt || (isFromCourt && to.startsWith("court-"))) {
+        const targetCourtId = isToCourt ? to : isFromCourt ? from : "";
+        if (targetCourtId.startsWith("court-")) {
+          const courtPlayers = updatedPlayers.filter((p: Player) =>
+            p.status.includes(targetCourtId as PlayerStatus)
+          );
+          logPartnershipWarnings(targetCourtId, courtPlayers);
+        }
+      }
 
       return {
         ...state,
@@ -1073,6 +1110,13 @@ export default function reducer(state: any, action: Action) {
           updatedPlayer.status
         )} court=${updatedPlayer.courtOrder} queue=${updatedPlayer.queueOrder}`
       );
+
+      if (isToCourt) {
+        const courtPlayers = updatedPlayers.filter((p: Player) =>
+          p.status.includes(to as PlayerStatus)
+        );
+        logPartnershipWarnings(to, courtPlayers);
+      }
 
       return {
         ...state,
