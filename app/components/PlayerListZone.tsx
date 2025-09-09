@@ -1,4 +1,4 @@
-import React, { useMemo, useState, JSX } from 'react';
+import React, { useMemo, useState, JSX, useEffect } from 'react';
 import { Typography, Grid, TextField, Box, InputAdornment, Tabs, Tab, Badge } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import ClearIcon from '@mui/icons-material/Clear';
@@ -108,10 +108,15 @@ const filterPlayersByTab = (players: Player[], tab: string): Player[] => {
 const PlayerListZone: React.FC<PlayerListZoneProps> = ({ state }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('all');
+  const [mounted, setMounted] = useState(false);
 
   const theme = useTheme();
 
   const shouldUseIcons = useMediaQuery(theme.breakpoints.between('sm', 'lg'));
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Calculate tab counts for badges
   const tabCounts = useMemo(() => {
@@ -250,8 +255,9 @@ const PlayerListZone: React.FC<PlayerListZoneProps> = ({ state }) => {
                 value={tab.value}
                 label={
                   <Badge 
-                    badgeContent={tabCounts[tab.value]} 
+                    badgeContent={mounted ? tabCounts[tab.value] : 0}
                     max={99}
+                    suppressHydrationWarning
                     sx={{
                       '& .MuiBadge-badge': {
                         fontSize: '0.6rem',
