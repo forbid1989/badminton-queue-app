@@ -140,7 +140,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
   }, [player.gamesPlayed, player.matchHistory, player.paymentInfo]);
 
   const hasExcessivePartnership = useMemo(() => {
-    // Check if player is currently on a court, in a queue, or being placed in either
+    // Check if player is currently on a court or in a queue
     const isOnCourt = zone.startsWith('court-');
     const isInQueue = zone.startsWith('queue-');
     
@@ -158,14 +158,41 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
       currentZonePlayers = state.queue.playersByQueue[currentZoneId] || [];
     }
     
-    // Find other players in the same zone
-    const otherPlayersInZone = currentZonePlayers.filter(p => p.id !== player.id);
+    // Need at least 2 players to check partnerships
+    if (currentZonePlayers.length < 2) {
+      return false;
+    }
+
+    // Get current player's position
+    const currentPlayerPosition = isOnCourt ? player.courtOrder : player.queueOrder;
     
-    // Check if current player has excessive partnership with any other player in the zone
-    for (const otherPlayer of otherPlayersInZone) {
-      if (checkExcessivePartnership(player, otherPlayer) || 
-          checkExcessivePartnership(otherPlayer, player)) {
-        console.log(`⚠️  Excessive partnership detected: ${player.name} & ${otherPlayer.name} in ${zone}`);
+    if (currentPlayerPosition === null || currentPlayerPosition === undefined) {
+      return false;
+    }
+
+    // Find teammates: positions 0,2 are teammates OR positions 1,3 are teammates
+    const teammates = currentZonePlayers.filter(p => {
+      const playerPos = isOnCourt ? p.courtOrder : p.queueOrder;
+      
+      if (p.id === player.id || playerPos === null || playerPos === undefined) {
+        return false;
+      }
+      
+      // Check if they're teammates based on positions
+      const areTeammates = 
+        (currentPlayerPosition === 0 && playerPos === 2) || // Player at 0, teammate at 2
+        (currentPlayerPosition === 2 && playerPos === 0) || // Player at 2, teammate at 0
+        (currentPlayerPosition === 1 && playerPos === 3) || // Player at 1, teammate at 3
+        (currentPlayerPosition === 3 && playerPos === 1);   // Player at 3, teammate at 1
+      
+      return areTeammates;
+    });
+
+    // Check if current player has excessive partnership with any teammate
+    for (const teammate of teammates) {
+      if (checkExcessivePartnership(player, teammate) || 
+          checkExcessivePartnership(teammate, player)) {
+        console.log(`⚠️  Excessive partnership detected: ${player.name} (pos:${currentPlayerPosition}) & ${teammate.name} are teammates in ${zone}`);
         return true;
       }
     }
@@ -712,13 +739,13 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
         : isSwapping
           ? '0 0 20px rgba(233, 30, 99, 0.8)'
           : hasExcessivePartnership // 🆕 NEW: Purple glow for excessive partnerships
-            ? '0 0 12px rgba(156, 39, 176, 0.6)'
+            ? '0 0 12px rgba(21, 101, 192, 0.6)'
             : '0 1px 3px rgba(0,0,0,0.2), inset 0 1px 1px rgba(255,255,255,0.2)',
       cursor: isOnCooldown && zone === "all" ? 'not-allowed' : 'grab',
       margin: '0 auto 2px',
       color: cardColors.textColor,
       border: hasExcessivePartnership // 🆕 NEW: Purple border for excessive partnerships
-        ? '2px solid #9C27B0'
+        ? '2px solid #1565C0'
         : isSwapping
           ? '2px solid #E91E63'
           : isDropTarget 
@@ -734,7 +761,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
           ? 'border-color 0.15s ease-in-out, border-width 0.15s ease-in-out, box-shadow 0.15s ease-in-out'
           : 'all 0.2s ease-in-out',
       animation: hasExcessivePartnership // 🆕 NEW: Purple pulse animation for partnerships
-        ? 'purplePulse 2s ease-in-out infinite'
+        ? 'bluePulse 2s ease-in-out infinite'
         : isSwapping 
           ? 'swapFlash 0.6s ease-in-out'
           : 'none',

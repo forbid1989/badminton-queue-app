@@ -73,19 +73,47 @@ type Action =
       payload: { playerId: string; skillLevel: string };
     };
 
-function logPartnershipWarnings(courtId: string, players: Player[]): void {
-  if (players.length >= 2) {
-    const validation = validateCourtAssignment(players);
+function logPartnershipWarnings(zoneId: string, players: Player[]): void {
+  if (players.length < 2) {
+    return;
+  }
 
-    if (validation.hasExcessivePartnerships) {
-      console.warn(`⚠️  PARTNERSHIP WARNING on ${courtId}:`);
-      validation.warnings.forEach((warning) => {
-        console.warn(`   ${warning}`);
-      });
+  const warnings: string[] = [];
+  let hasExcessivePartnerships = false;
 
-      // Optional: Add visual notification or dispatch a warning action
-      // You could dispatch a new action to show warnings in the UI
+  // Check partnerships between positions 0&2 and 1&3
+  for (let i = 0; i < players.length; i++) {
+    for (let j = i + 1; j < players.length; j++) {
+      const player1 = players[i];
+      const player2 = players[j];
+
+      // Check if they're teammates (positions 0&2 or 1&3)
+      const areTeammates =
+        (i === 0 && j === 2) || // positions 0,2
+        (i === 1 && j === 3); // positions 1,3
+
+      if (areTeammates) {
+        const count1 = (player1.matchHistory || []).filter(
+          (match) => match.partner?.id === player2.id
+        ).length;
+        const count2 = (player2.matchHistory || []).filter(
+          (match) => match.partner?.id === player1.id
+        ).length;
+        const maxCount = Math.max(count1, count2);
+
+        if (maxCount >= 2) {
+          hasExcessivePartnerships = true;
+          warnings.push(
+            `${player1.name} & ${player2.name} have partnered ${maxCount} times`
+          );
+        }
+      }
     }
+  }
+
+  if (hasExcessivePartnerships) {
+    console.warn(`⚠️  PARTNERSHIP WARNING on ${zoneId}:`);
+    warnings.forEach((warning) => console.warn(`   ${warning}`));
   }
 }
 
@@ -604,7 +632,7 @@ export default function reducer(state: any, action: Action) {
         );
         logPartnershipWarnings(zone, courtPlayers);
       } else if (zone.startsWith("queue-")) {
-        // 🆕 NEW: Also check partnerships in queues
+        // 🆕 RESTORED: Team-aware queue partnership checking
         const queuePlayers = updatedPlayers.filter((p: Player) =>
           p.status.includes(zone as PlayerStatus)
         );
@@ -1135,7 +1163,6 @@ export default function reducer(state: any, action: Action) {
         );
         logPartnershipWarnings(to, courtPlayers);
       } else if (isToQueue) {
-        // 🆕 NEW: Also check partnerships when moving to queues
         const queuePlayers = updatedPlayers.filter((p: Player) =>
           p.status.includes(to as PlayerStatus)
         );
