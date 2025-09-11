@@ -35,7 +35,7 @@ import { AppContext } from '../BadmintonQueueUI';
 import { Action } from '../lib/store/Action';
 import KeyboardReturnIcon from '@mui/icons-material/KeyboardReturn';
 import { formatMatchDuration, isToday } from '../lib/utils/matchHistoryUtils';
-import { checkExcessivePartnership } from '../lib/utils/matchHistoryUtils';
+import { checkExcessivePartnership, checkExcessiveOpposition } from '../lib/utils/matchHistoryUtils';
 
 // Pragmatic Drag and Drop imports
 import { draggable, dropTargetForElements } from '@atlaskit/pragmatic-drag-and-drop/element/adapter';
@@ -237,6 +237,70 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
 
     return partnerships;
   }, [player, zone, state.courts.playersByCourt, state.queue.playersByQueue]);
+
+  const hasExcessiveOpposition = useMemo(() => {
+    const isOnCourt = zone.startsWith('court-');
+    const isInQueue = zone.startsWith('queue-');
+    
+    if (!isOnCourt && !isInQueue) return false;
+
+    const currentZoneId = zone;
+    let currentZonePlayers: Player[] = [];
+    
+    if (isOnCourt) {
+      currentZonePlayers = state.courts.playersByCourt[currentZoneId] || [];
+    } else if (isInQueue) {
+      currentZonePlayers = state.queue.playersByQueue[currentZoneId] || [];
+    }
+    
+    if (currentZonePlayers.length < 2) return false;
+
+    const currentPlayerPosition = isOnCourt ? player.courtOrder : player.queueOrder;
+    
+    if (currentPlayerPosition === null || currentPlayerPosition === undefined) {
+      return false;
+    }
+
+    // Find players who are currently opponents (Team A vs Team B)
+    const opponents = currentZonePlayers.filter(p => {
+      const playerPos = isOnCourt ? p.courtOrder : p.queueOrder;
+      
+      if (p.id === player.id || playerPos === null || playerPos === undefined) {
+        return false;
+      }
+      
+      // Team A (positions 0,2) vs Team B (positions 1,3)
+      const areCurrentOpponents = 
+        ((currentPlayerPosition === 0 || currentPlayerPosition === 2) && (playerPos === 1 || playerPos === 3)) ||
+        ((currentPlayerPosition === 1 || currentPlayerPosition === 3) && (playerPos === 0 || playerPos === 2));
+      
+      return areCurrentOpponents;
+    });
+
+    // Check if any current opponent has opposition history
+    for (const opponent of opponents) {
+      if (checkExcessiveOpposition(player, opponent) || 
+          checkExcessiveOpposition(opponent, player)) {
+        return true;
+      }
+    }
+    
+    return false;
+  }, [player, zone, state.courts.playersByCourt, state.queue.playersByQueue]);
+
+  const getCardClassName = () => {
+    let className = `player-card ${isDragging ? "dragging" : ""}`;
+    
+    if (hasExcessivePartnership && hasExcessiveOpposition) {
+      className += " purple-pulse"; // Both partnership and opposition
+    } else if (hasExcessivePartnership) {
+      className += " blue-pulse"; // Partnership only
+    } else if (hasExcessiveOpposition) {
+      className += " red-pulse"; // Opposition only
+    }
+    
+    return className;
+  };
 
   // Memoized color calculations
   const cardColors = useMemo(() => {
@@ -722,6 +786,55 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
 
     const dimensions = getCardDimensions();
 
+    // Determine border color and animation based on detection results
+    const getBorderAndAnimation = () => {
+      if (hasExcessivePartnership && hasExcessiveOpposition) {
+        return {
+          border: '2px solid #9C27B0', // Purple for both
+          animation: 'purplePulse 2s ease-in-out infinite',
+          boxShadow: '0 0 12px rgba(156, 39, 176, 0.6)',
+          transition: 'border-color 0.3s ease-in-out, box-shadow 0.3s ease-in-out'
+        };
+      } else if (hasExcessivePartnership) {
+        return {
+          border: '2px solid #1565C0', // Blue for partnerships
+          animation: 'bluePulse 2s ease-in-out infinite', 
+          boxShadow: '0 0 12px rgba(21, 101, 192, 0.6)',
+          transition: 'border-color 0.3s ease-in-out, box-shadow 0.3s ease-in-out'
+        };
+      } else if (hasExcessiveOpposition) {
+        return {
+          border: '2px solid #D32F2F', // Red for opponents
+          animation: 'redPulse 2s ease-in-out infinite',
+          boxShadow: '0 0 12px rgba(211, 47, 47, 0.6)', 
+          transition: 'border-color 0.3s ease-in-out, box-shadow 0.3s ease-in-out'
+        };
+      } else if (isSwapping) {
+        return {
+          border: '2px solid #E91E63',
+          animation: 'swapFlash 0.6s ease-in-out',
+          boxShadow: '0 0 20px rgba(233, 30, 99, 0.8)',
+          transition: 'border-color 0.15s ease-in-out, border-width 0.15s ease-in-out, box-shadow 0.15s ease-in-out'
+        };
+      } else if (isDropTarget) {
+        return {
+          border: '2px solid #E91E63',
+          animation: 'none',
+          boxShadow: '0 4px 12px rgba(233, 30, 99, 0.3)',
+          transition: 'all 0.2s ease-in-out'
+        };
+      } else {
+        return {
+          border: `1px solid ${cardColors.backgroundColor}`,
+          animation: 'none',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.2), inset 0 1px 1px rgba(255,255,255,0.2)',
+          transition: 'all 0.2s ease-in-out'
+        };
+      }
+    };
+
+    const borderAndAnimation = getBorderAndAnimation();
+
     return {
       display: 'flex',
       flexDirection: 'row' as const,
@@ -734,37 +847,17 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
         ? '#E8F5E9'
         : cardColors.backgroundColor,
       borderRadius: '14px',
-      boxShadow: isDropTarget 
-        ? '0 4px 12px rgba(233, 30, 99, 0.3)'
-        : isSwapping
-          ? '0 0 20px rgba(233, 30, 99, 0.8)'
-          : hasExcessivePartnership // 🆕 NEW: Purple glow for excessive partnerships
-            ? '0 0 12px rgba(21, 101, 192, 0.6)'
-            : '0 1px 3px rgba(0,0,0,0.2), inset 0 1px 1px rgba(255,255,255,0.2)',
+      boxShadow: borderAndAnimation.boxShadow,
       cursor: isOnCooldown && zone === "all" ? 'not-allowed' : 'grab',
       margin: '0 auto 2px',
       color: cardColors.textColor,
-      border: hasExcessivePartnership // 🆕 NEW: Purple border for excessive partnerships
-        ? '2px solid #1565C0'
-        : isSwapping
-          ? '2px solid #E91E63'
-          : isDropTarget 
-            ? '2px solid #E91E63'
-            : `1px solid ${cardColors.backgroundColor}`,
+      border: borderAndAnimation.border,
       opacity: isDragging ? 0.5 : 1,
       transform: isDropTarget 
         ? 'scale(1.05)' 
         : (isDragging ? 'scale(0.95)' : 'scale(1)'),
-      transition: hasExcessivePartnership // 🆕 NEW: Different transition for partnerships
-        ? 'border-color 0.3s ease-in-out, box-shadow 0.3s ease-in-out'
-        : isSwapping 
-          ? 'border-color 0.15s ease-in-out, border-width 0.15s ease-in-out, box-shadow 0.15s ease-in-out'
-          : 'all 0.2s ease-in-out',
-      animation: hasExcessivePartnership // 🆕 NEW: Purple pulse animation for partnerships
-        ? 'bluePulse 2s ease-in-out infinite'
-        : isSwapping 
-          ? 'swapFlash 0.6s ease-in-out'
-          : 'none',
+      transition: borderAndAnimation.transition,
+      animation: borderAndAnimation.animation,
       userSelect: 'none',
       WebkitUserSelect: 'none',
       WebkitTapHighlightColor: 'transparent',
@@ -803,7 +896,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
         pointerEvents: 'none',
       },
     };
-  }, [isMobile, cardColors, isDragging, isDropTarget, isSwapping, isOnCooldown, zone, hasExcessivePartnership]);
+  }, [isMobile, cardColors, isDragging, isDropTarget, isSwapping, isOnCooldown, zone, hasExcessivePartnership, hasExcessiveOpposition]);
 
   const enhancedBadgeStyle = useMemo(() => {
 
@@ -841,6 +934,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
         <Card
             ref={cardRef}
             sx={enhancedCardStyles}
+            className={getCardClassName()}
             data-player-id={player.id}
             data-zone={zone}
           >

@@ -5,11 +5,7 @@ import {
   SkillLevel,
 } from "../../components/types/Player";
 import { clearLocalStorage } from "../utils/localStorage";
-import {
-  generateMatchHistoryEntries,
-  checkExcessivePartnership,
-} from "../utils/matchHistoryUtils";
-import { validateCourtAssignment } from "../utils/courtAssignmentUtils";
+import { generateMatchHistoryEntries } from "../utils/matchHistoryUtils";
 
 type Action =
   | { type: "setCourtCount"; payload: number }
@@ -80,6 +76,7 @@ function logPartnershipWarnings(zoneId: string, players: Player[]): void {
 
   const warnings: string[] = [];
   let hasExcessivePartnerships = false;
+  let hasExcessiveOppositions = false;
 
   // Check partnerships between positions 0&2 and 1&3
   for (let i = 0; i < players.length; i++) {
@@ -91,6 +88,13 @@ function logPartnershipWarnings(zoneId: string, players: Player[]): void {
       const areTeammates =
         (i === 0 && j === 2) || // positions 0,2
         (i === 1 && j === 3); // positions 1,3
+
+      // Check if they're opponents (positions 0,1 vs 2,3)
+      const areOpponents =
+        (i === 0 && (j === 2 || j === 3)) || // pos 0 vs pos 2,3
+        (i === 1 && (j === 2 || j === 3)) || // pos 1 vs pos 2,3
+        (i === 2 && (j === 0 || j === 1)) || // pos 2 vs pos 0,1
+        (i === 3 && (j === 0 || j === 1)); // pos 3 vs pos 0,1
 
       if (areTeammates) {
         const count1 = (player1.matchHistory || []).filter(
@@ -104,15 +108,32 @@ function logPartnershipWarnings(zoneId: string, players: Player[]): void {
         if (maxCount >= 2) {
           hasExcessivePartnerships = true;
           warnings.push(
-            `${player1.name} & ${player2.name} have partnered ${maxCount} times`
+            `PARTNERSHIP: ${player1.name} & ${player2.name} have partnered ${maxCount} times`
+          );
+        }
+      }
+
+      if (areOpponents) {
+        const count1 = (player1.matchHistory || []).filter((match) =>
+          match.opponents.some((opp) => opp.id === player2.id)
+        ).length;
+        const count2 = (player2.matchHistory || []).filter((match) =>
+          match.opponents.some((opp) => opp.id === player1.id)
+        ).length;
+        const maxCount = Math.max(count1, count2);
+
+        if (maxCount >= 2) {
+          hasExcessiveOppositions = true;
+          warnings.push(
+            `OPPOSITION: ${player1.name} vs ${player2.name} have faced each other ${maxCount} times`
           );
         }
       }
     }
   }
 
-  if (hasExcessivePartnerships) {
-    console.warn(`⚠️  PARTNERSHIP WARNING on ${zoneId}:`);
+  if (hasExcessivePartnerships || hasExcessiveOppositions) {
+    console.warn(`⚠️ REPEAT DETECTION WARNING on ${zoneId}:`);
     warnings.forEach((warning) => console.warn(`   ${warning}`));
   }
 }

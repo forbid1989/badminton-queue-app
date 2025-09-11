@@ -280,6 +280,41 @@ export const checkExcessivePartnership = (
   return partnershipCount >= 2;
 };
 
+// Check if two players have excessive opposition (2+ games against each other)
+export const checkExcessiveOpposition = (
+  player1: Player,
+  player2: Player
+): boolean => {
+  if (!player1.matchHistory || player1.matchHistory.length === 0) {
+    return false;
+  }
+
+  // Count how many times player1 has played against player2
+  const oppositionCount = player1.matchHistory.filter((match) =>
+    match.opponents.some((opponent) => opponent.id === player2.id)
+  ).length;
+
+  console.log(
+    `🔍 Opposition check: ${player1.name} vs ${player2.name} = ${oppositionCount} games`
+  );
+
+  return oppositionCount >= 2;
+};
+
+// Get opposition count between two specific players
+export const getOppositionCount = (
+  player1: Player,
+  player2: Player
+): number => {
+  if (!player1.matchHistory || player1.matchHistory.length === 0) {
+    return 0;
+  }
+
+  return player1.matchHistory.filter((match) =>
+    match.opponents.some((opponent) => opponent.id === player2.id)
+  ).length;
+};
+
 // Check if any player in a group has excessive partnerships with others in the same group
 export const checkGroupForExcessivePartnerships = (
   players: Player[]
