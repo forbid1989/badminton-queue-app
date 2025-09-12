@@ -17,6 +17,8 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  Snackbar,
+  Alert
 } from '@mui/material';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import EditIcon from '@mui/icons-material/Edit';
@@ -31,11 +33,10 @@ import AddIcon from '@mui/icons-material/Add';
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
 import { Badge, Chip, Tooltip } from '@mui/material';
 import { Player, getSkillLevelColor, SkillLevel, skillLevelOrder, getSkillLevelDescription, getMatchDescription, MatchHistoryEntry } from './types/Player';
-import { AppContext } from '../BadmintonQueueUI';
-import { Action } from '../lib/store/Action';
+import { AppContext, SnackbarContext  } from '../BadmintonQueueUI';
+import { Action, } from '../lib/store/Action';
 import KeyboardReturnIcon from '@mui/icons-material/KeyboardReturn';
-import { formatMatchDuration, isToday } from '../lib/utils/matchHistoryUtils';
-import { checkExcessivePartnership, checkExcessiveOpposition } from '../lib/utils/matchHistoryUtils';
+import { checkExcessivePartnership, checkExcessiveOpposition, formatMatchDuration, isToday  } from '../lib/utils/matchHistoryUtils';
 
 // Pragmatic Drag and Drop imports
 import { draggable, dropTargetForElements } from '@atlaskit/pragmatic-drag-and-drop/element/adapter';
@@ -84,6 +85,12 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
   const [submenuName, setSubmenuName] = useState(player.name);
   const [editNameAnchorEl, setEditNameAnchorEl] = useState<null | HTMLElement>(null);
   const [editNameValue, setEditNameValue] = useState(player.name);
+
+  const [partnershipSnackbar, setPartnershipSnackbar] = useState(false);
+  const [oppositionSnackbar, setOppositionSnackbar] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
+
+  const { showPartnershipSnackbar, showOppositionSnackbar } = useContext(SnackbarContext);
 
   const cardRef = useRef<HTMLDivElement>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -769,6 +776,127 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
       // }
     };
   }, []);
+
+  useEffect(() => {
+  // Show partnership snackbar when blue border appears
+    if (hasExcessivePartnership && !partnershipSnackbar) {
+      // Find the teammate causing the warning
+      const isOnCourt = zone.startsWith('court-');
+      const isInQueue = zone.startsWith('queue-');
+      
+      if (isOnCourt || isInQueue) {
+        const currentZoneId = zone;
+        let currentZonePlayers: Player[] = [];
+        
+        if (isOnCourt) {
+          currentZonePlayers = state.courts.playersByCourt[currentZoneId] || [];
+        } else if (isInQueue) {
+          currentZonePlayers = state.queue.playersByQueue[currentZoneId] || [];
+        }
+
+        const currentPlayerPosition = isOnCourt ? player.courtOrder : player.queueOrder;
+        
+        if (currentPlayerPosition !== null) {
+          // Find teammate
+          const teammate = currentZonePlayers.find(p => {
+            const playerPos = isOnCourt ? p.courtOrder : p.queueOrder;
+            if (p.id === player.id || playerPos === null) return false;
+            
+            // Check if they're teammates
+            return (
+              (currentPlayerPosition === 0 && playerPos === 2) ||
+              (currentPlayerPosition === 2 && playerPos === 0) ||
+              (currentPlayerPosition === 1 && playerPos === 3) ||
+              (currentPlayerPosition === 3 && playerPos === 1)
+            );
+          });
+
+          if (teammate) {
+            // Get count
+            const count1 = (player.matchHistory || []).filter(
+              match => match.partner?.id === teammate.id
+            ).length;
+            const count2 = (teammate.matchHistory || []).filter(
+              match => match.partner?.id === player.id
+            ).length;
+            const maxCount = Math.max(count1, count2);
+
+            const zoneDisplay = zone.startsWith('court-') 
+              ? `Court ${zone.split('-')[1]}` 
+              : `Queue ${zone.split('-')[1]}`;
+
+            showPartnershipSnackbar(
+              `${player.name} & ${teammate.name} have partnered ${maxCount} times before (${zoneDisplay})`
+            );
+            setPartnershipSnackbar(true);
+          }
+        }
+      }
+    }
+
+    // Show opposition snackbar when red border appears
+    if (hasExcessiveOpposition && !oppositionSnackbar) {
+      // Find the opponent causing the warning
+      const isOnCourt = zone.startsWith('court-');
+      const isInQueue = zone.startsWith('queue-');
+      
+      if (isOnCourt || isInQueue) {
+        const currentZoneId = zone;
+        let currentZonePlayers: Player[] = [];
+        
+        if (isOnCourt) {
+          currentZonePlayers = state.courts.playersByCourt[currentZoneId] || [];
+        } else if (isInQueue) {
+          currentZonePlayers = state.queue.playersByQueue[currentZoneId] || [];
+        }
+
+        const currentPlayerPosition = isOnCourt ? player.courtOrder : player.queueOrder;
+        
+        if (currentPlayerPosition !== null) {
+          // Find opponent
+          const opponent = currentZonePlayers.find(p => {
+            const playerPos = isOnCourt ? p.courtOrder : p.queueOrder;
+            if (p.id === player.id || playerPos === null) return false;
+            
+            // Check if they're opponents
+            return (
+              ((currentPlayerPosition === 0 || currentPlayerPosition === 2) && (playerPos === 1 || playerPos === 3)) ||
+              ((currentPlayerPosition === 1 || currentPlayerPosition === 3) && (playerPos === 0 || playerPos === 2))
+            );
+          });
+
+          if (opponent) {
+            // Get count
+            const count1 = (player.matchHistory || []).filter(
+              match => match.opponents.some(opp => opp.id === opponent.id)
+            ).length;
+            const count2 = (opponent.matchHistory || []).filter(
+              match => match.opponents.some(opp => opp.id === player.id)
+            ).length;
+            const maxCount = Math.max(count1, count2);
+
+            const zoneDisplay = zone.startsWith('court-') 
+              ? `Court ${parseInt(zone.split('-')[1]) + 1}` 
+              : `Queue ${parseInt(zone.split('-')[1]) + 1}`;
+
+            showOppositionSnackbar(
+              `${player.name} vs ${opponent.name} have faced each other ${maxCount} times before (${zoneDisplay})`
+            );
+            setOppositionSnackbar(true);
+          }
+        }
+      }
+  }
+
+  // Reset snackbars when conditions change
+  if (!hasExcessivePartnership && partnershipSnackbar) {
+    setPartnershipSnackbar(false);
+  }
+  if (!hasExcessiveOpposition && oppositionSnackbar) {
+    setOppositionSnackbar(false);
+  }
+
+}, [hasExcessivePartnership, hasExcessiveOpposition, player, zone, state.courts.playersByCourt, state.queue.playersByQueue, partnershipSnackbar, oppositionSnackbar, showOppositionSnackbar, showPartnershipSnackbar]);
 
   // Memoized formatted time
   const formattedTime = useMemo(() => formatElapsedTime(elapsedSeconds), [elapsedSeconds]);
