@@ -17,8 +17,6 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  Snackbar,
-  Alert
 } from '@mui/material';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import EditIcon from '@mui/icons-material/Edit';
@@ -822,8 +820,8 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
             const maxCount = Math.max(count1, count2);
 
             const zoneDisplay = zone.startsWith('court-') 
-              ? `Court ${zone.split('-')[1]}` 
-              : `Queue ${zone.split('-')[1]}`;
+              ? `Court ${parseInt(zone.split('-')[1]) + 1}` 
+              : `Queue ${parseInt(zone.split('-')[1]) + 1}`;
 
             showPartnershipSnackbar(
               `${player.name} & ${teammate.name} have partnered ${maxCount} times before (${zoneDisplay})`
