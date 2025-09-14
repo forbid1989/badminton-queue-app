@@ -110,8 +110,8 @@ const BadmintonCourtBackground = React.memo(() => (
 BadmintonCourtBackground.displayName = 'BadmintonCourtBackground';
 
 // Match format chip component
-const MatchFormatChip = React.memo<{ format: string; playerCount: number }>(
-  ({ format, playerCount }) => {
+const MatchFormatChip = React.memo<{ format: string; playerCount: number; mounted: boolean }>(
+  ({ format, playerCount , mounted }) => {
     const getChipColor = () => {
       switch (format) {
         case 'Empty': return { bg: 'rgba(255,255,255,0.2)', text: 'rgba(255,255,255,0.7)' };
@@ -128,7 +128,11 @@ const MatchFormatChip = React.memo<{ format: string; playerCount: number }>(
 
     return (
       <Chip
-        label={format === 'Empty' ? 'Available' : `${format} (${playerCount}/${format === '1v1' ? '2' : '4'})`}
+        label={mounted ? 
+          (format === 'Empty' ? 'Available' : `${format} (${playerCount}/${format === '1v1' ? '2' : '4'})`) :
+          'Available'
+        }
+        suppressHydrationWarning
         size="small"
         sx={{
           backgroundColor: colors.bg,
@@ -161,6 +165,7 @@ const CourtItem = React.memo<{
   onSubmitEdit: (courtId: string) => void;
   onCancelEdit: () => void;
   onEndGame: (courtId: string) => void;
+  mounted: boolean;
 }>(({ 
   courtId, 
   index, 
@@ -171,11 +176,17 @@ const CourtItem = React.memo<{
   onNameChange, 
   onSubmitEdit, 
   onCancelEdit, 
-  onEndGame 
+  onEndGame,
+  mounted
 }) => {
   
   // Memoized match format calculation
-  const matchFormat = useMemo(() => getMatchFormat(players), [players]);
+  const matchFormat = useMemo(() => {
+    if (!mounted) {
+      return { format: 'Empty', teams: [] };
+    }
+    return getMatchFormat(players);
+  }, [players, mounted]);
   
   // Memoized event handlers
   const handleStartEdit = useCallback(() => {
@@ -360,9 +371,13 @@ const CourtItem = React.memo<{
             </Box>
 
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-              <MatchFormatChip format={matchFormat.format} playerCount={players.length} />
+              <MatchFormatChip 
+                format={matchFormat.format} 
+                playerCount={mounted ? players.length : 0} 
+                mounted={mounted}
+              />
               
-              {players.length > 0 && (
+              {mounted && players.length > 0 && (
                 <Button
                   variant="contained"
                   size="small"
@@ -398,6 +413,7 @@ CourtItem.displayName = 'CourtItem';
 const CourtZone: React.FC<CourtZoneProps> = ({ courtCount }) => {
   const { state, dispatch } = useContext(AppContext);
   
+  const [mounted, setMounted] = useState(false);
   // State for court name editing
   const [editingCourt, setEditingCourt] = useState<string | null>(null);
   const [courtNames, setCourtNames] = useState<Record<string, string>>(() => {
@@ -426,6 +442,10 @@ const CourtZone: React.FC<CourtZoneProps> = ({ courtCount }) => {
     
     return courts;
   }, [state.courts.playersByCourt, courtCount]);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Update court names when court count changes
   useEffect(() => {
@@ -480,9 +500,10 @@ const CourtZone: React.FC<CourtZoneProps> = ({ courtCount }) => {
         onSubmitEdit={handleSubmitEdit}
         onCancelEdit={handleCancelEdit}
         onEndGame={handleEndGame}
+        mounted={mounted}
       />
     )), 
-    [courtData, courtNames, editingCourt, handleStartEdit, handleCourtNameChange, handleSubmitEdit, handleCancelEdit, handleEndGame]
+    [courtData, courtNames, editingCourt, handleStartEdit, handleCourtNameChange, handleSubmitEdit, handleCancelEdit, handleEndGame, mounted]
   );
 
   return (

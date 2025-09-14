@@ -1085,7 +1085,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
   }, [isInTeamZone, isMobile, player.skillLevel])
 
   return (
-    <div className="flipped">
+    <>
       <Badge
         badgeContent={player.skillLevel}
         anchorOrigin={{
@@ -1129,29 +1129,6 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
                     display: 'flex',
                     alignItems: 'center',
                   }}>
-                    {/* Pencil Edit Icon */}
-                    {/* <IconButton
-                      size="small"
-                      onClick={handlePencilClick}
-                      sx={{
-                        minWidth: 'auto',
-                        width: '16px',  // Increased from 12px
-                        height: '16px', // Increased from 12px
-                        '& .MuiSvgIcon-root': {
-                          fontSize: '0.6rem', // Increased from 0.4rem
-                          width: '12px',       // Increased from 8px
-                          height: '12px',      // Increased from 8px
-                        },
-                        color: '#5C4033',
-                        '&:hover': {
-                          color: '#3E2723',
-                          backgroundColor: 'rgba(92, 64, 51, 0.1)',
-                        },
-                      }}
-                      title="Edit player name"
-                    >
-                      <EditIcon />
-                    </IconButton> */}
 
                     <Typography
                       component="div"
@@ -2183,7 +2160,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
           </Button>
         </DialogActions>
       </Dialog>
-    </div>
+    </>
   );
 });
 

@@ -1,4 +1,4 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext, useState, useEffect } from 'react';
 import { 
   Button, 
   Dialog, 
@@ -19,6 +19,12 @@ const DataManagement: React.FC = () => {
   const { state, dispatch } = useContext(AppContext);
   const [clearDialogOpen, setClearDialogOpen] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  // Add useEffect to handle client-side mounting
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const handleManualSave = () => {
     try {
@@ -35,13 +41,14 @@ const DataManagement: React.FC = () => {
     setClearDialogOpen(false);
   };
 
-  const totalPlayers = state.players.length;
-  const playersOnCourt = state.players.filter(p => 
+  // Calculate stats only after mounting to prevent hydration mismatch
+  const totalPlayers = mounted ? state.players.length : 0;
+  const playersOnCourt = mounted ? state.players.filter(p => 
     p.status.some(s => s.startsWith('court-'))
-  ).length;
-  const playersInQueue = state.players.filter(p => 
+  ).length : 0;
+  const playersInQueue = mounted ? state.players.filter(p => 
     p.status.some(s => s.startsWith('queue-'))
-  ).length;
+  ).length : 0;
 
   return (
     <Box sx={{ mt: 2, p: 2, bgcolor: 'background.paper', borderRadius: 1 }}>
@@ -78,10 +85,24 @@ const DataManagement: React.FC = () => {
         </Alert>
       )}
 
-      <Typography variant="caption" sx={{ display: 'block', mt: 1, fontSize: '0.65rem', opacity: 0.7 }}>
-        Stats: {totalPlayers} total • {playersOnCourt} on court • {playersInQueue} in queue
-        <br />
-        Data auto-saves every 1 second when changes are made
+      <Typography 
+        variant="caption" 
+        sx={{ display: 'block', mt: 1, fontSize: '0.65rem', opacity: 0.7 }}
+        suppressHydrationWarning
+      >
+        {mounted ? (
+          <>
+            Stats: {totalPlayers} total • {playersOnCourt} on court • {playersInQueue} in queue
+            <br />
+            Data auto-saves every 1 second when changes are made
+          </>
+        ) : (
+          <>
+            Stats: Loading...
+            <br />
+            Data auto-saves every 1 second when changes are made
+          </>
+        )}
       </Typography>
 
       {/* Clear Data Confirmation Dialog */}
