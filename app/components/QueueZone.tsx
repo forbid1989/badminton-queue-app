@@ -367,25 +367,28 @@ const AddQueueButton = React.memo<{ onAddQueue: () => void }>(({ onAddQueue }) =
       onClick={onAddQueue}
       sx={{
         minHeight: '140px',
-        backgroundColor: '#E8F5E9',
+        backgroundColor: '#f1f5f9',
         borderRadius: 2,
-        border: '2px dashed #4CAF50',
+        border: '2px solid #cbd5e1',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
         cursor: 'pointer',
         transition: 'all 0.2s ease',
+        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
         '&:hover': {
-          backgroundColor: '#C8E6C9',
-          transform: 'scale(1.02)',
+          backgroundColor: '#e2e8f0',
+          borderColor: '#94a3b8',
+          transform: 'translateY(-2px)',
+          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
         },
       }}
     >
       <AddIcon
         sx={{
           fontSize: '2rem',
-          color: '#4CAF50',
+          color: '#64748b',
           marginBottom: '8px',
         }}
       />
@@ -393,9 +396,8 @@ const AddQueueButton = React.memo<{ onAddQueue: () => void }>(({ onAddQueue }) =
         variant="body2"
         sx={{
           fontSize: '0.8rem',
-          color: '#2E7D32',
-          fontWeight: 'bold',
-          textAlign: 'center',
+          color: '#475569',
+          fontWeight: 600,
         }}
       >
         Add Queue

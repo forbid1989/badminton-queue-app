@@ -769,9 +769,6 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
       if (nameUpdateTimeoutRef.current) {
         clearTimeout(nameUpdateTimeoutRef.current);
       }
-      // if (contextMenuTimeoutRef.current) {
-      //   clearTimeout(contextMenuTimeoutRef.current);
-      // }
     };
   }, []);
 
@@ -1266,13 +1263,13 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
                       sx={{
                         padding: isMobile ? '2px' : '1px',
                         borderRadius: '50%',
-                        border: `1px solid ${isQuickAddDisabled ? '#ccc' : '#6D4C41'}`, // Change from '#2E7D32'
-                        backgroundColor: isQuickAddDisabled ? '#f2f2f2' : 'rgba(109, 76, 65, 0.1)', // Change from '#E8F5E9'
-                        color: isQuickAddDisabled ? '#aaa' : '#6D4C41', // Change from '#2E7D32'
+                        border: `1px solid ${isQuickAddDisabled ? '#cbd5e1' : '#64748b'}`,
+                        backgroundColor: isQuickAddDisabled ? '#f8fafc' : 'rgba(100, 116, 139, 0.1)',
+                        color: isQuickAddDisabled ? '#94a3b8' : '#64748b',
                         minWidth: 'auto',
                         minHeight: isMobile ? '28px' : 'auto',
                         '&:hover': {
-                          backgroundColor: isQuickAddDisabled ? '#f2f2f2' : 'rgba(109, 76, 65, 0.2)', // Change from '#C8E6C9'
+                          backgroundColor: isQuickAddDisabled ? '#f8fafc' : 'rgba(100, 116, 139, 0.2)',
                         },
                       }}
                     >
@@ -1293,14 +1290,14 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
                       title={`Return ${player.name} to player list (clears all assignments)`}
                       sx={{
                         padding: isMobile ? '2px' : '1px',
-                        color: '#6D4C41',
+                        color: '#475569',
                         minHeight: isMobile ? '28px' : 'auto',
                         // Enhanced styling to make it more prominent
-                        backgroundColor: 'rgba(109, 76, 65, 0.1)',
-                        border: '1px solid rgba(109, 76, 65, 0.3)',
+                        backgroundColor: 'rgba(71, 85, 105, 0.1)',
+                        border: '1px solid rgba(71, 85, 105, 0.3)',
                         borderRadius: '50%',
                         '&:hover': {
-                          color: '#3E2723',
+                          color: '#334155',
                           backgroundColor: 'rgba(109, 76, 65, 0.2)',
                           transform: 'scale(1.1)',
                         },
@@ -1308,14 +1305,14 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
                         ...(playerStatus.isCourtAndQueue && {
                           backgroundColor: 'rgba(0, 176, 189, 0.2)', // Teal background for advanced queue
                           borderColor: 'rgba(0, 176, 189, 0.5)',
-                          color: '#6D4C41',
+                          color: '#475569',
                           '&:hover': {
                             backgroundColor: 'rgba(0, 176, 189, 0.3)',
-                            color: '#6D4C41', // Darker teal on hover for better visibility
+                            color: '#334155',
                           },
                           // FIXED: Ensure the icon itself is visible
                           '& .MuiSvgIcon-root': {
-                            color: '#6D4C41',
+                            color: '#475569',
                             fontSize: isMobile 
                               ? (isInTeamZone ? '0.8rem' : '0.9rem')
                               : (isInTeamZone ? '0.7rem' : '0.8rem'),
@@ -1338,11 +1335,16 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
                     sx={{ 
                       padding: isMobile ? '2px' : '1px',
                       minHeight: isMobile ? '28px' : 'auto',
+                      color: '#64748b', // GRAY instead of brown
+                      '&:hover': {
+                        backgroundColor: 'rgba(100, 116, 139, 0.1)',
+                        color: '#475569',
+                      },
                       '& .MuiSvgIcon-root': {
                         fontSize: isMobile 
                           ? (isInTeamZone ? '0.7rem' : '0.8rem')
-                          : (isInTeamZone ? '0.6rem' : '0.75rem'),
-                      },
+                          : (isInTeamZone ? '0.6rem' : '0.7rem')
+                      }
                     }}
                   >
                     <MoreVertIcon />
@@ -1597,11 +1599,11 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
         <Box sx={{ 
           px: 2, 
           py: 1.5, 
-          backgroundColor: '#5C4033',
+          backgroundColor: '#1e293b',
           color: 'white'
         }}>
           <Typography variant="subtitle2" sx={{ 
-            fontSize: '0.85rem', // Standardized font size
+            fontSize: '0.85rem',
             fontWeight: 600,
             display: 'flex',
             alignItems: 'center',
@@ -1782,11 +1784,11 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
                   fontWeight: 500,
                   borderRadius: 2,
                   textTransform: 'none',
-                  color: '#5C4033',
-                  borderColor: '#5C4033',
+                  color: '#475569',
+                  orderColor: '#475569',
                   '&:hover': {
-                    backgroundColor: 'rgba(92, 64, 51, 0.04)',
-                    borderColor: '#5C4033',
+                    backgroundColor: 'rgba(71, 85, 105, 0.04)',
+                    borderColor: '#475569',
                   }
                 }}
               >

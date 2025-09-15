@@ -31,14 +31,14 @@ const tabs: TabConfig[] = [
       value: 'all', 
       label: 'All', 
       icon: <GroupIcon />,
-      color: '#8B7355',
+      color: '#475569',
       description: 'All players'
     },
     { 
       value: 'waiting', 
       label: 'Waiting', 
       icon: <HourglassEmptyIcon />,
-      color: '#E8D8C4',
+      color: '#64748b',
       description: 'Players resting/unassigned'
     },
     { 
@@ -323,33 +323,44 @@ const PlayerListZone: React.FC<PlayerListZoneProps> = ({ state }) => {
             input: {
               startAdornment: (
                 <InputAdornment position="start">
-                  <SearchIcon sx={{ fontSize: '1rem', color: '#666' }} />
+                  <SearchIcon sx={{ color: '#64748b', fontSize: '1.2rem' }} />
                 </InputAdornment>
               ),
               endAdornment: searchQuery && (
                 <InputAdornment position="end">
                   <ClearIcon
                     sx={{ 
+                      color: '#64748b', 
                       fontSize: '1rem', 
-                      color: '#666', 
                       cursor: 'pointer',
-                      '&:hover': { color: '#333' }
+                      '&:hover': { color: '#475569' }
                     }}
                     onClick={handleClearSearch}
                   />
                 </InputAdornment>
               ),
               sx: {
-                fontSize: '0.8rem',
-                backgroundColor: '#fff',
-                '& .MuiOutlinedInput-notchedOutline': {
-                  borderColor: '#ddd',
+                flex: 1,
+                '& .MuiOutlinedInput-root': {
+                  backgroundColor: '#ffffff', // White background
+                  borderRadius: 1.5,
+                  '& fieldset': {
+                    borderColor: '#cbd5e1', // Soft gray border
+                  },
+                  '&:hover fieldset': {
+                    borderColor: '#94a3b8',
+                  },
+                  '&.Mui-focused fieldset': {
+                    borderColor: '#3b82f6', // Blue accent when focused
+                  },
                 },
-                '&:hover .MuiOutlinedInput-notchedOutline': {
-                  borderColor: '#bbb',
+                '& .MuiInputBase-input': {
+                  color: '#1e293b', // Dark navy text
+                  fontSize: '0.875rem',
                 },
-                '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                  borderColor: '#5C4033',
+                '& .MuiInputBase-input::placeholder': {
+                  color: '#64748b', // Gray placeholder
+                  opacity: 1,
                 },
               }
             }
@@ -383,15 +394,14 @@ const PlayerListZone: React.FC<PlayerListZoneProps> = ({ state }) => {
         zone="all"
         players={filteredAndSortedPlayers}
         sx={{
-          backgroundColor: '#F5EFE6',
+          backgroundColor: '#f1f5f9',
           borderRadius: 2,
           px: 2,
           py: 1,
-          boxShadow: 'inset 0 0 4px rgba(0,0,0,0.04)',
-          borderTop: '2px dashed #d8c9aa',
-          minHeight: '200px', // 🆕 Ensure adequate drop target size
+          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
+          border: '1px solid #e2e8f0',
+          minHeight: '200px',
           position: 'relative',
-          // 🆕 Enhanced styling when players are being dragged over from courts/queues
           transition: 'all 0.3s ease',
           '&::before': {
             content: '"Drop players here to return them to the player list"',
@@ -399,7 +409,7 @@ const PlayerListZone: React.FC<PlayerListZoneProps> = ({ state }) => {
             top: '50%',
             left: '50%',
             transform: 'translate(-50%, -50%)',
-            color: 'rgba(0,0,0,0.3)',
+            color: '#94a3b8',
             fontSize: '0.85rem',
             fontStyle: 'italic',
             textAlign: 'center',
@@ -407,6 +417,10 @@ const PlayerListZone: React.FC<PlayerListZoneProps> = ({ state }) => {
             opacity: shouldShowDropMessage ? 1 : 0,
             transition: 'opacity 0.3s ease',
             zIndex: 1,
+          },
+          '&:hover': {
+            borderColor: '#94a3b8',
+            backgroundColor: '#f8fafc', // Very light gray on hover
           },
         }}
       >

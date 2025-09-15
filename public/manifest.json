@@ -25,8 +25,8 @@
   ],
   "start_url": "/",
   "display": "standalone",
-  "theme_color": "#5C4033",
-  "background_color": "#E8D8C4",
+  "theme_color": "#1e293b",
+  "background_color": "#fefefe",
   "orientation": "any",
   "categories": ["sports", "utilities", "productivity"]
 }

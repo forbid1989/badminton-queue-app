@@ -61,47 +61,45 @@ const DroppableZone: React.FC<DroppableZoneProps> = React.memo(({ zone, players,
   const zoneBackground = useMemo(() => {
     if (zone.startsWith('court')) return '#DFF0D8';
     if (zone.startsWith('queue')) return '#FFF8DC';
-    if (zone === 'all') return '#F5EFE6';
+    if (zone === 'all') return '#ffffff';
     return '#FAFAFA';
   }, [zone]);
 
-  // Enhanced border color calculation
+  // Update the borderColor calculation for better premium colors:
   const borderColor = useMemo(() => {
     const anyHover = isHovered && isDragOverValid;
     
-    // 🆕 Special styling for player list zone when receiving returns
     if (isPlayerListZone) {
-      if (anyHover) return '#4CAF50'; // Green when accepting returns
-      return '#d8c9aa'; // Default beige
+      if (anyHover) return '#10b981'; // Emerald green when accepting
+      return '#cbd5e1'; // Soft gray default
     }
     
     if (isPositionZone) {
-      if (isFull) return '#D5C96A';
-      if (anyHover) return '#FF6B35'; // More vibrant orange for position drops
-      return players.length > 0 ? 'rgba(255,255,255,0.6)' : 'rgba(255,255,255,0.3)';
+      if (isFull) return '#fbbf24'; // Amber when full
+      if (anyHover) return '#f59e0b'; // Orange for position drops
+      return players.length > 0 ? '#e5e7eb' : '#f3f4f6'; // Light grays
     }
     
-    if (isFull) return '#D5C96A';
-    if (anyHover) return '#4CAF50';
-    return '#CAD4CC';
+    if (isFull) return '#fbbf24'; // Amber when full
+    if (anyHover) return '#10b981'; // Emerald when hovering
+    return '#cbd5e1'; // Default soft gray
   }, [isFull, isHovered, isDragOverValid, isPositionZone, isPlayerListZone, players.length]);
 
-  // Enhanced background color calculation
+  // Update backgroundColor for better contrast:
   const backgroundColor = useMemo(() => {
     const anyHover = isHovered && isDragOverValid;
     
-    // 🆕 Special styling for player list zone
     if (isPlayerListZone) {
-      if (anyHover) return '#E8F5E9'; // Light green when accepting returns
+      if (anyHover) return '#f0fdf4'; // Very light green
       return zoneBackground;
     }
     
     if (isPositionZone) {
-      if (anyHover) return 'rgba(255, 107, 53, 0.3)';
-      return players.length > 0 ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.1)';
+      if (anyHover) return 'rgba(245, 158, 11, 0.1)'; // Light amber
+      return players.length > 0 ? 'rgba(0,0,0,0.02)' : 'rgba(0,0,0,0.01)';
     }
     
-    if (anyHover) return '#E8F5E9';
+    if (anyHover) return '#f0fdf4'; // Light green
     return zoneBackground;
   }, [isHovered, isDragOverValid, zoneBackground, isPositionZone, isPlayerListZone, players.length]);
 
@@ -287,7 +285,7 @@ const DroppableZone: React.FC<DroppableZoneProps> = React.memo(({ zone, players,
 
   // Memoized combined styles
   const combinedSx = useMemo(() => ({
-    border: `2px ${isPositionZone ? 'solid' : 'dashed'} ${borderColor}`,
+    border: `2px solid ${borderColor}`,
     borderRadius: isPositionZone ? 1 : 2,
     padding: isPositionZone ? 0.5 : 2,
     marginBottom: isPositionZone ? 0 : 3,
@@ -295,29 +293,28 @@ const DroppableZone: React.FC<DroppableZoneProps> = React.memo(({ zone, players,
     minHeight: isPositionZone 
     ? (isMobileDevice ? 40 : 35)
     : isPlayerListZone
-    ? (isMobileDevice ? 150 : 120) // Keep player list dimensions
+    ? (isMobileDevice ? 150 : 120) 
     : zone.startsWith('queue-')
-    ? '140px' // 🔧 NEW: Match court box height for queue zones
-    : (isMobileDevice ? 90 : 80), // Keep original for other zones
+    ? '140px' 
+    : (isMobileDevice ? 90 : 80), 
     transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
     transform,
-    boxShadow,
+    boxShadow: isPlayerListZone 
+    ? '0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06)' // Premium shadow for player list
+    : boxShadow,
     cursor: 'pointer',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    // 📱 Allow scrolling - remove touchAction restrictions
     WebkitTapHighlightColor: 'transparent',
     WebkitTouchCallout: 'none',
     userSelect: 'none',
     WebkitUserSelect: 'none',
-    // 🔧 Improve scrolling for main player list zone
     ...(zone === 'all' && {
       overflowY: 'auto',
       WebkitOverflowScrolling: 'touch',
       scrollBehavior: 'smooth',
     }),
-    // 🆕 Special styling when this is the player list zone receiving drops
     ...(isPlayerListZone && {
       position: 'relative',
       '&::after': isDragOverValid ? {
