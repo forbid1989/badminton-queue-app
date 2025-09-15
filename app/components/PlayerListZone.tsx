@@ -241,10 +241,10 @@ const PlayerListZone: React.FC<PlayerListZoneProps> = ({ state }) => {
               px: { xs: 1, sm: 1, md: 2 },
             },
             '& .MuiTabs-indicator': {
-              backgroundColor: '#5C4033',
+              backgroundColor: '#1e293b',
             },
             '& .Mui-selected': {
-              color: '#5C4033 !important',
+              color: '#1e293b !important',
               fontWeight: 600,
             },
           }}
@@ -266,14 +266,13 @@ const PlayerListZone: React.FC<PlayerListZoneProps> = ({ state }) => {
                         right: -2,
                         top: -4,
                         backgroundColor: 'transparent',
-                        color: '#5C4033',
+                        color: '#1e293b',
                         border: 'none',
                         fontWeight: 'bold',
                       }
                     }}
                   >
                     {shouldUseIcons ? (
-                      // Mobile/Tablet: Colored icon only
                       <Box sx={{ 
                         display: 'flex', 
                         alignItems: 'center',

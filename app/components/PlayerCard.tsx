@@ -34,6 +34,7 @@ import { Player, getSkillLevelColor, SkillLevel, skillLevelOrder, getSkillLevelD
 import { AppContext, SnackbarContext  } from '../BadmintonQueueUI';
 import { Action, } from '../lib/store/Action';
 import KeyboardReturnIcon from '@mui/icons-material/KeyboardReturn';
+import CloseIcon from '@mui/icons-material/Close';
 import { checkExcessivePartnership, checkExcessiveOpposition, formatMatchDuration, isToday  } from '../lib/utils/matchHistoryUtils';
 
 // Pragmatic Drag and Drop imports
@@ -323,7 +324,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
         if (isIdleTooLong) return "#F8D7DA";
         if (zone.startsWith('court')) return "#B5CDA3";
         if (zone.startsWith('queue')) return "#E5D78A";
-        return "#E8D8C4";
+        return "#f5f1eb";
       }
 
       if (isConflict) return "#F7C59F";
@@ -331,7 +332,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
       if (isOnCourt && !isInQueue) return "#B5CDA3";
       if (isInQueue && !isOnCourt) return "#E5D78A";
       if (isIdleTooLong) return "#F8D7DA";
-      return "#E8D8C4";
+      return "#f5f1eb";
     };
 
     const getTextColor = () => {
@@ -1206,15 +1207,15 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
                       title="Click to view match history"
                     >
                       {player.gamesPlayed}
-                      <Box 
-                        component="span" 
+                      <SportsEsportsIcon 
                         sx={{ 
-                          fontSize: '1em', 
-                          filter: 'brightness(1.2)', 
+                          fontSize: isInTeamZone 
+                            ? (isMobile ? '0.7rem' : '0.65rem')
+                            : (isMobile ? '0.8rem' : '0.75rem'),
+                          color: cardColors.textColor,
+                          filter: 'brightness(1.1)',
                         }}
-                      >
-                        🎮
-                      </Box>
+                      />
                     </Typography>
 
                     {/* Timer */}
@@ -1276,7 +1277,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
                       <AddIcon
                         sx={{ 
                           fontSize: isMobile ? '0.8rem' : '0.7rem',
-                          color: isQuickAddDisabled ? '#aaa' : '#6D4C41'
+                          color: isQuickAddDisabled ? '#aaa' : '#64748b'
                         }}
                       />
                     </IconButton>
@@ -1374,16 +1375,35 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
                 ? '0 8px 24px rgba(0,0,0,0.15)' 
                 : theme.shadows[8],
               overflowY: 'auto',
+              position: 'relative',
             },
           },
         }}
       >
+        <IconButton
+          onClick={handleHistoryClose}
+          sx={{
+            position: 'absolute',
+            right: 8,
+            top: 8,
+            color: '#64748b', // Gray to match navy theme
+            zIndex: 1, // Ensure it stays on top
+            '&:hover': {
+              backgroundColor: 'rgba(100, 116, 139, 0.1)',
+              color: '#475569',
+            },
+          }}
+          size="small"
+        >
+          <CloseIcon sx={{ fontSize: '1.2rem' }} />
+        </IconButton>
         <Typography variant="subtitle2" gutterBottom sx={{
           fontSize: isMobile ? '0.9rem' : '0.8rem',
           fontWeight: 'bold',
           borderBottom: '1px solid rgba(0,0,0,0.1)',
           paddingBottom: '8px',
           marginBottom: '12px',
+          pr: 4
         }}>
           {player.name}'s Match History
         </Typography>

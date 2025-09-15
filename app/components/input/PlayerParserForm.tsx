@@ -1,5 +1,6 @@
 import React, { useState, useContext, useEffect } from 'react';
-import { Modal, Box, Button, Stack, TextField, Typography, Chip } from '@mui/material';
+import { Modal, Box, Button, Stack, TextField, Typography, Chip, IconButton } from '@mui/material';
+import CloseIcon from '@mui/icons-material/Close';
 import { AppContext } from '../../BadmintonQueueUI'; // 👈 your own context
 import { Action } from '../../lib/store/Action';
 import { parsePlayerList } from '../../lib/utils/parsePlayerList';
@@ -40,8 +41,25 @@ const PlayerParserForm: React.FC<PlayerParserModalProps> = ({ open, onClose }) =
 					my: { xs: '5vh', sm: '15vh' }, // Less top margin on mobile
 					boxShadow: 24,
 					fontSize: '0.8rem',
+					position: 'relative'
 				}}
 			>
+				<IconButton
+					onClick={onClose}
+					sx={{
+						position: 'absolute',
+						right: 8,
+						top: 8,
+						color: '#64748b', // Gray to match your navy theme
+						'&:hover': {
+						backgroundColor: 'rgba(100, 116, 139, 0.1)',
+						color: '#475569',
+						},
+					}}
+					size="small"
+					>
+					<CloseIcon sx={{ fontSize: '1.2rem' }} />
+				</IconButton>
 				<Stack spacing={{ xs: 1.5, sm: 2 }}> {/* Reduced spacing on mobile */}
 					<Typography 
 						variant="subtitle1" 
