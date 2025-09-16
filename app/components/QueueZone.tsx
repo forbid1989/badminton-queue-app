@@ -8,7 +8,8 @@ import PlayerCard from './PlayerCard';
 import DroppableZone from './DroppableZone';
 import { Action } from '../lib/store/Action';
 import { AppContext } from '../BadmintonQueueUI';
-import { PlayerStatus } from './types/Player';
+import QueueIcon from '@mui/icons-material/Queue';
+
 
 type QueueZoneProps = {
   courtCount: number;
@@ -275,12 +276,22 @@ const QueueItem = React.memo<{
                 sx={{
                   fontSize: 'clamp(0.65rem, 0.9vw, 0.85rem)',
                   fontWeight: 'bold',
-                  color: '#333',
+                  color: '#4A3C1C',
                   padding: '2px 4px',
                   textShadow: '1px 1px 2px rgba(255,255,255,0.3)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 0.5,
                 }}
               >
-                ⏳ Queue {index + 1}
+                <QueueIcon 
+                  sx={{ 
+                    fontSize: '0.9rem',
+                    color: '#4A3C1C', 
+                    filter: 'drop-shadow(1px 1px 1px rgba(255,255,255,0.6))',
+                  }} 
+                />
+                Queue {index + 1}
               </Typography>
               
               {/* Remove queue button - only show if we can remove */}

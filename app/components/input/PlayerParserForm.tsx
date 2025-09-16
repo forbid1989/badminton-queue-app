@@ -1,7 +1,10 @@
 import React, { useState, useContext, useEffect } from 'react';
 import { Modal, Box, Button, Stack, TextField, Typography, Chip, IconButton } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
-import { AppContext } from '../../BadmintonQueueUI'; // 👈 your own context
+import LightbulbIcon from '@mui/icons-material/Lightbulb';
+import ContentPasteIcon from '@mui/icons-material/ContentPaste';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import { AppContext } from '../../BadmintonQueueUI';
 import { Action } from '../../lib/store/Action';
 import { parsePlayerList } from '../../lib/utils/parsePlayerList';
 
@@ -11,7 +14,7 @@ type PlayerParserModalProps = {
 };
 
 const PlayerParserForm: React.FC<PlayerParserModalProps> = ({ open, onClose }) => {
-	const { dispatch } = useContext(AppContext); // ✅ use your own context
+	const { dispatch } = useContext(AppContext);
 	const [inputText, setInputText] = useState('');
 	const [singlePlayer, setSinglePlayer] = useState('');
 
@@ -135,7 +138,8 @@ const PlayerParserForm: React.FC<PlayerParserModalProps> = ({ open, onClose }) =
 								Add Multiple Players
 							</Typography>
 							<Chip 
-								label="💡 Paste list here" 
+								icon={<LightbulbIcon sx={{ fontSize: '0.8rem' }} />}
+								label="Paste list here" 
 								size="small"
 								color="primary"
 								variant="outlined"
@@ -152,22 +156,30 @@ const PlayerParserForm: React.FC<PlayerParserModalProps> = ({ open, onClose }) =
 							sx={{ 
 								fontSize: { xs: '0.65rem', sm: '0.7rem' }, 
 								color: 'text.secondary',
-								display: 'block',
+								display: 'flex',
+								alignItems: 'center',
+								gap: 0.5,
 								mb: 1,
 								fontStyle: 'italic'
 							}}
 						>
-							💡 Pro Tip: Paste a list of names (one per line) to create multiple player cards instantly!
+							<LightbulbIcon sx={{ fontSize: '0.8rem', color: 'primary.main' }} />
+							Pro Tip: Paste a list of names (one per line) to create multiple player cards instantly!
 						</Typography>
 
 						<TextField
-							label="📋 Paste Player Names List Here"
+							label={
+								<Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+									<ContentPasteIcon sx={{ fontSize: '0.9rem' }} />
+									Paste Player Names List Here
+								</Box>
+							}
 							placeholder={`Copy and paste player names here:
 
-John
-Sarah
-Mike
-Anna
+Carl
+Cliff
+Clint
+Cedric
 
 ...or type them one per line`}
 							multiline
@@ -212,12 +224,15 @@ Anna
 								sx={{ 
 									fontSize: { xs: '0.65rem', sm: '0.7rem' }, 
 									color: 'success.main',
-									display: 'block',
+									display: 'flex',
+									alignItems: 'center',
+									gap: 0.5,
 									mt: 0.5,
 									fontWeight: 'medium'
 								}}
 							>
-								✓ Will add {parsePlayerList(inputText).length} player(s)
+								<CheckCircleIcon sx={{ fontSize: '0.8rem' }} />
+								Will add {parsePlayerList(inputText).length} player(s)
 							</Typography>
 						)}
 					</Box>

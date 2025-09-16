@@ -7,7 +7,7 @@ import DroppableZone from './DroppableZone';
 import PlayerCard from './PlayerCard';
 import { AppContext } from '../BadmintonQueueUI';
 import { Action } from '../lib/store/Action';
-import { PlayerStatus } from './types/Player';
+import SportsTennisIcon from '@mui/icons-material/SportsTennis';
 
 type CourtZoneProps = {
   courtCount: number;
@@ -345,11 +345,21 @@ const CourtItem = React.memo<{
                       padding: '2px 4px',
                       textShadow: '1px 1px 2px rgba(0,0,0,0.5)',
                       cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 0.5,
                     }}
                     onClick={handleStartEdit}
                     title="Click to edit court name"
                   >
-                    🏸 {courtName}
+                    <SportsTennisIcon 
+                      sx={{ 
+                        fontSize: '0.9rem',
+                        color: 'white',
+                        filter: 'drop-shadow(1px 1px 2px rgba(0,0,0,0.7))',
+                      }} 
+                    />
+                    {courtName}
                   </Typography>
                   <IconButton
                     size="small"
