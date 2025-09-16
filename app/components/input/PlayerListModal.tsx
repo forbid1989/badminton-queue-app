@@ -1,4 +1,4 @@
-// PlayerListModal.tsx - Modal for viewing and managing player list with skill levels
+// PlayerListModal.tsx - Enhanced with sortable table headers
 
 import React, { useState, useContext, useMemo } from 'react';
 import {
@@ -24,6 +24,7 @@ import {
   useMediaQuery,
   Tooltip,
   Badge,
+  TableSortLabel,
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import SearchIcon from '@mui/icons-material/Search';
@@ -39,6 +40,15 @@ interface PlayerListModalProps {
   onClose: () => void;
 }
 
+// Types for sorting
+type SortableColumns = 'name' | 'gamesPlayed' | 'status' | 'skillLevel';
+type SortDirection = 'asc' | 'desc';
+
+interface SortConfig {
+  column: SortableColumns | null;
+  direction: SortDirection;
+}
+
 const PlayerListModal: React.FC<PlayerListModalProps> = ({ open, onClose }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery('(max-width: 768px)');
@@ -46,6 +56,47 @@ const PlayerListModal: React.FC<PlayerListModalProps> = ({ open, onClose }) => {
   
   const [searchQuery, setSearchQuery] = useState('');
   const [skillFilter, setSkillFilter] = useState<SkillLevel | 'ALL'>('ALL');
+  
+  // Sorting state
+  const [sortConfig, setSortConfig] = useState<SortConfig>({
+    column: null,
+    direction: 'asc'
+  });
+
+  // Handle sorting
+  const handleSort = (column: SortableColumns) => {
+    setSortConfig(prevConfig => {
+      if (prevConfig.column === column) {
+        // If clicking the same column, toggle direction
+        return {
+          column,
+          direction: prevConfig.direction === 'asc' ? 'desc' : 'asc'
+        };
+      } else {
+        // If clicking a new column, default to ascending
+        return {
+          column,
+          direction: 'asc'
+        };
+      }
+    });
+  };
+
+  // Get player status display
+  const getPlayerStatus = (player: Player) => {
+    const hasCourt = player.status.some(s => s.startsWith('court-'));
+    const hasQueue = player.status.some(s => s.startsWith('queue-'));
+
+    if (hasCourt && hasQueue) return { text: 'Court + Queue', color: '#00b0bd', priority: 1 };
+    if (hasCourt) return { text: 'Playing', color: '#4caf50', priority: 2 };
+    if (hasQueue) return { text: 'Queued', color: '#ff9800', priority: 3 };
+    return { text: 'Resting', color: '#9e9e9e', priority: 4 };
+  };
+
+  // Get skill level priority for sorting
+  const getSkillLevelPriority = (skillLevel: SkillLevel): number => {
+    return skillLevelOrder.indexOf(skillLevel);
+  };
 
   // Filter and sort players
   const filteredPlayers = useMemo(() => {
@@ -57,18 +108,57 @@ const PlayerListModal: React.FC<PlayerListModalProps> = ({ open, onClose }) => {
       filtered = filtered.filter(player => player.skillLevel === skillFilter);
     }
 
-    // Sort by skill level (strongest first), then by games played, then by name
-    return filtered.sort((a, b) => {
-      const skillComparison = skillLevelOrder.indexOf(a.skillLevel) - skillLevelOrder.indexOf(b.skillLevel);
-      if (skillComparison !== 0) return skillComparison;
-      
-      if (a.gamesPlayed !== b.gamesPlayed) {
-        return b.gamesPlayed - a.gamesPlayed; // More games first
-      }
-      
-      return a.name.localeCompare(b.name);
-    });
-  }, [state.players, searchQuery, skillFilter]);
+    // Apply sorting
+    if (sortConfig.column) {
+      filtered.sort((a, b) => {
+        let aValue: any;
+        let bValue: any;
+
+        switch (sortConfig.column) {
+          case 'name':
+            aValue = a.name.toLowerCase();
+            bValue = b.name.toLowerCase();
+            break;
+          case 'gamesPlayed':
+            aValue = a.gamesPlayed;
+            bValue = b.gamesPlayed;
+            break;
+          case 'status':
+            aValue = getPlayerStatus(a).priority;
+            bValue = getPlayerStatus(b).priority;
+            break;
+          case 'skillLevel':
+            aValue = getSkillLevelPriority(a.skillLevel);
+            bValue = getSkillLevelPriority(b.skillLevel);
+            break;
+          default:
+            return 0;
+        }
+
+        if (aValue < bValue) {
+          return sortConfig.direction === 'asc' ? -1 : 1;
+        }
+        if (aValue > bValue) {
+          return sortConfig.direction === 'asc' ? 1 : -1;
+        }
+        return 0;
+      });
+    } else {
+      // Default sorting when no column is selected: skill level (strongest first), then games played, then name
+      filtered.sort((a, b) => {
+        const skillComparison = skillLevelOrder.indexOf(a.skillLevel) - skillLevelOrder.indexOf(b.skillLevel);
+        if (skillComparison !== 0) return skillComparison;
+        
+        if (a.gamesPlayed !== b.gamesPlayed) {
+          return b.gamesPlayed - a.gamesPlayed; // More games first
+        }
+        
+        return a.name.localeCompare(b.name);
+      });
+    }
+
+    return filtered;
+  }, [state.players, searchQuery, skillFilter, sortConfig]);
 
   // Handle skill level change
   const handleSkillLevelChange = (playerId: string, newSkillLevel: SkillLevel) => {
@@ -78,17 +168,6 @@ const PlayerListModal: React.FC<PlayerListModalProps> = ({ open, onClose }) => {
   // Clear search
   const handleClearSearch = () => {
     setSearchQuery('');
-  };
-
-  // Get player status display
-  const getPlayerStatus = (player: Player) => {
-    const hasCourt = player.status.some(s => s.startsWith('court-'));
-    const hasQueue = player.status.some(s => s.startsWith('queue-'));
-
-    if (hasCourt && hasQueue) return { text: 'Court + Queue', color: '#00b0bd' };
-    if (hasCourt) return { text: 'Playing', color: '#4caf50' };
-    if (hasQueue) return { text: 'Queued', color: '#ff9800' };
-    return { text: 'Resting', color: '#9e9e9e' };
   };
 
   return (
@@ -102,11 +181,11 @@ const PlayerListModal: React.FC<PlayerListModalProps> = ({ open, onClose }) => {
           width: { xs: '95%', sm: '90%', md: 700 },
           maxWidth: 800,
           maxHeight: { xs: '90vh', sm: '85vh' },
-          p: { xs: 2, sm: 3 },
-          borderRadius: 2,
-          overflow: 'hidden',
+          p: 0,
           display: 'flex',
           flexDirection: 'column',
+          borderRadius: 2,
+          overflow: 'hidden',
         }}
       >
         {/* Header */}
@@ -114,46 +193,57 @@ const PlayerListModal: React.FC<PlayerListModalProps> = ({ open, onClose }) => {
           display: 'flex', 
           justifyContent: 'space-between', 
           alignItems: 'center',
-          mb: 2,
-          pb: 1,
-          borderBottom: `1px solid ${theme.palette.divider}`
+          p: 3,
+          pb: 2,
+          borderBottom: 1,
+          borderColor: 'divider',
+          bgcolor: 'background.paper',
         }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <SportsIcon color="primary" />
-            <Typography variant="h6" sx={{ fontSize: { xs: '1.1rem', sm: '1.25rem' } }}>
+            <SportsIcon sx={{ color: 'primary.main' }} />
+            <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
               Player List & Skills
             </Typography>
             <Chip 
-              label={`${filteredPlayers.length} players`}
+              label={`${filteredPlayers.length} player${filteredPlayers.length !== 1 ? 's' : ''}`}
               size="small"
-              color="primary"
-              variant="outlined"
+              sx={{ 
+                backgroundColor: 'primary.main',
+                color: 'white',
+                fontWeight: 'bold'
+              }}
             />
           </Box>
-          <IconButton onClick={onClose} size="small">
+          <IconButton 
+            onClick={onClose}
+            size="small"
+            sx={{ color: 'text.secondary' }}
+          >
             <CloseIcon />
           </IconButton>
         </Box>
 
-        {/* Filters */}
+        {/* Search and Filter Controls */}
         <Box sx={{ 
           display: 'flex', 
           gap: 2, 
-          mb: 2,
-          flexDirection: { xs: 'column', sm: 'row' },
-          alignItems: { xs: 'stretch', sm: 'center' }
+          p: 3, 
+          py: 2,
+          borderBottom: 1,
+          borderColor: 'divider',
+          flexWrap: { xs: 'wrap', sm: 'nowrap' }
         }}>
-          {/* Search */}
+          {/* Search Field */}
           <TextField
             placeholder="Search players..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             size="small"
-            sx={{ flexGrow: 1 }}
+            sx={{ flexGrow: 1, minWidth: { xs: '100%', sm: '200px' } }}
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
-                  <SearchIcon sx={{ fontSize: '1.2rem', color: 'text.secondary' }} />
+                  <SearchIcon sx={{ fontSize: '1rem', color: 'text.secondary' }} />
                 </InputAdornment>
               ),
               endAdornment: searchQuery && (
@@ -202,22 +292,165 @@ const PlayerListModal: React.FC<PlayerListModalProps> = ({ open, onClose }) => {
           <Table stickyHeader size={isMobile ? 'small' : 'medium'}>
             <TableHead>
               <TableRow>
-                <TableCell sx={{ fontWeight: 'bold' }}>Player</TableCell>
-                <TableCell align="center" sx={{ fontWeight: 'bold' }}>
-                  <Tooltip title="Number of games played">
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, justifyContent: 'center' }}>
-                      🎮 Games
-                    </Box>
-                  </Tooltip>
+                {/* Player Name Column */}
+                <TableCell>
+                  <TableSortLabel
+                    active={sortConfig.column === 'name'}
+                    direction={sortConfig.column === 'name' ? sortConfig.direction : 'asc'}
+                    onClick={() => handleSort('name')}
+                    sx={{ 
+                      fontWeight: 'bold',
+                      color: sortConfig.column === 'name' ? 'primary.main' : 'text.primary',
+                      '&:hover': {
+                        color: 'primary.main',
+                        backgroundColor: 'primary.50',
+                        borderRadius: 1,
+                      },
+                      '&.Mui-active': {
+                        color: 'primary.main',
+                        fontWeight: 'bold',
+                      },
+                      '& .MuiTableSortLabel-icon': {
+                        fontSize: '1.2rem',
+                        opacity: sortConfig.column === 'name' ? 1 : 0.5,
+                      }
+                    }}
+                  >
+                    Player
+                    {sortConfig.column === 'name' && (
+                      <Box component="span" sx={{ 
+                        ml: 0.5, 
+                        color: 'primary.main',
+                        fontSize: '0.7rem',
+                        fontWeight: 'normal'
+                      }}>
+                        ({sortConfig.direction === 'asc' ? 'A-Z' : 'Z-A'})
+                      </Box>
+                    )}
+                  </TableSortLabel>
                 </TableCell>
-                <TableCell align="center" sx={{ fontWeight: 'bold' }}>Status</TableCell>
-                <TableCell align="center" sx={{ fontWeight: 'bold' }}>
-                  <Tooltip title="Player skill level">
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, justifyContent: 'center' }}>
-                      <EmojiEventsIcon sx={{ fontSize: '1rem' }} />
-                      Skill
-                    </Box>
-                  </Tooltip>
+
+                {/* Games Column */}
+                <TableCell align="center">
+                  <TableSortLabel
+                    active={sortConfig.column === 'gamesPlayed'}
+                    direction={sortConfig.column === 'gamesPlayed' ? sortConfig.direction : 'asc'}
+                    onClick={() => handleSort('gamesPlayed')}
+                    sx={{ 
+                      fontWeight: 'bold',
+                      color: sortConfig.column === 'gamesPlayed' ? 'primary.main' : 'text.primary',
+                      '&:hover': {
+                        color: 'primary.main',
+                        backgroundColor: 'primary.50',
+                        borderRadius: 1,
+                      },
+                      '&.Mui-active': {
+                        color: 'primary.main',
+                        fontWeight: 'bold',
+                      },
+                      '& .MuiTableSortLabel-icon': {
+                        fontSize: '1.2rem',
+                        opacity: sortConfig.column === 'gamesPlayed' ? 1 : 0.5,
+                      }
+                    }}
+                  >
+                    <Tooltip title="Number of games played">
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, justifyContent: 'center' }}>
+                        🎮 Games
+                      </Box>
+                    </Tooltip>
+                    {sortConfig.column === 'gamesPlayed' && (
+                      <Box component="span" sx={{ 
+                        ml: 0.5, 
+                        color: 'primary.main',
+                        fontSize: '0.7rem',
+                        fontWeight: 'normal'
+                      }}>
+                        ({sortConfig.direction === 'asc' ? 'Low' : 'High'})
+                      </Box>
+                    )}
+                  </TableSortLabel>
+                </TableCell>
+
+                {/* Status Column */}
+                <TableCell align="center">
+                  <TableSortLabel
+                    active={sortConfig.column === 'status'}
+                    direction={sortConfig.column === 'status' ? sortConfig.direction : 'asc'}
+                    onClick={() => handleSort('status')}
+                    sx={{ 
+                      fontWeight: 'bold',
+                      color: sortConfig.column === 'status' ? 'primary.main' : 'text.primary',
+                      '&:hover': {
+                        color: 'primary.main',
+                        backgroundColor: 'primary.50',
+                        borderRadius: 1,
+                      },
+                      '&.Mui-active': {
+                        color: 'primary.main',
+                        fontWeight: 'bold',
+                      },
+                      '& .MuiTableSortLabel-icon': {
+                        fontSize: '1.2rem',
+                        opacity: sortConfig.column === 'status' ? 1 : 0.5,
+                      }
+                    }}
+                  >
+                    Status
+                    {sortConfig.column === 'status' && (
+                      <Box component="span" sx={{ 
+                        ml: 0.5, 
+                        color: 'primary.main',
+                        fontSize: '0.7rem',
+                        fontWeight: 'normal'
+                      }}>
+                        ({sortConfig.direction === 'asc' ? 'Active→Rest' : 'Rest→Active'})
+                      </Box>
+                    )}
+                  </TableSortLabel>
+                </TableCell>
+
+                {/* Skill Level Column */}
+                <TableCell align="center">
+                  <TableSortLabel
+                    active={sortConfig.column === 'skillLevel'}
+                    direction={sortConfig.column === 'skillLevel' ? sortConfig.direction : 'asc'}
+                    onClick={() => handleSort('skillLevel')}
+                    sx={{ 
+                      fontWeight: 'bold',
+                      color: sortConfig.column === 'skillLevel' ? 'primary.main' : 'text.primary',
+                      '&:hover': {
+                        color: 'primary.main',
+                        backgroundColor: 'primary.50',
+                        borderRadius: 1,
+                      },
+                      '&.Mui-active': {
+                        color: 'primary.main',
+                        fontWeight: 'bold',
+                      },
+                      '& .MuiTableSortLabel-icon': {
+                        fontSize: '1.2rem',
+                        opacity: sortConfig.column === 'skillLevel' ? 1 : 0.5,
+                      }
+                    }}
+                  >
+                    <Tooltip title="Player skill level">
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, justifyContent: 'center' }}>
+                        <EmojiEventsIcon sx={{ fontSize: '1rem' }} />
+                        Skill
+                      </Box>
+                    </Tooltip>
+                    {sortConfig.column === 'skillLevel' && (
+                      <Box component="span" sx={{ 
+                        ml: 0.5, 
+                        color: 'primary.main',
+                        fontSize: '0.7rem',
+                        fontWeight: 'normal'
+                      }}>
+                        ({sortConfig.direction === 'asc' ? 'S→F' : 'F→S'})
+                      </Box>
+                    )}
+                  </TableSortLabel>
                 </TableCell>
               </TableRow>
             </TableHead>
@@ -331,7 +564,8 @@ const PlayerListModal: React.FC<PlayerListModalProps> = ({ open, onClose }) => {
           display: 'flex',
           flexWrap: 'wrap',
           gap: 1,
-          alignItems: 'center'
+          alignItems: 'center',
+          p: 3,
         }}>
           <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'text.secondary' }}>
             Skill Levels:

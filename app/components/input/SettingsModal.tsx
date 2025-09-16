@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useContext } from 'react';
+import React, { useState, useEffect, useCallback, useContext, useMemo } from 'react';
 import {
   Modal,
   Paper,
@@ -35,7 +35,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
   const { state, dispatch } = useContext(AppContext);
   
   // Zoom levels: 75%, 85%, 100%, 110%, 125%, 150%
-  const zoomLevels = [75, 85, 100, 110, 125, 150];
+  const zoomLevels = useMemo(() => [75, 85, 100, 110, 125, 150], []);
   const [zoomLevel, setZoomLevel] = useState(100);
   const [playerCooldowns, setPlayerCooldowns] = useState(state.settings.playerCooldowns || false);
   
