@@ -246,21 +246,6 @@ const PlayerListZone: React.FC<PlayerListZoneProps> = ({ state }) => {
     }
   }, [searchQuery, activeTab]);
 
-  // ✅ Memoize the player grid with better responsive sizing
-  // const playerGrid = useMemo(() => (
-  //   <Grid container spacing={{ xs: 0.5, sm: 1 }}>
-  //     {filteredAndSortedPlayers.map((player) => (
-  //       <Grid 
-  //         key={player.id} 
-  //         size={{ xs: 6, sm: 12, md: 12, lg: 6, xl: 4 }}
-  //       >
-  //         {/* IMPORTANT: Always pass "all" as the zone for cards in PlayerListZone */}
-  //         <PlayerCard player={player} zone="all" />
-  //       </Grid>
-  //     ))}
-  //   </Grid>
-  // ), [filteredAndSortedPlayers]);
-
   // 🆕 Calculate whether to show the drop message
   const shouldShowDropMessage = useMemo(() => {
     // Only show drop message if:
