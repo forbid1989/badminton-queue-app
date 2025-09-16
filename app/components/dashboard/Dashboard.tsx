@@ -209,9 +209,30 @@ const Dashboard: React.FC = React.memo(() => {
         {headerContent}
         <UnqueuedZone state={state} />
         
-        {/* 🆕 Add DataManagement component here */}
-        <DataManagement />
-        
+        <Box sx={{ 
+          mt: 1, 
+          p: 1, 
+          textAlign: 'center',
+          borderTop: '1px solid',
+          borderColor: 'divider',
+          bgcolor: 'background.paper'
+        }}>
+          <Typography 
+            variant="caption" 
+            sx={{ 
+              fontSize: '0.7rem', 
+              color: 'text.secondary',
+              fontStyle: 'italic',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 0.5
+            }}
+          >
+            
+            Data management & clear options are in <SettingsIcon sx={{ fontSize: '0.8rem' }} /> Settings
+          </Typography>
+        </Box>
         {popoverContent}
       </Box>
 
