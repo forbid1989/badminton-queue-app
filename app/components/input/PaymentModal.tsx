@@ -1,3 +1,5 @@
+// PaymentModal.tsx - Updated with sortable table headers and mobile responsiveness
+
 import React, { useState, useEffect, useContext, useMemo } from 'react';
 import {
   Modal,
@@ -23,7 +25,13 @@ import {
   Select,
   MenuItem,
   useTheme,
+  useMediaQuery,
   Alert,
+  TableSortLabel,
+  Card,
+  CardContent,
+  Grid,
+  Stack,
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
@@ -39,8 +47,18 @@ interface PaymentModalProps {
   onClose: () => void;
 }
 
+// Types for sorting
+type SortableColumns = 'name' | 'gamesPlayed' | 'amountDue' | 'status';
+type SortDirection = 'asc' | 'desc';
+
+interface SortConfig {
+  column: SortableColumns | null;
+  direction: SortDirection;
+}
+
 const PaymentModal: React.FC<PaymentModalProps> = ({ open, onClose }) => {
   const theme = useTheme();
+  const isMobile = useMediaQuery('(max-width: 768px)');
   const { state, dispatch } = useContext(AppContext);
   
   // Payment settings state
@@ -50,6 +68,12 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ open, onClose }) => {
   const [perGameFee, setPerGameFee] = useState('15');
   const [guestFee, setGuestFee] = useState('25');
   const [currency, setCurrency] = useState('PHP');
+  
+  // Sorting state
+  const [sortConfig, setSortConfig] = useState<SortConfig>({
+    column: null,
+    direction: 'asc'
+  });
 
   // Load payment settings from state or localStorage
   useEffect(() => {
@@ -80,6 +104,54 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ open, onClose }) => {
       }
     };
   }, [feeStructure, flatFee, courtFee, perGameFee, guestFee]);
+
+  // Handle sorting
+  const handleSort = (column: SortableColumns) => {
+    setSortConfig(prev => ({
+      column,
+      direction: prev.column === column && prev.direction === 'asc' ? 'desc' : 'asc'
+    }));
+  };
+
+  // Sort players based on current sort configuration
+  const sortedPlayers = useMemo(() => {
+    if (!sortConfig.column) return state.players;
+
+    return [...state.players].sort((a, b) => {
+      let aValue: any;
+      let bValue: any;
+
+      switch (sortConfig.column) {
+        case 'name':
+          aValue = a.name.toLowerCase();
+          bValue = b.name.toLowerCase();
+          break;
+        case 'gamesPlayed':
+          aValue = a.gamesPlayed;
+          bValue = b.gamesPlayed;
+          break;
+        case 'amountDue':
+          aValue = calculatePlayerFee(a, a.paymentInfo?.isGuest || false);
+          bValue = calculatePlayerFee(b, b.paymentInfo?.isGuest || false);
+          break;
+        case 'status':
+          // Sort by payment status: Paid comes before Pending
+          aValue = a.paymentInfo?.hasPaid ? 0 : 1;
+          bValue = b.paymentInfo?.hasPaid ? 0 : 1;
+          break;
+        default:
+          return 0;
+      }
+
+      if (aValue < bValue) {
+        return sortConfig.direction === 'asc' ? -1 : 1;
+      }
+      if (aValue > bValue) {
+        return sortConfig.direction === 'asc' ? 1 : -1;
+      }
+      return 0;
+    });
+  }, [state.players, sortConfig, calculatePlayerFee]);
 
   // Save payment settings
   const handleSaveSettings = () => {
@@ -141,89 +213,75 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ open, onClose }) => {
     };
   }, [state.players, calculatePlayerFee]);
 
-  const modalSx = {
-    position: 'absolute' as const,
-    top: '50%',
-    left: '50%',
-    transform: 'translate(-50%, -50%)',
-    width: { xs: '95%', sm: '90%', md: 800 },
-    maxWidth: 900,
-    maxHeight: '90vh',
-    bgcolor: 'background.paper',
-    borderRadius: 2,
-    boxShadow: 24,
-    p: 3,
-    overflow: 'auto',
-  };
-
   return (
     <Modal
       open={open}
       onClose={onClose}
-      aria-labelledby="payment-modal-title"
+      sx={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        p: 2,
+      }}
     >
-      <Paper sx={modalSx}>
+      <Paper
+        sx={{
+          width: '90%',
+          maxWidth: 1000,
+          maxHeight: '90vh',
+          overflow: 'auto',
+          p: 3,
+          bgcolor: 'background.paper',
+          borderRadius: 2,
+        }}
+      >
         {/* Header */}
-        <Box sx={{ 
-          display: 'flex', 
-          justifyContent: 'space-between', 
-          alignItems: 'center',
-          mb: 3
-        }}>
-          <Typography 
-            id="payment-modal-title" 
-            variant="h6" 
-            sx={{ fontSize: '1.2rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 1 }}
-          >
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <AttachMoneyIcon color="primary" />
-            Payment Summary
-          </Typography>
-          <IconButton 
-            onClick={onClose}
-            size="small"
-            sx={{ 
-              color: 'text.secondary',
-              '&:hover': { backgroundColor: 'action.hover' }
-            }}
-          >
+            <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
+              Payment Summary
+            </Typography>
+          </Box>
+          <IconButton onClick={onClose} size="small">
             <CloseIcon />
           </IconButton>
         </Box>
 
-        {/* Payment Settings */}
-        <Box sx={{ mb: 3, p: 2, bgcolor: 'background.default', borderRadius: 1 }}>
-          <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 'bold' }}>
+        {/* Payment Settings Section */}
+        <Box sx={{ mb: 3 }}>
+          <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 'medium' }}>
             Payment Settings
           </Typography>
           
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            {/* Fee Structure */}
-            <FormControl size="small" sx={{ minWidth: 200 }}>
-              <InputLabel>Fee Structure</InputLabel>
-              <Select
-                value={feeStructure}
-                label="Fee Structure"
-                onChange={(e) => setFeeStructure(e.target.value as 'flat' | 'per_game')}
-              >
-                <MenuItem value="flat">Flat Fee</MenuItem>
-                <MenuItem value="per_game">Per Game + Court Fee</MenuItem>
-              </Select>
-            </FormControl>
+            <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+              <FormControl size="small" sx={{ minWidth: 120 }}>
+                <InputLabel>Fee Structure</InputLabel>
+                <Select
+                  value={feeStructure}
+                  onChange={(e) => setFeeStructure(e.target.value as 'flat' | 'per_game')}
+                  label="Fee Structure"
+                >
+                  <MenuItem value="flat">Flat Fee</MenuItem>
+                  <MenuItem value="per_game">Per Game</MenuItem>
+                </Select>
+              </FormControl>
 
-            {/* Currency */}
-            <FormControl size="small" sx={{ minWidth: 120 }}>
-              <InputLabel>Currency</InputLabel>
-              <Select
-                value={currency}
-                label="Currency"
-                onChange={(e) => setCurrency(e.target.value)}
-              >
-                <MenuItem value="PHP">PHP (₱)</MenuItem>
-                <MenuItem value="USD">USD ($)</MenuItem>
-                <MenuItem value="EUR">EUR (€)</MenuItem>
-                <MenuItem value="SGD">SGD (S$)</MenuItem>
-              </Select>
-            </FormControl>
+              <FormControl size="small" sx={{ minWidth: 100 }}>
+                <InputLabel>Currency</InputLabel>
+                <Select
+                  value={currency}
+                  onChange={(e) => setCurrency(e.target.value)}
+                  label="Currency"
+                >
+                  <MenuItem value="PHP">PHP (₱)</MenuItem>
+                  <MenuItem value="USD">USD ($)</MenuItem>
+                  <MenuItem value="EUR">EUR (€)</MenuItem>
+                  <MenuItem value="SGD">SGD (S$)</MenuItem>
+                </Select>
+              </FormControl>
+            </Box>
 
             <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
               {feeStructure === 'flat' ? (
@@ -240,7 +298,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ open, onClose }) => {
               ) : (
                 <>
                   <TextField
-                    label="Court Fee (flat)"
+                    label="Court Fee per Player"
                     value={courtFee}
                     onChange={(e) => setCourtFee(e.target.value)}
                     size="small"
@@ -284,6 +342,8 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ open, onClose }) => {
             </Button>
           </Box>
         </Box>
+
+        <Divider sx={{ mb: 3 }} />
 
         {/* Summary Cards */}
         <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap' }}>
@@ -334,13 +394,14 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ open, onClose }) => {
         </Box>
 
         {/* Action Buttons */}
-        <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
+        <Box sx={{ display: 'flex', gap: 1, mb: 2, flexWrap: 'wrap' }}>
           <Button
             variant="contained"
             color="success"
             onClick={handleMarkAllPaid}
             size="small"
             disabled={totals.unpaidCount === 0}
+            fullWidth={isMobile}
           >
             Mark All Paid
           </Button>
@@ -350,95 +411,335 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ open, onClose }) => {
             onClick={handleClearAllPayments}
             size="small"
             disabled={totals.paidCount === 0}
+            fullWidth={isMobile}
           >
             Clear All Payments
           </Button>
         </Box>
 
-        {/* Players Table */}
-        <TableContainer component={Paper} variant="outlined">
-          <Table size="small">
-            <TableHead>
-              <TableRow>
-                <TableCell>Player</TableCell>
-                <TableCell align="center">Games</TableCell>
-                <TableCell align="center">Guest</TableCell>
-                <TableCell align="right">Amount Due</TableCell>
-                <TableCell align="center">Status</TableCell>
-                <TableCell align="center">Action</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {state.players.map((player) => {
+        {/* Mobile Card Layout */}
+        {isMobile ? (
+          <Box sx={{ maxHeight: '400px', overflowY: 'auto' }}>
+            <Stack spacing={1}>
+              {sortedPlayers.map((player) => {
                 const isGuest = player.paymentInfo?.isGuest || false;
                 const hasPaid = player.paymentInfo?.hasPaid || false;
                 const amountDue = calculatePlayerFee(player, isGuest);
 
                 return (
-                  <TableRow key={player.id}>
-                    <TableCell>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <SportsIcon sx={{ fontSize: '1rem', color: 'primary.main' }} />
-                        <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
-                          {player.name}
-                        </Typography>
+                  <Card key={player.id} variant="outlined" sx={{ 
+                    bgcolor: hasPaid ? 'success.50' : 'warning.50',
+                    borderColor: hasPaid ? 'success.200' : 'warning.200'
+                  }}>
+                    <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+                      {/* Player Name and Status Row */}
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <SportsIcon sx={{ fontSize: '1rem', color: 'primary.main' }} />
+                          <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                            {player.name}
+                          </Typography>
+                        </Box>
+                        <Chip
+                          icon={hasPaid ? <PaidIcon /> : <PendingIcon />}
+                          label={hasPaid ? 'Paid' : 'Pending'}
+                          color={hasPaid ? 'success' : 'warning'}
+                          size="small"
+                        />
                       </Box>
-                    </TableCell>
-                    <TableCell align="center">
-                      <Chip 
-                        label={player.gamesPlayed} 
-                        size="small" 
-                        color="primary" 
-                        variant="outlined"
-                      />
-                    </TableCell>
-                    <TableCell align="center">
-                      <FormControlLabel
-                        control={
-                          <Switch
-                            checked={isGuest}
-                            onChange={(e) => dispatch(Action.togglePlayerGuest(player.id))}
-                            size="small"
-                          />
-                        }
-                        label=""
-                        sx={{ margin: 0 }}
-                      />
-                    </TableCell>
-                    <TableCell align="right">
-                      <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
-                        {currency === 'PHP' ? '₱' : currency === 'USD' ? '$' : currency === 'EUR' ? '€' : 'S$'}{amountDue.toFixed(2)}
-                      </Typography>
+
+                      {/* Details Row */}
+                      <Grid container spacing={1} sx={{ mb: 1 }}>
+                        <Grid size={4}>
+                          <Typography variant="caption" color="text.secondary">Games</Typography>
+                          <Box>
+                            <Chip 
+                              label={player.gamesPlayed} 
+                              size="small" 
+                              color="primary" 
+                              variant="outlined"
+                            />
+                          </Box>
+                        </Grid>
+                        <Grid size={4}>
+                          <Typography variant="caption" color="text.secondary">Guest</Typography>
+                          <Box>
+                            <Switch
+                              checked={isGuest}
+                              onChange={(e) => dispatch(Action.togglePlayerGuest(player.id))}
+                              size="small"
+                            />
+                          </Box>
+                        </Grid>
+                        <Grid size={4}>
+                          <Typography variant="caption" color="text.secondary">Amount Due</Typography>
+                          <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                            {currency === 'PHP' ? '₱' : currency === 'USD' ? '$' : currency === 'EUR' ? '€' : 'S$'}{amountDue.toFixed(2)}
+                          </Typography>
+                        </Grid>
+                      </Grid>
+
+                      {/* Fee Breakdown (for per_game structure) */}
                       {feeStructure === 'per_game' && (
-                        <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary' }}>
+                        <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', mb: 1 }}>
                           {currency === 'PHP' ? '₱' : currency === 'USD' ? '$' : currency === 'EUR' ? '€' : 'S$'}{parseFloat(courtFee)} + {player.gamesPlayed}×{currency === 'PHP' ? '₱' : currency === 'USD' ? '$' : currency === 'EUR' ? '€' : 'S$'}{parseFloat(perGameFee)}{isGuest ? ` + ${currency === 'PHP' ? '₱' : currency === 'USD' ? '$' : currency === 'EUR' ? '€' : 'S$'}${parseFloat(guestFee)}` : ''}
                         </Typography>
                       )}
-                    </TableCell>
-                    <TableCell align="center">
-                      <Chip
-                        icon={hasPaid ? <PaidIcon /> : <PendingIcon />}
-                        label={hasPaid ? 'Paid' : 'Pending'}
-                        color={hasPaid ? 'success' : 'warning'}
-                        size="small"
-                      />
-                    </TableCell>
-                    <TableCell align="center">
+
+                      {/* Action Button */}
                       <Button
                         variant={hasPaid ? 'outlined' : 'contained'}
                         color={hasPaid ? 'warning' : 'success'}
                         size="small"
                         onClick={() => handleTogglePayment(player.id)}
+                        fullWidth
                       >
                         {hasPaid ? 'Mark Unpaid' : 'Mark Paid'}
                       </Button>
-                    </TableCell>
-                  </TableRow>
+                    </CardContent>
+                  </Card>
                 );
               })}
-            </TableBody>
-          </Table>
-        </TableContainer>
+            </Stack>
+          </Box>
+        ) : (
+          /* Desktop Table Layout */
+          <TableContainer component={Paper} variant="outlined">
+            <Table size="small">
+              <TableHead sx={{ bgcolor: 'grey.50' }}>
+                <TableRow>
+                  <TableCell>
+                    <TableSortLabel
+                      active={sortConfig.column === 'name'}
+                      direction={sortConfig.column === 'name' ? sortConfig.direction : 'asc'}
+                      onClick={() => handleSort('name')}
+                      sx={{ 
+                        fontWeight: 'bold',
+                        color: sortConfig.column === 'name' ? 'primary.main' : 'text.primary',
+                        '&:hover': {
+                          color: 'primary.main',
+                          backgroundColor: 'primary.50',
+                          borderRadius: 1,
+                        },
+                        '&.Mui-active': {
+                          color: 'primary.main',
+                          fontWeight: 'bold',
+                        },
+                        '& .MuiTableSortLabel-icon': {
+                          fontSize: '1.2rem',
+                          opacity: sortConfig.column === 'name' ? 1 : 0.5,
+                        }
+                      }}
+                    >
+                      Player
+                      {sortConfig.column === 'name' && (
+                        <Box component="span" sx={{ 
+                          ml: 0.5, 
+                          color: 'primary.main',
+                          fontSize: '0.7rem',
+                          fontWeight: 'normal'
+                        }}>
+                          ({sortConfig.direction === 'asc' ? 'A-Z' : 'Z-A'})
+                        </Box>
+                      )}
+                    </TableSortLabel>
+                  </TableCell>
+                  <TableCell align="center">
+                    <TableSortLabel
+                      active={sortConfig.column === 'gamesPlayed'}
+                      direction={sortConfig.column === 'gamesPlayed' ? sortConfig.direction : 'asc'}
+                      onClick={() => handleSort('gamesPlayed')}
+                      sx={{ 
+                        fontWeight: 'bold',
+                        color: sortConfig.column === 'gamesPlayed' ? 'primary.main' : 'text.primary',
+                        '&:hover': {
+                          color: 'primary.main',
+                          backgroundColor: 'primary.50',
+                          borderRadius: 1,
+                        },
+                        '&.Mui-active': {
+                          color: 'primary.main',
+                          fontWeight: 'bold',
+                        },
+                        '& .MuiTableSortLabel-icon': {
+                          fontSize: '1.2rem',
+                          opacity: sortConfig.column === 'gamesPlayed' ? 1 : 0.5,
+                        }
+                      }}
+                    >
+                      Games
+                      {sortConfig.column === 'gamesPlayed' && (
+                        <Box component="span" sx={{ 
+                          ml: 0.5, 
+                          color: 'primary.main',
+                          fontSize: '0.7rem',
+                          fontWeight: 'normal'
+                        }}>
+                          ({sortConfig.direction === 'asc' ? 'Low' : 'High'})
+                        </Box>
+                      )}
+                    </TableSortLabel>
+                  </TableCell>
+                  <TableCell align="center" sx={{ 
+                    fontWeight: 'bold',
+                    color: 'text.secondary',
+                    fontSize: '0.9rem'
+                  }}>
+                    Guest
+                  </TableCell>
+                  <TableCell align="right">
+                    <TableSortLabel
+                      active={sortConfig.column === 'amountDue'}
+                      direction={sortConfig.column === 'amountDue' ? sortConfig.direction : 'asc'}
+                      onClick={() => handleSort('amountDue')}
+                      sx={{ 
+                        fontWeight: 'bold',
+                        color: sortConfig.column === 'amountDue' ? 'primary.main' : 'text.primary',
+                        '&:hover': {
+                          color: 'primary.main',
+                          backgroundColor: 'primary.50',
+                          borderRadius: 1,
+                        },
+                        '&.Mui-active': {
+                          color: 'primary.main',
+                          fontWeight: 'bold',
+                        },
+                        '& .MuiTableSortLabel-icon': {
+                          fontSize: '1.2rem',
+                          opacity: sortConfig.column === 'amountDue' ? 1 : 0.5,
+                        }
+                      }}
+                    >
+                      Amount Due
+                      {sortConfig.column === 'amountDue' && (
+                        <Box component="span" sx={{ 
+                          ml: 0.5, 
+                          color: 'primary.main',
+                          fontSize: '0.7rem',
+                          fontWeight: 'normal'
+                        }}>
+                          ({sortConfig.direction === 'asc' ? 'Low' : 'High'})
+                        </Box>
+                      )}
+                    </TableSortLabel>
+                  </TableCell>
+                  <TableCell align="center">
+                    <TableSortLabel
+                      active={sortConfig.column === 'status'}
+                      direction={sortConfig.column === 'status' ? sortConfig.direction : 'asc'}
+                      onClick={() => handleSort('status')}
+                      sx={{ 
+                        fontWeight: 'bold',
+                        color: sortConfig.column === 'status' ? 'primary.main' : 'text.primary',
+                        '&:hover': {
+                          color: 'primary.main',
+                          backgroundColor: 'primary.50',
+                          borderRadius: 1,
+                        },
+                        '&.Mui-active': {
+                          color: 'primary.main',
+                          fontWeight: 'bold',
+                        },
+                        '& .MuiTableSortLabel-icon': {
+                          fontSize: '1.2rem',
+                          opacity: sortConfig.column === 'status' ? 1 : 0.5,
+                        }
+                      }}
+                    >
+                      Status
+                      {sortConfig.column === 'status' && (
+                        <Box component="span" sx={{ 
+                          ml: 0.5, 
+                          color: 'primary.main',
+                          fontSize: '0.7rem',
+                          fontWeight: 'normal'
+                        }}>
+                          ({sortConfig.direction === 'asc' ? 'Paid First' : 'Pending First'})
+                        </Box>
+                      )}
+                    </TableSortLabel>
+                  </TableCell>
+                  <TableCell align="center" sx={{ 
+                    fontWeight: 'bold',
+                    color: 'text.secondary',
+                    fontSize: '0.9rem'
+                  }}>
+                    Action
+                  </TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {sortedPlayers.map((player) => {
+                  const isGuest = player.paymentInfo?.isGuest || false;
+                  const hasPaid = player.paymentInfo?.hasPaid || false;
+                  const amountDue = calculatePlayerFee(player, isGuest);
+
+                  return (
+                    <TableRow key={player.id}>
+                      <TableCell>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <SportsIcon sx={{ fontSize: '1rem', color: 'primary.main' }} />
+                          <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
+                            {player.name}
+                          </Typography>
+                        </Box>
+                      </TableCell>
+                      <TableCell align="center">
+                        <Chip 
+                          label={player.gamesPlayed} 
+                          size="small" 
+                          color="primary" 
+                          variant="outlined"
+                        />
+                      </TableCell>
+                      <TableCell align="center">
+                        <FormControlLabel
+                          control={
+                            <Switch
+                              checked={isGuest}
+                              onChange={(e) => dispatch(Action.togglePlayerGuest(player.id))}
+                              size="small"
+                            />
+                          }
+                          label=""
+                          sx={{ margin: 0 }}
+                        />
+                      </TableCell>
+                      <TableCell align="right">
+                        <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                          {currency === 'PHP' ? '₱' : currency === 'USD' ? '$' : currency === 'EUR' ? '€' : 'S$'}{amountDue.toFixed(2)}
+                        </Typography>
+                        {feeStructure === 'per_game' && (
+                          <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary' }}>
+                            {currency === 'PHP' ? '₱' : currency === 'USD' ? '$' : currency === 'EUR' ? '€' : 'S$'}{parseFloat(courtFee)} + {player.gamesPlayed}×{currency === 'PHP' ? '₱' : currency === 'USD' ? '$' : currency === 'EUR' ? '€' : 'S$'}{parseFloat(perGameFee)}{isGuest ? ` + ${currency === 'PHP' ? '₱' : currency === 'USD' ? '$' : currency === 'EUR' ? '€' : 'S$'}${parseFloat(guestFee)}` : ''}
+                          </Typography>
+                        )}
+                      </TableCell>
+                      <TableCell align="center">
+                        <Chip
+                          icon={hasPaid ? <PaidIcon /> : <PendingIcon />}
+                          label={hasPaid ? 'Paid' : 'Pending'}
+                          color={hasPaid ? 'success' : 'warning'}
+                          size="small"
+                        />
+                      </TableCell>
+                      <TableCell align="center">
+                        <Button
+                          variant={hasPaid ? 'outlined' : 'contained'}
+                          color={hasPaid ? 'warning' : 'success'}
+                          size="small"
+                          onClick={() => handleTogglePayment(player.id)}
+                        >
+                          {hasPaid ? 'Mark Unpaid' : 'Mark Paid'}
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        )}
 
         {state.players.length === 0 && (
           <Alert severity="info" sx={{ mt: 2 }}>
