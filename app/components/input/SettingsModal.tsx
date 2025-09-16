@@ -13,8 +13,12 @@ import {
   useTheme,
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
+import SortIcon from '@mui/icons-material/Sort';
+import { FormControl, InputLabel, Select, MenuItem } from '@mui/material';
+import { SortableField } from '../types/Settings';
 import { AppContext } from '../../BadmintonQueueUI';
 import { Action } from '../../lib/store/Action';
+import { PlayerListSortConfig } from '../types/Settings';
 
 interface SettingsModalProps {
   open: boolean;
@@ -29,6 +33,24 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
   const zoomLevels = [75, 85, 100, 110, 125, 150];
   const [zoomLevel, setZoomLevel] = useState(100);
   const [playerCooldowns, setPlayerCooldowns] = useState(state.settings.playerCooldowns || false);
+
+  const sortFieldLabels: Record<SortableField, string> = {
+    timeEntered: 'Time Entered (When player joined)',
+    gamesPlayed: 'Games Played',
+    skillLevel: 'Skill Level (S > A > B > C > D > E > F)'
+  };
+
+  const sortDirectionLabels = {
+    asc: 'Ascending (Low to High)',
+    desc: 'Descending (High to Low)'
+  };
+
+  const sortConfig = state.settings?.playerListSort || {
+    secondarySort: 'gamesPlayed' as SortableField,
+    secondaryDirection: 'asc' as 'asc' | 'desc',
+    tertiarySort: 'timeEntered' as SortableField,
+    tertiaryDirection: 'asc' as 'asc' | 'desc'
+  };
 
   // Apply responsive font scaling to CSS root variables
   const applyFontScale = useCallback((level: number) => {
@@ -78,52 +100,100 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
     applyFontScale(level);
   };
 
+  const handleSortConfigChange = (sortConfig: PlayerListSortConfig) => {
+    dispatch(Action.updatePlayerListSort(sortConfig));
+  };
+
+  const handleSecondaryFieldChange = (field: SortableField) => {
+    handleSortConfigChange({
+      ...sortConfig,
+      secondarySort: field
+    });
+  };
+
+  const handleSecondaryDirectionChange = (direction: 'asc' | 'desc') => {
+    handleSortConfigChange({
+      ...sortConfig,
+      secondaryDirection: direction
+    });
+  };
+
+  const handleTertiaryFieldChange = (field: SortableField) => {
+    handleSortConfigChange({
+      ...sortConfig,
+      tertiarySort: field
+    });
+  };
+
+  const handleTertiaryDirectionChange = (direction: 'asc' | 'desc') => {
+    handleSortConfigChange({
+      ...sortConfig,
+      tertiaryDirection: direction
+    });
+  };
+
   const modalSx = {
     position: 'absolute' as const,
     top: '50%',
     left: '50%',
     transform: 'translate(-50%, -50%)',
-    width: { xs: '90%', sm: 400 },
-    maxWidth: 450,
+    width: { xs: '90%', sm: 450 }, // Increased width slightly
+    maxWidth: 500, // Increased max width
+    maxHeight: '85vh', // Add max height
     bgcolor: 'background.paper',
     borderRadius: 2,
     boxShadow: 24,
-    p: 3,
+    p: 0, // Remove padding from outer container
+    overflow: 'hidden', // Prevent content overflow
   };
 
   return (
-    <Modal
-      open={open}
-      onClose={onClose}
-      aria-labelledby="settings-modal-title"
-    >
-      <Paper sx={modalSx}>
-        {/* Header */}
-        <Box sx={{ 
-          display: 'flex', 
-          justifyContent: 'space-between', 
-          alignItems: 'center',
-          mb: 3
-        }}>
-          <Typography 
-            id="settings-modal-title" 
-            variant="h6" 
-            sx={{ fontSize: '1.1rem', fontWeight: 'bold' }}
-          >
-            App Settings
-          </Typography>
-          <IconButton 
-            onClick={onClose}
-            size="small"
-            sx={{ 
-              color: 'text.secondary',
-              '&:hover': { backgroundColor: 'action.hover' }
-            }}
-          >
-            <CloseIcon />
-          </IconButton>
-        </Box>
+  <Modal
+    open={open}
+    onClose={onClose}
+    aria-labelledby="settings-modal-title"
+  >
+    <Paper sx={modalSx}>
+      {/* Fixed Header */}
+      <Box sx={{ 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center',
+        p: 3,
+        pb: 2,
+        borderBottom: 1,
+        borderColor: 'divider',
+        position: 'sticky',
+        top: 0,
+        bgcolor: 'background.paper',
+        zIndex: 1
+      }}>
+        <Typography 
+          id="settings-modal-title" 
+          variant="h6" 
+          sx={{ fontSize: '1.1rem', fontWeight: 'bold' }}
+        >
+          App Settings
+        </Typography>
+        <IconButton 
+          onClick={onClose}
+          size="small"
+          sx={{ 
+            color: 'text.secondary',
+            '&:hover': { backgroundColor: 'action.hover' }
+          }}
+        >
+          <CloseIcon />
+        </IconButton>
+      </Box>
 
+      {/* Scrollable Content */}
+      <Box sx={{ 
+        maxHeight: 'calc(85vh - 140px)', // Account for header and button
+        overflowY: 'auto',
+        p: 3,
+        pt: 2
+      }}>
         {/* Settings Content */}
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
           {/* App Size Setting */}
@@ -223,28 +293,142 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
 
           <Divider />
 
-          {/* Close Button */}
-          <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
-            <Button
-              variant="contained"
-              onClick={onClose}
-              sx={{
-                backgroundColor: theme.palette.primary.main,
-                color: theme.palette.primary.contrastText,
-                fontSize: '0.85rem',
-                px: 3,
-                '&:hover': {
-                  backgroundColor: theme.palette.primary.dark,
-                },
-              }}
-            >
-              Done
-            </Button>
+          {/* Player List Sort Configuration - INLINE STYLING */}
+          <Box>
+            <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+              <SortIcon sx={{ mr: 1, color: 'primary.main' }} />
+              <Typography 
+                variant="subtitle2" 
+                sx={{ fontSize: '0.9rem', fontWeight: 'medium' }}
+              >
+                Player List Sorting
+              </Typography>
+            </Box>
+            
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 3, fontSize: '0.8rem' }}>
+              Players are always sorted by status first (Court → Queue → Waiting). 
+              Configure the 2nd and 3rd level sorting criteria below.
+            </Typography>
+
+            {/* 2nd Level Sort */}
+            <Typography variant="body2" sx={{ mb: 2, fontWeight: 600, fontSize: '0.85rem' }}>
+              2nd Level Sort
+            </Typography>
+            
+            <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
+              <FormControl size="small" sx={{ minWidth: 140, flex: 1 }}>
+                <InputLabel sx={{ fontSize: '0.8rem' }}>Sort By</InputLabel>
+                <Select
+                  value={sortConfig.secondarySort}
+                  label="Sort By"
+                  onChange={(e) => handleSecondaryFieldChange(e.target.value as SortableField)}
+                  sx={{ fontSize: '0.8rem' }}
+                >
+                  {Object.entries(sortFieldLabels).map(([value, label]) => (
+                    <MenuItem key={value} value={value} sx={{ fontSize: '0.8rem' }}>
+                      {label}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+
+              <FormControl size="small" sx={{ minWidth: 140, flex: 1 }}>
+                <InputLabel sx={{ fontSize: '0.8rem' }}>Direction</InputLabel>
+                <Select
+                  value={sortConfig.secondaryDirection}
+                  label="Direction"
+                  onChange={(e) => handleSecondaryDirectionChange(e.target.value as 'asc' | 'desc')}
+                  sx={{ fontSize: '0.8rem' }}
+                >
+                  {Object.entries(sortDirectionLabels).map(([value, label]) => (
+                    <MenuItem key={value} value={value} sx={{ fontSize: '0.8rem' }}>
+                      {label}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Box>
+
+            {/* 3rd Level Sort */}
+            <Typography variant="body2" sx={{ mb: 2, fontWeight: 600, fontSize: '0.85rem' }}>
+              3rd Level Sort (Tiebreaker)
+            </Typography>
+            
+            <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
+              <FormControl size="small" sx={{ minWidth: 140, flex: 1 }}>
+                <InputLabel sx={{ fontSize: '0.8rem' }}>Sort By</InputLabel>
+                <Select
+                  value={sortConfig.tertiarySort}
+                  label="Sort By"
+                  onChange={(e) => handleTertiaryFieldChange(e.target.value as SortableField)}
+                  sx={{ fontSize: '0.8rem' }}
+                >
+                  {Object.entries(sortFieldLabels).map(([value, label]) => (
+                    <MenuItem key={value} value={value} sx={{ fontSize: '0.8rem' }}>
+                      {label}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+
+              <FormControl size="small" sx={{ minWidth: 140, flex: 1 }}>
+                <InputLabel sx={{ fontSize: '0.8rem' }}>Direction</InputLabel>
+                <Select
+                  value={sortConfig.tertiaryDirection}
+                  label="Direction"
+                  onChange={(e) => handleTertiaryDirectionChange(e.target.value as 'asc' | 'desc')}
+                  sx={{ fontSize: '0.8rem' }}
+                >
+                  {Object.entries(sortDirectionLabels).map(([value, label]) => (
+                    <MenuItem key={value} value={value} sx={{ fontSize: '0.8rem' }}>
+                      {label}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Box>
+
+            {/* Preview */}
+            <Box sx={{ p: 2, bgcolor: 'grey.50', borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
+              <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
+                <strong>Current sorting order:</strong><br />
+                1st: Status (Court → Queue → Waiting)<br />
+                2nd: {sortFieldLabels[sortConfig.secondarySort]} ({sortConfig.secondaryDirection === 'asc' ? 'Low to High' : 'High to Low'})<br />
+                3rd: {sortFieldLabels[sortConfig.tertiarySort]} ({sortConfig.tertiaryDirection === 'asc' ? 'Low to High' : 'High to Low'})
+              </Typography>
+            </Box>
           </Box>
         </Box>
-      </Paper>
-    </Modal>
-  );
-};
+      </Box>
+
+      {/* Fixed Footer */}
+      <Box sx={{ 
+        p: 3, 
+        pt: 2,
+        borderTop: 1,
+        borderColor: 'divider',
+        bgcolor: 'background.paper',
+        display: 'flex', 
+        justifyContent: 'flex-end'
+      }}>
+        <Button
+          variant="contained"
+          onClick={onClose}
+          sx={{
+            backgroundColor: theme.palette.primary.main,
+            color: theme.palette.primary.contrastText,
+            fontSize: '0.85rem',
+            px: 3,
+            '&:hover': {
+              backgroundColor: theme.palette.primary.dark,
+            },
+          }}
+        >
+          Done
+        </Button>
+      </Box>
+    </Paper>
+  </Modal>
+)};
 
 export default SettingsModal;

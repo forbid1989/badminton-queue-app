@@ -13,6 +13,13 @@ export interface PaymentSettings {
   currency: string; // Currency symbol/code
 }
 
+export interface PlayerListSortConfig {
+  secondarySort: "timeEntered" | "gamesPlayed" | "skillLevel";
+  secondaryDirection: "asc" | "desc";
+  tertiarySort: "timeEntered" | "gamesPlayed" | "skillLevel";
+  tertiaryDirection: "asc" | "desc";
+}
+
 // ✅ Root state structure
 export type RootState = {
   // 🏸 Court state
@@ -42,5 +49,6 @@ export type RootState = {
     colorCodedTimers: boolean;
     playerCooldowns: boolean; // ✨ NEW: Enable/disable player cooldowns
     paymentSettings?: PaymentSettings; // 🆕 Payment settings
+    playerListSort?: PlayerListSortConfig;
   };
 };

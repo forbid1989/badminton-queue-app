@@ -49,7 +49,7 @@
     "app/theme.ts",
     "src",
     ".next/types/**/*.ts"
-  ],
+    , "app/lib/hooks"  ],
   "exclude": [
     "node_modules"
   ]

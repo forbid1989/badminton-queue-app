@@ -1,4 +1,5 @@
 import { Player } from "../../components/types/Player";
+import { PlayerListSortConfig } from "../../components/types/Settings";
 
 const ActionType = {
   SET_COURT_COUNT: "setCourtCount",
@@ -32,6 +33,7 @@ const ActionType = {
   VALIDATE_COURT_PARTNERSHIPS: "validateCourtPartnerships",
   SHOW_PARTNERSHIP_WARNING: "showPartnershipWarning",
   CLEAR_PARTNERSHIP_WARNINGS: "clearPartnershipWarnings",
+  UPDATE_PLAYER_LIST_SORT: "updatePlayerListSort",
 } as const;
 
 // 🧠 Action creators
@@ -247,7 +249,6 @@ const Action = {
     };
   },
 
-  // 🆕 NEW: Show partnership warning in UI
   showPartnershipWarning(
     courtId: string,
     partnerships: Array<{ player1: string; player2: string; count: number }>
@@ -258,10 +259,16 @@ const Action = {
     };
   },
 
-  // 🆕 NEW: Clear all partnership warnings
   clearPartnershipWarnings() {
     return {
       type: ActionType.CLEAR_PARTNERSHIP_WARNINGS,
+    };
+  },
+
+  updatePlayerListSort(sortConfig: PlayerListSortConfig) {
+    return {
+      type: ActionType.UPDATE_PLAYER_LIST_SORT,
+      payload: { sortConfig },
     };
   },
 };

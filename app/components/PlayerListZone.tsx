@@ -10,10 +10,23 @@ import SportsIcon from '@mui/icons-material/Sports';
 import { Player } from './types/Player';
 import PlayerCard from './PlayerCard';
 import DroppableZone from './DroppableZone';
+import { SortableField } from './types/Settings';
 
 type PlayerListZoneProps = {
   state: {
     players: Player[];
+    settings?: {
+      playerListSort?: {
+        secondarySort: SortableField;
+        secondaryDirection: 'asc' | 'desc';
+        tertiarySort: SortableField;
+        tertiaryDirection: 'asc' | 'desc';
+      };
+      // Include other settings properties that might exist
+      [key: string]: any;
+    };
+    // Include other state properties that might exist
+    [key: string]: any;
   };
 };
 
@@ -105,6 +118,36 @@ const filterPlayersByTab = (players: Player[], tab: string): Player[] => {
   }
 };
 
+  const comparePlayersByField = (
+    a: Player, 
+    b: Player, 
+    field: SortableField, 
+    direction: 'asc' | 'desc'
+  ): number => {
+    let comparison = 0;
+
+    switch (field) {
+      case 'timeEntered':
+        comparison = a.timeEntered - b.timeEntered;
+        break;
+      case 'gamesPlayed':
+        comparison = a.gamesPlayed - b.gamesPlayed;
+        break;
+      case 'skillLevel':
+        // Convert skill levels to numeric values for comparison
+        const skillOrder: Record<string, number> = { 'S': 0, 'A': 1, 'B': 2, 'C': 3, 'D': 4, 'E': 5, 'F': 6 };
+        const aSkill = skillOrder[a.skillLevel] ?? 999;
+        const bSkill = skillOrder[b.skillLevel] ?? 999;
+        comparison = aSkill - bSkill;
+        break;
+      default:
+        comparison = 0;
+    }
+
+    // Apply direction (desc reverses the comparison)
+    return direction === 'desc' ? -comparison : comparison;
+  };
+
 const PlayerListZone: React.FC<PlayerListZoneProps> = ({ state }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('all');
@@ -130,7 +173,6 @@ const PlayerListZone: React.FC<PlayerListZoneProps> = ({ state }) => {
     return counts;
   }, [state.players]);
 
-  // ✅ Memoize the filtering and sorting operation
   const filteredAndSortedPlayers = useMemo(() => {
     // First filter by tab selection
     let tabFiltered = filterPlayersByTab(state.players, activeTab);
@@ -140,8 +182,17 @@ const PlayerListZone: React.FC<PlayerListZoneProps> = ({ state }) => {
       player.name.toLowerCase().includes(searchQuery.toLowerCase().trim())
     );
 
+    // Get sorting configuration from state settings
+    const sortConfig = state.settings?.playerListSort || {
+      secondarySort: 'gamesPlayed' as SortableField,
+      secondaryDirection: 'asc' as 'asc' | 'desc',
+      tertiarySort: 'timeEntered' as SortableField,
+      tertiaryDirection: 'asc' as 'asc' | 'desc'
+    };
+
     // Then sort the filtered results
     return searchFiltered.sort((a, b) => {
+      // 1st level: Always sort by visual zone status (Court → Queue → Waiting)
       const zoneA = determineVisualZone(a);
       const zoneB = determineVisualZone(b);
 
@@ -149,13 +200,17 @@ const PlayerListZone: React.FC<PlayerListZoneProps> = ({ state }) => {
         return statusOrder[zoneA] - statusOrder[zoneB];
       }
 
-      if (a.gamesPlayed !== b.gamesPlayed) {
-        return a.gamesPlayed - b.gamesPlayed;
+      // 2nd level: Use configured secondary sort
+      const secondaryComparison = comparePlayersByField(a, b, sortConfig.secondarySort, sortConfig.secondaryDirection);
+      if (secondaryComparison !== 0) {
+        return secondaryComparison;
       }
 
-      return a.timeEntered - b.timeEntered;
+      // 3rd level: Use configured tertiary sort
+      const tertiaryComparison = comparePlayersByField(a, b, sortConfig.tertiarySort, sortConfig.tertiaryDirection);
+      return tertiaryComparison;
     });
-  }, [state.players, searchQuery, activeTab]);
+  }, [state.players, searchQuery, activeTab, state.settings?.playerListSort]);
 
   // Handle tab change
   const handleTabChange = (event: React.SyntheticEvent, newValue: string) => {

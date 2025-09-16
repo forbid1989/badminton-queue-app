@@ -6,10 +6,15 @@ import {
 } from "../../components/types/Player";
 import { clearLocalStorage } from "../utils/localStorage";
 import { generateMatchHistoryEntries } from "../utils/matchHistoryUtils";
+import { PlayerListSortConfig } from "../../components/types/Settings";
 
 type Action =
   | { type: "setCourtCount"; payload: number }
   | { type: "addPlayersFromText"; players: Player[] }
+  | {
+      type: "updatePlayerListSort";
+      payload: { sortConfig: PlayerListSortConfig };
+    }
   | { type: "clearAllPlayers" }
   | { type: "clearAllData" }
   | { type: "movePlayer"; payload: { id: string; from: string; to: string } }
@@ -2222,6 +2227,18 @@ export default function reducer(state: any, action: Action) {
         queue: {
           ...state.queue,
           playersByQueue,
+        },
+      };
+    }
+
+    case ActionType.UPDATE_PLAYER_LIST_SORT: {
+      const { sortConfig } = action.payload;
+
+      return {
+        ...state,
+        settings: {
+          ...state.settings,
+          playerListSort: sortConfig,
         },
       };
     }

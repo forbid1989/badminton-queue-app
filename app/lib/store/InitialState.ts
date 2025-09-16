@@ -1,5 +1,6 @@
 import { Player } from "../../components/types/Player";
 import { loadFromLocalStorage } from "../utils/localStorage";
+import { SortableField } from "../../components/types/Settings";
 
 // Base initial state
 const baseInitialState = {
@@ -31,9 +32,16 @@ const baseInitialState = {
 
   // ⚙️ App settings
   settings: {
-    priorityMode: "FIFO", // or 'LongestWaiting'
+    priorityMode: "FIFO" as "FIFO" | "LongestWaiting",
     colorCodedTimers: true,
-    playerCooldowns: false, // ✨ NEW: Default to disabled
+    playerCooldowns: false,
+    // 🆕 Add default player list sorting configuration
+    playerListSort: {
+      secondarySort: "gamesPlayed" as SortableField,
+      secondaryDirection: "asc" as "asc" | "desc",
+      tertiarySort: "timeEntered" as SortableField,
+      tertiaryDirection: "asc" as "asc" | "desc",
+    },
     paymentSettings: {
       feeStructure: "flat" as "flat" | "per_game",
       flatFee: 50,
