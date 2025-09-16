@@ -346,51 +346,113 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ open, onClose }) => {
         <Divider sx={{ mb: 3 }} />
 
         {/* Summary Cards */}
-        <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap' }}>
-          <Box sx={{ 
-            flex: 1, 
-            minWidth: 150, 
-            p: 2, 
-            bgcolor: 'success.light', 
-            borderRadius: 1,
-            color: 'success.contrastText'
-          }}>
-            <Typography variant="subtitle2">Total Paid</Typography>
-            <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
-              {currency === 'PHP' ? '₱' : currency === 'USD' ? '$' : currency === 'EUR' ? '€' : 'S$'}{totals.totalPaid.toFixed(2)}
-            </Typography>
-            <Typography variant="caption">{totals.paidCount} players</Typography>
-          </Box>
-          
-          <Box sx={{ 
-            flex: 1, 
-            minWidth: 150, 
-            p: 2, 
-            bgcolor: 'warning.light', 
-            borderRadius: 1,
-            color: 'warning.contrastText'
-          }}>
-            <Typography variant="subtitle2">Total Unpaid</Typography>
-            <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
-              {currency === 'PHP' ? '₱' : currency === 'USD' ? '$' : currency === 'EUR' ? '€' : 'S$'}{totals.totalUnpaid.toFixed(2)}
-            </Typography>
-            <Typography variant="caption">{totals.unpaidCount} players</Typography>
-          </Box>
-          
-          <Box sx={{ 
-            flex: 1, 
-            minWidth: 150, 
-            p: 2, 
-            bgcolor: 'primary.light', 
-            borderRadius: 1,
-            color: 'primary.contrastText'
-          }}>
-            <Typography variant="subtitle2">Total Expected</Typography>
-            <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
-              {currency === 'PHP' ? '₱' : currency === 'USD' ? '$' : currency === 'EUR' ? '€' : 'S$'}{totals.totalOwed.toFixed(2)}
-            </Typography>
-            <Typography variant="caption">{totals.totalPlayers} players</Typography>
-          </Box>
+        <Box sx={{ mb: 3 }}>
+          {isMobile ? (
+            // Mobile: Compact vertical layout
+            <Stack spacing={1}>
+              <Box sx={{ 
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                p: 1.5, 
+                bgcolor: 'success.light', 
+                borderRadius: 1,
+                color: 'success.contrastText'
+              }}>
+                <Box>
+                  <Typography variant="body2" sx={{ fontWeight: 500 }}>Total Paid</Typography>
+                  <Typography variant="caption">{totals.paidCount} players</Typography>
+                </Box>
+                <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
+                  {currency === 'PHP' ? '₱' : currency === 'USD' ? '$' : currency === 'EUR' ? '€' : 'S$'}{totals.totalPaid.toFixed(2)}
+                </Typography>
+              </Box>
+              
+              <Box sx={{ 
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                p: 1.5, 
+                bgcolor: 'warning.light', 
+                borderRadius: 1,
+                color: 'warning.contrastText'
+              }}>
+                <Box>
+                  <Typography variant="body2" sx={{ fontWeight: 500 }}>Total Unpaid</Typography>
+                  <Typography variant="caption">{totals.unpaidCount} players</Typography>
+                </Box>
+                <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
+                  {currency === 'PHP' ? '₱' : currency === 'USD' ? '$' : currency === 'EUR' ? '€' : 'S$'}{totals.totalUnpaid.toFixed(2)}
+                </Typography>
+              </Box>
+              
+              <Box sx={{ 
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                p: 1.5, 
+                bgcolor: 'primary.light', 
+                borderRadius: 1,
+                color: 'primary.contrastText'
+              }}>
+                <Box>
+                  <Typography variant="body2" sx={{ fontWeight: 500 }}>Total Expected</Typography>
+                  <Typography variant="caption">{totals.totalPlayers} players</Typography>
+                </Box>
+                <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
+                  {currency === 'PHP' ? '₱' : currency === 'USD' ? '$' : currency === 'EUR' ? '€' : 'S$'}{totals.totalOwed.toFixed(2)}
+                </Typography>
+              </Box>
+            </Stack>
+          ) : (
+            // Desktop: Original horizontal layout
+            <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+              <Box sx={{ 
+                flex: 1, 
+                minWidth: 150, 
+                p: 2, 
+                bgcolor: 'success.light', 
+                borderRadius: 1,
+                color: 'success.contrastText'
+              }}>
+                <Typography variant="subtitle2">Total Paid</Typography>
+                <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
+                  {currency === 'PHP' ? '₱' : currency === 'USD' ? '$' : currency === 'EUR' ? '€' : 'S$'}{totals.totalPaid.toFixed(2)}
+                </Typography>
+                <Typography variant="caption">{totals.paidCount} players</Typography>
+              </Box>
+              
+              <Box sx={{ 
+                flex: 1, 
+                minWidth: 150, 
+                p: 2, 
+                bgcolor: 'warning.light', 
+                borderRadius: 1,
+                color: 'warning.contrastText'
+              }}>
+                <Typography variant="subtitle2">Total Unpaid</Typography>
+                <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
+                  {currency === 'PHP' ? '₱' : currency === 'USD' ? '$' : currency === 'EUR' ? '€' : 'S$'}{totals.totalUnpaid.toFixed(2)}
+                </Typography>
+                <Typography variant="caption">{totals.unpaidCount} players</Typography>
+              </Box>
+              
+              <Box sx={{ 
+                flex: 1, 
+                minWidth: 150, 
+                p: 2, 
+                bgcolor: 'primary.light', 
+                borderRadius: 1,
+                color: 'primary.contrastText'
+              }}>
+                <Typography variant="subtitle2">Total Expected</Typography>
+                <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
+                  {currency === 'PHP' ? '₱' : currency === 'USD' ? '$' : currency === 'EUR' ? '€' : 'S$'}{totals.totalOwed.toFixed(2)}
+                </Typography>
+                <Typography variant="caption">{totals.totalPlayers} players</Typography>
+              </Box>
+            </Box>
+          )}
         </Box>
 
         {/* Action Buttons */}
