@@ -274,7 +274,7 @@ const PlayerListModal: React.FC<PlayerListModalProps> = ({ open, onClose }) => {
           transform: 'translate(-50%, -50%)',
           width: { xs: '95%', sm: '90%', md: 700 },
           maxWidth: 800,
-          maxHeight: { xs: '95vh', sm: '85vh' },
+          maxHeight: { xs: '85vh', sm: '85vh' },
           p: 0,
           display: 'flex',
           flexDirection: 'column',

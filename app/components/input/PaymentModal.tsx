@@ -228,7 +228,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ open, onClose }) => {
         sx={{
           width: '90%',
           maxWidth: 1000,
-          maxHeight: '90vh',
+          maxHeight: '85vh',
           overflow: 'auto',
           p: 3,
           bgcolor: 'background.paper',
