@@ -17,6 +17,8 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  Modal,
+  Paper
 } from '@mui/material';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import EditIcon from '@mui/icons-material/Edit';
@@ -1596,6 +1598,408 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
       </Popover>
 
       {/* Settings Popover */}
+      {isMobile ? (
+        // Mobile Modal Implementation
+        <Modal 
+          open={Boolean(anchorEl)} 
+          onClose={closePopover}
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Paper
+            sx={{
+              width: '95%',
+              maxWidth: '400px',
+              bgcolor: 'background.paper',
+              borderRadius: 2,
+              p: 3,
+              pb: 4,
+              maxHeight: '85vh',
+              overflowY: 'auto',
+              mx: 2,
+            }}
+          >
+            {/* Modal Header */}
+            <Box sx={{ 
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              alignItems: 'center',
+              mb: 2
+            }}>
+              <Typography 
+                variant="h6" 
+                sx={{ 
+                  fontSize: '1rem',
+                  fontWeight: 600,
+                  color: 'primary.main',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1
+                }}
+              >
+                <SettingsIcon sx={{ fontSize: '1.1rem' }} />
+                {player.name}
+              </Typography>
+              <IconButton 
+                onClick={closePopover}
+                sx={{ 
+                  color: 'text.secondary',
+                  '&:hover': {
+                    backgroundColor: 'action.hover',
+                  }
+                }}
+              >
+                <CloseIcon />
+              </IconButton>
+            </Box>
+
+            {/* Modal Content - Same as Popover but with mobile-optimized spacing */}
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+              {/* Edit Name Section */}
+              <Box>
+                <Typography 
+                  variant="subtitle2" 
+                  sx={{ 
+                    fontSize: '0.85rem',
+                    fontWeight: 600,
+                    color: 'primary.main',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 0.5,
+                    mb: 1.5
+                  }}
+                >
+                  <EditIcon sx={{ fontSize: '1rem' }} />
+                  Edit Name
+                </Typography>
+                
+                <TextField
+                  value={editNameValue}
+                  onChange={handleEditNameChange}
+                  onKeyDown={handleEditNameKeyDown}
+                  placeholder="Enter player name"
+                  size="medium"
+                  fullWidth
+                  variant="outlined"
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 2,
+                      fontSize: '0.9rem',
+                    }
+                  }}
+                />
+                
+                <Box sx={{ display: 'flex', gap: 1.5, justifyContent: 'flex-end', mt: 1.5 }}>
+                  <Button
+                    size="medium"
+                    variant="contained"
+                    onClick={handleEditNameSave}
+                    disabled={editNameValue.trim() === '' || editNameValue === player.name}
+                    sx={{ 
+                      fontSize: '0.8rem',
+                      textTransform: 'none',
+                      px: 2
+                    }}
+                  >
+                    Save
+                  </Button>
+                </Box>
+              </Box>
+
+              {/* Games Played Section */}
+              <Box>
+                <Typography 
+                  variant="subtitle2" 
+                  sx={{ 
+                    fontSize: '0.85rem',
+                    fontWeight: 600,
+                    color: 'primary.main',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 0.5,
+                    mb: 1.5
+                  }}
+                >
+                  <SportsEsportsIcon sx={{ fontSize: '1rem' }} />
+                  Games Played
+                </Typography>
+                
+                <TextField
+                  type="number"
+                  value={gamesPlayed}
+                  onChange={handleGamesChange}
+                  onBlur={handleGamesBlur}
+                  size="medium"
+                  fullWidth
+                  variant="outlined"
+                  inputProps={{ min: 0 }}
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 2,
+                      fontSize: '0.9rem',
+                    }
+                  }}
+                />
+              </Box>
+
+              {/* Skill Level Section */}
+              <Box>
+                <Typography 
+                  variant="subtitle2" 
+                  sx={{ 
+                    fontSize: '0.85rem',
+                    fontWeight: 600,
+                    color: 'primary.main',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 0.5,
+                    mb: 1.5
+                  }}
+                >
+                  <EmojiEventsIcon sx={{ fontSize: '1rem' }} />
+                  Skill Level
+                </Typography>
+                
+                <FormControl fullWidth size="medium">
+                  <Select
+                    value={player.skillLevel}
+                    onChange={(e) => {
+                      dispatch(Action.updatePlayerSkillLevel(player.id, e.target.value as SkillLevel));
+                      closePopover();
+                    }}
+                    sx={{ 
+                      fontSize: '0.9rem',
+                      borderRadius: 2,
+                    }}
+                  >
+                    {skillLevelOrder.map((level) => (
+                      <MenuItem key={level} value={level}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <Chip
+                            label={level}
+                            size="small"
+                            sx={{
+                              backgroundColor: 'white',
+                              color: getSkillLevelColor(level),
+                              border: `1.5px solid ${getSkillLevelColor(level)}`,
+                              fontWeight: 'bold',
+                              minWidth: '24px',
+                              height: '20px',
+                            }}
+                          />
+                          <Typography sx={{ fontSize: '0.85rem' }}>
+                            {getSkillLevelDescription(level)}
+                          </Typography>
+                        </Box>
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Box>
+
+              {/* View History Button */}
+              <Button
+                onClick={handleHistoryOpen}
+                variant="outlined"
+                fullWidth
+                sx={{ 
+                  fontSize: '0.85rem',
+                  textTransform: 'none',
+                  py: 1.5,
+                  borderRadius: 2,
+                  borderColor: 'primary.main',
+                  color: 'primary.main',
+                  '&:hover': {
+                    backgroundColor: 'rgba(25, 118, 210, 0.04)',
+                    borderColor: 'primary.dark',
+                  },
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1
+                }}
+              >
+                <BarChartIcon sx={{ fontSize: '1rem' }} />
+                View History
+              </Button>
+
+              {/* Move To Section */}
+              <Box>
+                <Typography 
+                  variant="subtitle2" 
+                  sx={{ 
+                    fontSize: '0.85rem',
+                    fontWeight: 600,
+                    color: 'primary.main',
+                    mb: 1.5
+                  }}
+                >
+                  Move To
+                </Typography>
+                
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                  {/* Court Selection */}
+                  <FormControl fullWidth size="medium">
+                    <InputLabel sx={{ 
+                      fontSize: '0.85rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 0.5
+                    }}>
+                      <SportsIcon sx={{ fontSize: '1rem' }} />
+                      Court
+                    </InputLabel>
+                    <Select
+                      label="Court"
+                      value=""
+                      onChange={(e) => {
+                        const to = e.target.value;
+                        const targetZonePlayers = state.courts.playersByCourt[to] || [];
+                        const usedPositions = targetZonePlayers
+                          .map(p => p.courtOrder)
+                          .filter(pos => pos !== null && pos !== undefined);
+                        
+                        let nextPosition = 0;
+                        while (usedPositions.includes(nextPosition) && nextPosition < 4) {
+                          nextPosition++;
+                        }
+                        
+                        dispatch(Action.movePlayerToPosition(player.id, zone, to, nextPosition));
+                        closePopover();
+                      }}
+                      size="medium"
+                      sx={{ fontSize: '0.85rem', borderRadius: 2 }}
+                    >
+                      {Array.from({ length: courtCount }, (_, i) => {
+                        const courtKey = `court-${i + 1}`;
+                        const courtPlayers = state.courts.playersByCourt[courtKey] || [];
+                        const occupancy = courtPlayers.length;
+                        const isCourtFull = occupancy >= 4;
+                        
+                        return (
+                          <MenuItem 
+                            key={i} 
+                            value={courtKey} 
+                            disabled={isCourtFull}
+                            sx={{
+                              fontSize: '0.85rem',
+                              opacity: isCourtFull ? 0.5 : 1,
+                              backgroundColor: isCourtFull ? 'rgba(255, 0, 0, 0.05)' : 'transparent',
+                              color: isCourtFull ? 'text.disabled' : 'text.primary',
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center',
+                            }}
+                          >
+                            <span>Court {i + 1}</span>
+                            <span style={{ 
+                              fontSize: '0.7rem', 
+                              color: isCourtFull ? '#d32f2f' : '#666',
+                              fontWeight: 'bold'
+                            }}>
+                              ({occupancy}/4)
+                            </span>
+                          </MenuItem>
+                        );
+                      })}
+                    </Select>
+                  </FormControl>
+
+                  {/* Queue Selection */}
+                  <FormControl fullWidth size="medium">
+                    <InputLabel sx={{ 
+                      fontSize: '0.85rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 0.5
+                    }}>
+                      <QueueIcon sx={{ fontSize: '1rem' }} />
+                      Queue
+                    </InputLabel>
+                    <Select
+                      label="Queue"
+                      value=""
+                      onChange={(e) => {
+                        const to = e.target.value;
+                        const targetZonePlayers = state.queue.playersByQueue[to] || [];
+                        const usedPositions = targetZonePlayers
+                          .map(p => p.queueOrder)
+                          .filter(pos => pos !== null && pos !== undefined);
+                        
+                        let nextPosition = 0;
+                        while (usedPositions.includes(nextPosition) && nextPosition < 4) {
+                          nextPosition++;
+                        }
+                        
+                        dispatch(Action.movePlayerToPosition(player.id, zone, to, nextPosition));
+                        closePopover();
+                      }}
+                      size="medium"
+                      sx={{ fontSize: '0.85rem', borderRadius: 2 }}
+                    >
+                      {Array.from({ length: queueCount }, (_, i) => {
+                        const queueKey = `queue-${i + 1}`;
+                        const queuePlayers = state.queue.playersByQueue[queueKey] || [];
+                        const occupancy = queuePlayers.length;
+                        const isQueueFull = occupancy >= 4;
+                        
+                        return (
+                          <MenuItem 
+                            key={i} 
+                            value={queueKey} 
+                            disabled={isQueueFull}
+                            sx={{
+                              fontSize: '0.85rem',
+                              opacity: isQueueFull ? 0.5 : 1,
+                              backgroundColor: isQueueFull ? 'rgba(255, 152, 0, 0.05)' : 'transparent',
+                              color: isQueueFull ? 'text.disabled' : 'text.primary',
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center',
+                            }}
+                          >
+                            <span>Queue {i + 1}</span>
+                            <span style={{ 
+                              fontSize: '0.7rem', 
+                              color: isQueueFull ? '#ff9800' : '#666',
+                              fontWeight: 'bold'
+                            }}>
+                              ({occupancy}/4)
+                            </span>
+                          </MenuItem>
+                        );
+                      })}
+                    </Select>
+                  </FormControl>
+                </Box>
+              </Box>
+
+              {/* Delete Player Button */}
+              <Button
+                onClick={handleDeletePlayer}
+                variant="contained"
+                color="error"
+                fullWidth
+                sx={{
+                  fontSize: '0.85rem',
+                  textTransform: 'none',
+                  py: 1.5,
+                  mt: 1,
+                  borderRadius: 2,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1,
+                }}
+              >
+                <DeleteIcon sx={{ fontSize: '1rem' }} />
+                Delete Player
+              </Button>
+            </Box>
+          </Paper>
+        </Modal>
+    ) : (
       <Popover
         open={Boolean(anchorEl)}
         anchorEl={anchorEl}
@@ -1739,7 +2143,6 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
                     value={player.skillLevel}
                     onChange={(e) => {
                       dispatch(Action.updatePlayerSkillLevel(player.id, e.target.value as SkillLevel));
-                      closePopover();
                     }}
                     label="Skill Level"
                     size="small"
@@ -2019,6 +2422,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
           </Box>
         </Box>
       </Popover>
+    )}
 
       <Popover
         open={Boolean(editNameAnchorEl)}
