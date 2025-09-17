@@ -1360,242 +1360,245 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
 
 
       {/* Match History Popover */}
-      <Popover
-        open={Boolean(historyAnchorEl)}
-        anchorEl={historyAnchorEl}
-        onClose={handleHistoryClose}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
-        slotProps={{
-          paper: {
-            sx: {
-              minWidth: isMobile ? 380 : 340,
-              maxWidth: isMobile ? 420 : 380,
-              maxHeight: '70vh',
-              p: 2,
-              borderRadius: isMobile ? 2 : 1,
-              boxShadow: isMobile 
-                ? '0 8px 24px rgba(0,0,0,0.15)' 
-                : theme.shadows[8],
-              overflowY: 'auto',
-              position: 'relative',
-            },
-          },
-        }}
-      >
-        <IconButton
-          onClick={handleHistoryClose}
-          sx={{
-            position: 'absolute',
-            right: 8,
-            top: 8,
-            color: '#64748b', // Gray to match navy theme
-            zIndex: 1, // Ensure it stays on top
-            '&:hover': {
-              backgroundColor: 'rgba(100, 116, 139, 0.1)',
-              color: '#475569',
+      {!isMobile && (
+        <Popover
+          open={Boolean(historyAnchorEl)}
+          anchorEl={historyAnchorEl}
+          onClose={handleHistoryClose}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+          slotProps={{
+            paper: {
+              sx: {
+                minWidth: isMobile ? 380 : 340,
+                maxWidth: isMobile ? 420 : 380,
+                maxHeight: '70vh',
+                p: 2,
+                borderRadius: isMobile ? 2 : 1,
+                boxShadow: isMobile 
+                  ? '0 8px 24px rgba(0,0,0,0.15)' 
+                  : theme.shadows[8],
+                overflowY: 'auto',
+                position: 'relative',
+              },
             },
           }}
-          size="small"
         >
-          <CloseIcon sx={{ fontSize: '1.2rem' }} />
-        </IconButton>
-        <Typography variant="subtitle2" gutterBottom sx={{
-          fontSize: isMobile ? '0.9rem' : '0.8rem',
-          fontWeight: 'bold',
-          borderBottom: '1px solid rgba(0,0,0,0.1)',
-          paddingBottom: '8px',
-          marginBottom: '12px',
-          pr: 4
-        }}>
-          {player.name}'s Match History
-        </Typography>
+          <IconButton
+            onClick={handleHistoryClose}
+            sx={{
+              position: 'absolute',
+              right: 8,
+              top: 8,
+              color: '#64748b', // Gray to match navy theme
+              zIndex: 1, // Ensure it stays on top
+              '&:hover': {
+                backgroundColor: 'rgba(100, 116, 139, 0.1)',
+                color: '#475569',
+              },
+            }}
+            size="small"
+          >
+            <CloseIcon sx={{ fontSize: '1.2rem' }} />
+          </IconButton>
+          <Typography variant="subtitle2" gutterBottom sx={{
+            fontSize: isMobile ? '0.9rem' : '0.8rem',
+            fontWeight: 'bold',
+            borderBottom: '1px solid rgba(0,0,0,0.1)',
+            paddingBottom: '8px',
+            marginBottom: '12px',
+            pr: 4
+          }}>
+            {player.name}'s Match History
+          </Typography>
 
-        {player.matchHistory?.length ? (
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-            {player.matchHistory
-              .slice() 
-              .reverse() 
-              .map((entry, i) => {
-                const startTime = new Date(entry.startTime);
-                const endTime = new Date(entry.endTime);
-                
-                const startTimeStr = startTime.toLocaleTimeString([], {
-                  hour: 'numeric',
-                  minute: '2-digit',
-                  hour12: true,
-                });
-                
-                const endTimeStr = endTime.toLocaleTimeString([], {
-                  hour: 'numeric',
-                  minute: '2-digit', 
-                  hour12: true,
-                });
-
-                const matchDescription = getMatchDescription(entry, player.name);
-                const durationStr = formatMatchDuration(entry.duration);
-
-                const getMatchTypeEmoji = (type: string) => {
-                  switch (type) {
-                    case '1v1': return '⚔️';
-                    case '2v1': return '🔀';
-                    case '2v2': return '👥';
-                    default: return '🏸';
-                  }
-                };
-
-                // 🆕 NEW: Enhanced skill level display showing progression
-                const getSkillBadges = (entry: MatchHistoryEntry) => {
-                  const allRefs = [...(entry.partner ? [entry.partner] : []), ...entry.opponents];
-                  return allRefs.map(ref => {
-                    const currentPlayer = state.players.find(p => p.id === ref.id);
-                    const hasChanged = currentPlayer && currentPlayer.skillLevel !== ref.skillLevel;
-                    
-                    return (
-                      <Tooltip 
-                        key={ref.id} 
-                        title={hasChanged 
-                          ? `${ref.name}: was ${ref.skillLevel}, now ${currentPlayer.skillLevel}` 
-                          : `${ref.name}: ${ref.skillLevel}`
-                        }
-                        arrow
-                      >
-                        <Chip
-                          label={hasChanged ? `${ref.skillLevel}→${currentPlayer.skillLevel}` : ref.skillLevel}
-                          size="small"
-                          sx={{
-                            fontSize: '0.6rem',
-                            height: '18px',
-                            backgroundColor: getSkillLevelColor(ref.skillLevel),
-                            color: 'white',
-                            fontWeight: 'bold',
-                            cursor: 'help',
-                            ...(hasChanged && {
-                              background: `linear-gradient(45deg, ${getSkillLevelColor(ref.skillLevel)} 50%, ${getSkillLevelColor(currentPlayer.skillLevel)} 50%)`,
-                            })
-                          }}
-                        />
-                      </Tooltip>
-                    );
+          {player.matchHistory?.length ? (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+              {player.matchHistory
+                .slice() 
+                .reverse() 
+                .map((entry, i) => {
+                  const startTime = new Date(entry.startTime);
+                  const endTime = new Date(entry.endTime);
+                  
+                  const startTimeStr = startTime.toLocaleTimeString([], {
+                    hour: 'numeric',
+                    minute: '2-digit',
+                    hour12: true,
                   });
-                };
+                  
+                  const endTimeStr = endTime.toLocaleTimeString([], {
+                    hour: 'numeric',
+                    minute: '2-digit', 
+                    hour12: true,
+                  });
 
-                return (
-                  <Box
-                    key={`${entry.matchId}-${i}`}
-                    sx={{
-                      backgroundColor: 'rgba(0,0,0,0.03)',
-                      borderRadius: 1,
-                      padding: 1.5,
-                      border: '1px solid rgba(0,0,0,0.1)',
-                    }}
-                  >
-                    {/* Match type and description */}
-                    <Typography
-                      variant="body2"
+                  const matchDescription = getMatchDescription(entry, player.name);
+                  const durationStr = formatMatchDuration(entry.duration);
+
+                  const getMatchTypeEmoji = (type: string) => {
+                    switch (type) {
+                      case '1v1': return '⚔️';
+                      case '2v1': return '🔀';
+                      case '2v2': return '👥';
+                      default: return '🏸';
+                    }
+                  };
+
+                  // 🆕 NEW: Enhanced skill level display showing progression
+                  const getSkillBadges = (entry: MatchHistoryEntry) => {
+                    const allRefs = [...(entry.partner ? [entry.partner] : []), ...entry.opponents];
+                    return allRefs.map(ref => {
+                      const currentPlayer = state.players.find(p => p.id === ref.id);
+                      const hasChanged = currentPlayer && currentPlayer.skillLevel !== ref.skillLevel;
+                      
+                      return (
+                        <Tooltip 
+                          key={ref.id} 
+                          title={hasChanged 
+                            ? `${ref.name}: was ${ref.skillLevel}, now ${currentPlayer.skillLevel}` 
+                            : `${ref.name}: ${ref.skillLevel}`
+                          }
+                          arrow
+                        >
+                          <Chip
+                            label={hasChanged ? `${ref.skillLevel}→${currentPlayer.skillLevel}` : ref.skillLevel}
+                            size="small"
+                            sx={{
+                              fontSize: '0.6rem',
+                              height: '18px',
+                              backgroundColor: getSkillLevelColor(ref.skillLevel),
+                              color: 'white',
+                              fontWeight: 'bold',
+                              cursor: 'help',
+                              ...(hasChanged && {
+                                background: `linear-gradient(45deg, ${getSkillLevelColor(ref.skillLevel)} 50%, ${getSkillLevelColor(currentPlayer.skillLevel)} 50%)`,
+                              })
+                            }}
+                          />
+                        </Tooltip>
+                      );
+                    });
+                  };
+
+                  return (
+                    <Box
+                      key={`${entry.matchId}-${i}`}
                       sx={{
-                        fontSize: isMobile ? '0.8rem' : '0.75rem',
-                        fontWeight: 'bold',
-                        color: 'primary.main',
-                        marginBottom: '4px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 0.5,
+                        backgroundColor: 'rgba(0,0,0,0.03)',
+                        borderRadius: 1,
+                        padding: 1.5,
+                        border: '1px solid rgba(0,0,0,0.1)',
                       }}
                     >
-                      {getMatchTypeEmoji(entry.matchType)}
-                      {matchDescription}
-                    </Typography>
+                      {/* Match type and description */}
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          fontSize: isMobile ? '0.8rem' : '0.75rem',
+                          fontWeight: 'bold',
+                          color: 'primary.main',
+                          marginBottom: '4px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 0.5,
+                        }}
+                      >
+                        {getMatchTypeEmoji(entry.matchType)}
+                        {matchDescription}
+                      </Typography>
 
-                    {/* 🆕 NEW: Skill level badges for opponents/partners */}
-                    {entry.opponents.length > 0 && (
-                      <Box sx={{ display: 'flex', gap: 0.5, mb: 1, flexWrap: 'wrap' }}>
-                        <Typography variant="caption" sx={{ fontSize: '0.65rem', color: 'text.secondary', mr: 0.5 }}>
-                          Players:
-                        </Typography>
-                        {getSkillBadges(entry)}
-                      </Box>
-                    )}
+                      {/* 🆕 NEW: Skill level badges for opponents/partners */}
+                      {entry.opponents.length > 0 && (
+                        <Box sx={{ display: 'flex', gap: 0.5, mb: 1, flexWrap: 'wrap' }}>
+                          <Typography variant="caption" sx={{ fontSize: '0.65rem', color: 'text.secondary', mr: 0.5 }}>
+                            Players:
+                          </Typography>
+                          {getSkillBadges(entry)}
+                        </Box>
+                      )}
 
-                    {/* Court and timing info - UNCHANGED */}
-                    <Typography
-                      variant="caption"
-                      sx={{
-                        fontSize: isMobile ? '0.7rem' : '0.65rem',
-                        color: 'text.secondary',
-                        display: 'block',
-                        marginBottom: '2px',
-                      }}
-                    >
-                      {entry.courtName}
-                    </Typography>
-
-                    <Typography
-                      variant="caption"
-                      sx={{
-                        fontSize: isMobile ? '0.7rem' : '0.65rem',
-                        color: 'text.secondary',
-                        display: 'block',
-                        marginBottom: '2px',
-                      }}
-                    >
-                      {startTimeStr} - {endTimeStr}
-                    </Typography>
-
-                    <Typography
-                      variant="caption"
-                      sx={{
-                        fontSize: isMobile ? '0.7rem' : '0.65rem',
-                        color: 'success.main',
-                        fontWeight: 'medium',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 0.5,
-                      }}
-                    >
-                      Duration: {durationStr}
-                    </Typography>
-
-                    {/* Show date if not today - UNCHANGED */}
-                    {!isToday(startTime) && (
+                      {/* Court and timing info - UNCHANGED */}
                       <Typography
                         variant="caption"
                         sx={{
-                          fontSize: isMobile ? '0.65rem' : '0.6rem',
-                          color: 'text.disabled',
+                          fontSize: isMobile ? '0.7rem' : '0.65rem',
+                          color: 'text.secondary',
                           display: 'block',
-                          marginTop: '4px',
-                          fontStyle: 'italic',
+                          marginBottom: '2px',
                         }}
                       >
-                        {startTime.toLocaleDateString()}
+                        {entry.courtName}
                       </Typography>
-                    )}
-                  </Box>
-                );
-              })}
-          </Box>
-        ) : (
-          <Box sx={{ 
-            textAlign: 'center', 
-            padding: 2,
-            color: 'text.secondary',
-          }}>
-            <Typography 
-              variant="body2" 
-              fontSize={isMobile ? '0.8rem' : '0.75rem'}
-              sx={{ marginBottom: 1 }}
-            >
-              No match history yet
-            </Typography>
-            <Typography 
-              variant="caption" 
-              fontSize={isMobile ? '0.7rem' : '0.65rem'}
-            >
-              Start playing to see your match history here!
-            </Typography>
-          </Box>
-        )}
-      </Popover>
+
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          fontSize: isMobile ? '0.7rem' : '0.65rem',
+                          color: 'text.secondary',
+                          display: 'block',
+                          marginBottom: '2px',
+                        }}
+                      >
+                        {startTimeStr} - {endTimeStr}
+                      </Typography>
+
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          fontSize: isMobile ? '0.7rem' : '0.65rem',
+                          color: 'success.main',
+                          fontWeight: 'medium',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 0.5,
+                        }}
+                      >
+                        Duration: {durationStr}
+                      </Typography>
+
+                      {/* Show date if not today - UNCHANGED */}
+                      {!isToday(startTime) && (
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            fontSize: isMobile ? '0.65rem' : '0.6rem',
+                            color: 'text.disabled',
+                            display: 'block',
+                            marginTop: '4px',
+                            fontStyle: 'italic',
+                          }}
+                        >
+                          {startTime.toLocaleDateString()}
+                        </Typography>
+                      )}
+                    </Box>
+                  );
+                })}
+            </Box>
+          ) : (
+            <Box sx={{ 
+              textAlign: 'center', 
+              padding: 2,
+              color: 'text.secondary',
+            }}>
+              <Typography 
+                variant="body2" 
+                fontSize={isMobile ? '0.8rem' : '0.75rem'}
+                sx={{ marginBottom: 1 }}
+              >
+                No match history yet
+              </Typography>
+              <Typography 
+                variant="caption" 
+                fontSize={isMobile ? '0.7rem' : '0.65rem'}
+              >
+                Start playing to see your match history here!
+              </Typography>
+            </Box>
+          )}
+        </Popover>
+      )}
+      
 
       {/* Settings Popover */}
       {isMobile ? (
@@ -1619,7 +1622,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
               pb: 4,
               maxHeight: '85vh',
               overflowY: 'auto',
-              mx: 2,
+              mx: 2, // Add horizontal margin for very small screens
             }}
           >
             {/* Modal Header */}
@@ -1693,6 +1696,18 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
                 />
                 
                 <Box sx={{ display: 'flex', gap: 1.5, justifyContent: 'flex-end', mt: 1.5 }}>
+                  <Button
+                    size="medium"
+                    onClick={handleEditNameClose}
+                    sx={{ 
+                      fontSize: '0.8rem',
+                      textTransform: 'none',
+                      color: 'text.secondary',
+                      px: 2
+                    }}
+                  >
+                    Cancel
+                  </Button>
                   <Button
                     size="medium"
                     variant="contained"
@@ -1802,7 +1817,10 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
 
               {/* View History Button */}
               <Button
-                onClick={handleHistoryOpen}
+                onClick={(e) => {
+                  closePopover();
+                  handleHistoryOpen(e);
+                }}
                 variant="outlined"
                 fullWidth
                 sx={{ 
@@ -1997,6 +2015,353 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
                 Delete Player
               </Button>
             </Box>
+          </Paper>
+        </Modal>
+      ) : (
+        // Desktop/Tablet Popover Implementation (existing code)
+        <Popover
+          open={Boolean(anchorEl)}
+          anchorEl={anchorEl}
+          onClose={closePopover}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+          transformOrigin={{ vertical: 'top', horizontal: 'left' }}
+          slotProps={{
+            paper: {
+              sx: {
+                p: 2,
+                borderRadius: 2,
+                boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
+                border: '1px solid rgba(0,0,0,0.08)',
+                minWidth: 180,
+              },
+            },
+          }}
+        >
+          {/* Existing popover content remains exactly the same */}
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+            <Typography 
+              variant="subtitle2" 
+              sx={{ 
+                fontSize: '0.8rem',
+                fontWeight: 600,
+                color: '#5C4033',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 0.5
+              }}
+            >
+              <EditIcon sx={{ fontSize: '0.9rem' }} />
+              Edit Name
+            </Typography>
+            
+            <TextField
+              value={editNameValue}
+              onChange={handleEditNameChange}
+              onKeyDown={handleEditNameKeyDown}
+              placeholder="Enter player name"
+              size="small"
+              fullWidth
+              autoFocus
+              variant="outlined"
+              slotProps={{
+                input: {
+                  sx: { 
+                    fontSize: '0.8rem',
+                  }
+                }
+              }}
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: 1.5,
+                }
+              }}
+            />
+            
+            <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
+              <Button
+                size="small"
+                onClick={handleEditNameClose}
+                sx={{ 
+                  fontSize: '0.7rem',
+                  textTransform: 'none',
+                  color: 'text.secondary'
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                size="small"
+                variant="contained"
+                onClick={handleEditNameSave}
+                disabled={editNameValue.trim() === '' || editNameValue === player.name}
+                sx={{ 
+                  fontSize: '0.7rem',
+                  textTransform: 'none',
+                  backgroundColor: '#5C4033',
+                  '&:hover': {
+                    backgroundColor: '#3E2723',
+                  }
+                }}
+              >
+                Save
+              </Button>
+            </Box>
+
+            {/* ... rest of existing popover content */}
+          </Box>
+        </Popover>
+      )}
+
+      {/* Match History - Conditional rendering based on device */}
+      {isMobile ? (
+        // Mobile Modal for Match History
+        <Modal 
+          open={Boolean(historyAnchorEl)} 
+          onClose={handleHistoryClose}
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Paper
+            sx={{
+              width: '95%',
+              maxWidth: '450px',
+              bgcolor: 'background.paper',
+              borderRadius: 2,
+              p: 3,
+              maxHeight: '85vh',
+              overflowY: 'auto',
+              mx: 2,
+            }}
+          >
+            {/* Modal Header */}
+            <Box sx={{ 
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              alignItems: 'center',
+              mb: 2,
+              pb: 1,
+              borderBottom: '1px solid',
+              borderColor: 'divider'
+            }}>
+              <Typography 
+                variant="h6" 
+                sx={{ 
+                  fontSize: '1rem',
+                  fontWeight: 600,
+                  color: 'primary.main',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1
+                }}
+              >
+                <BarChartIcon sx={{ fontSize: '1.1rem' }} />
+                {player.name}'s Match History
+              </Typography>
+              <IconButton 
+                onClick={handleHistoryClose}
+                sx={{ 
+                  color: 'text.secondary',
+                  '&:hover': {
+                    backgroundColor: 'action.hover',
+                  }
+                }}
+              >
+                <CloseIcon />
+              </IconButton>
+            </Box>
+
+            {/* Match History Content */}
+            {player.matchHistory?.length ? (
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                {player.matchHistory
+                  .slice() 
+                  .reverse() 
+                  .map((entry, i) => {
+                    const startTime = new Date(entry.startTime);
+                    const endTime = new Date(entry.endTime);
+                    
+                    const startTimeStr = startTime.toLocaleTimeString([], {
+                      hour: 'numeric',
+                      minute: '2-digit',
+                      hour12: true,
+                    });
+                    
+                    const endTimeStr = endTime.toLocaleTimeString([], {
+                      hour: 'numeric',
+                      minute: '2-digit', 
+                      hour12: true,
+                    });
+
+                    const matchDescription = getMatchDescription(entry, player.name);
+                    const durationStr = formatMatchDuration(entry.duration);
+
+                    const getMatchTypeEmoji = (type: string) => {
+                      switch (type) {
+                        case '1v1': return '⚔️';
+                        case '2v1': return '🔀';
+                        case '2v2': return '👥';
+                        default: return '🏸';
+                      }
+                    };
+
+                    // Enhanced skill level display showing progression
+                    const getSkillBadges = (entry: MatchHistoryEntry) => {
+                      const allRefs = [...(entry.partner ? [entry.partner] : []), ...entry.opponents];
+                      return allRefs.map(ref => {
+                        const currentPlayer = state.players.find(p => p.id === ref.id);
+                        const hasChanged = currentPlayer && currentPlayer.skillLevel !== ref.skillLevel;
+                        
+                        return (
+                          <Tooltip 
+                            key={ref.id} 
+                            title={hasChanged 
+                              ? `${ref.name}: was ${ref.skillLevel}, now ${currentPlayer.skillLevel}` 
+                              : `${ref.name}: ${ref.skillLevel}`
+                            }
+                            arrow
+                          >
+                            <Chip
+                              label={hasChanged ? `${ref.skillLevel}→${currentPlayer.skillLevel}` : ref.skillLevel}
+                              size="small"
+                              sx={{
+                                fontSize: '0.7rem',
+                                height: '20px',
+                                backgroundColor: getSkillLevelColor(ref.skillLevel),
+                                color: 'white',
+                                fontWeight: 'bold',
+                                cursor: 'help',
+                                ...(hasChanged && {
+                                  background: `linear-gradient(45deg, ${getSkillLevelColor(ref.skillLevel)} 50%, ${getSkillLevelColor(currentPlayer.skillLevel)} 50%)`,
+                                })
+                              }}
+                            />
+                          </Tooltip>
+                        );
+                      });
+                    };
+
+                    return (
+                      <Box
+                        key={`${entry.matchId}-${i}`}
+                        sx={{
+                          backgroundColor: 'rgba(0,0,0,0.03)',
+                          borderRadius: 2,
+                          padding: 2,
+                          border: '1px solid',
+                          borderColor: 'divider',
+                        }}
+                      >
+                        {/* Match type and description */}
+                        <Typography
+                          variant="body2"
+                          sx={{
+                            fontSize: '0.9rem',
+                            fontWeight: 'bold',
+                            color: 'primary.main',
+                            marginBottom: '8px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 0.5,
+                          }}
+                        >
+                          {getMatchTypeEmoji(entry.matchType)}
+                          {matchDescription}
+                        </Typography>
+
+                        {/* Skill level badges for opponents/partners */}
+                        {entry.opponents.length > 0 && (
+                          <Box sx={{ display: 'flex', gap: 0.5, mb: 1.5, flexWrap: 'wrap' }}>
+                            <Typography variant="caption" sx={{ fontSize: '0.75rem', color: 'text.secondary', mr: 0.5 }}>
+                              Players:
+                            </Typography>
+                            {getSkillBadges(entry)}
+                          </Box>
+                        )}
+
+                        {/* Court and timing info */}
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            fontSize: '0.8rem',
+                            color: 'text.secondary',
+                            display: 'block',
+                            marginBottom: '4px',
+                          }}
+                        >
+                          {entry.courtName}
+                        </Typography>
+
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            fontSize: '0.8rem',
+                            color: 'text.secondary',
+                            display: 'block',
+                            marginBottom: '4px',
+                          }}
+                        >
+                          {startTimeStr} - {endTimeStr}
+                        </Typography>
+
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            fontSize: '0.8rem',
+                            color: 'success.main',
+                            fontWeight: 'medium',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 0.5,
+                          }}
+                        >
+                          Duration: {durationStr}
+                        </Typography>
+
+                        {/* Show date if not today */}
+                        {!isToday(startTime) && (
+                          <Typography
+                            variant="caption"
+                            sx={{
+                              fontSize: '0.75rem',
+                              color: 'text.disabled',
+                              display: 'block',
+                              marginTop: '6px',
+                              fontStyle: 'italic',
+                            }}
+                          >
+                            {startTime.toLocaleDateString()}
+                          </Typography>
+                        )}
+                      </Box>
+                    );
+                  })}
+              </Box>
+            ) : (
+              <Box sx={{ 
+                textAlign: 'center', 
+                padding: 3,
+                color: 'text.secondary',
+              }}>
+                <Typography 
+                  variant="body2" 
+                  sx={{ 
+                    marginBottom: 1,
+                    fontSize: '0.9rem'
+                  }}
+                >
+                  No match history yet
+                </Typography>
+                <Typography 
+                  variant="caption" 
+                  sx={{ fontSize: '0.8rem' }}
+                >
+                  Start playing to see your match history here!
+                </Typography>
+              </Box>
+            )}
           </Paper>
         </Modal>
     ) : (
