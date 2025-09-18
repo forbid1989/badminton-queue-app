@@ -161,28 +161,24 @@ const Dashboard: React.FC = React.memo(() => {
         Total Players: {mounted ? totalPlayers : 0}
       </Typography>
       <Box sx={buttonGroupSx}>
-        {!isMobile && (
-          <>
-            <IconButton onClick={handleOpenParser} title="Add Players">
-              <AddIcon />
-            </IconButton>
-            <IconButton onClick={handleOpenPlayerList} title="View Player List & Skills">
-              <ListIcon />
-            </IconButton>
-            <IconButton onClick={handleOpenPopover} title="Court Settings">
-              <CourtAddIcon />
-            </IconButton>
-            <IconButton onClick={handleOpenPayment} title="Payment Summary">
-              <AttachMoneyIcon />
-            </IconButton>
-            <IconButton onClick={handleOpenSettings} title="App Settings">
-              <SettingsIcon />
-            </IconButton>
-          </>
-        )}
+        <IconButton onClick={handleOpenParser} title="Add Players">
+          <AddIcon />
+        </IconButton>
+        <IconButton onClick={handleOpenPlayerList} title="View Player List & Skills">
+          <ListIcon />
+        </IconButton>
+        <IconButton onClick={handleOpenPopover} title="Court Settings">
+          <CourtAddIcon />
+        </IconButton>
+        <IconButton onClick={handleOpenPayment} title="Payment Summary">
+          <AttachMoneyIcon />
+        </IconButton>
+        <IconButton onClick={handleOpenSettings} title="App Settings">
+          <SettingsIcon />
+        </IconButton>
       </Box>
     </Box>
-  ), [totalPlayers, headerSx, buttonGroupSx, mounted, isMobile, handleOpenParser, handleOpenPlayerList, handleOpenPopover, handleOpenPayment, handleOpenSettings, ]);
+  ), [totalPlayers, headerSx, buttonGroupSx, mounted, handleOpenParser, handleOpenPlayerList, handleOpenPopover, handleOpenPayment, handleOpenSettings]);
 
   // Memoized popover content
   const popoverContent = useMemo(() => (
@@ -212,7 +208,7 @@ const Dashboard: React.FC = React.memo(() => {
     <Box sx={containerSx}>
       {/* Left Sidebar - Unqueued List */}
       <Box sx={leftSidebarSx}>
-        {headerContent}
+        {!isMobile ? headerContent : <></>}
         <UnqueuedZone state={state} />
         
         <Box sx={{ 
