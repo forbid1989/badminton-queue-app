@@ -7,38 +7,68 @@ import {
   Tooltip,
 } from '@mui/material';
 import GroupAddIcon from '@mui/icons-material/GroupAdd';
-import AddRoadIcon from '@mui/icons-material/AddRoad';
-import PaymentIcon from '@mui/icons-material/Payment';
+import ListIcon from '@mui/icons-material/List';
+import AttachMoneyIcon from '@mui/icons-material/Payment';
 import SettingsIcon from '@mui/icons-material/Settings';
-import ListIcon from '@mui/icons-material/List'; // New icon for player list
-import HomeIcon from '@mui/icons-material/Home';
 import { AppContext } from '../BadmintonQueueUI';
 import PlayerParserForm from './input/PlayerParserForm';
 import PlayerListModal from './input/PlayerListModal';
 import CourtControlPanel from './CourtControlPanel';
 import SettingsModal from './input/SettingsModal';
 import PaymentModal from './input/PaymentModal';
+import CourtAddIcon from './input/CourtAddIcon';
 import Popover from '@mui/material/Popover';
+
+// Match the exact icons from Dashboard header
+const tabs = [
+  { 
+    value: 'add-players', 
+    icon: <GroupAddIcon />,
+    description: 'Add Players',
+    action: 'parser'
+  },
+  { 
+    value: 'player-list', 
+    icon: <ListIcon />,
+    description: 'View Player List & Skills',
+    action: 'playerList'
+  },
+  { 
+    value: 'court-settings', 
+    icon: <CourtAddIcon />,
+    description: 'Court Settings',
+    action: 'courtControl'
+  },
+  { 
+    value: 'payment', 
+    icon: <AttachMoneyIcon />,
+    description: 'Payment Summary',
+    action: 'payment'
+  },
+  { 
+    value: 'settings', 
+    icon: <SettingsIcon />,
+    description: 'App Settings',
+    action: 'settings'
+  }
+];
 
 const MobileFooter: React.FC = () => {
   const { state } = useContext(AppContext);
   const isMobile = useMediaQuery('(max-width: 768px)');
   
-  // State for modals and popovers
+  // State for modals and active tab
   const [openParser, setOpenParser] = useState(false);
-  const [openPlayerList, setOpenPlayerList] = useState(false); // New state
+  const [openPlayerList, setOpenPlayerList] = useState(false);
   const [openSettings, setOpenSettings] = useState(false);
   const [openPayment, setOpenPayment] = useState(false);
   const [courtAnchorEl, setCourtAnchorEl] = useState<null | HTMLElement>(null);
+  const [activeTab, setActiveTab] = useState('all');
   
   // Don't render on non-mobile devices
   if (!isMobile) {
     return null;
   }
-  
-  const totalPlayers = state.players.length;
-  const courtCount = state.courts.count;
-  const queueCount = state.queue.count;
   
   // Handlers
   const handleOpenParser = () => setOpenParser(true);
@@ -58,15 +88,33 @@ const MobileFooter: React.FC = () => {
   };
   const handleCloseCourtControl = () => setCourtAnchorEl(null);
   
-  const scrollToTop = () => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+  const handleTabClick = (action: string, event?: React.MouseEvent<HTMLElement>) => {
+    switch (action) {
+      case 'parser':
+        handleOpenParser();
+        break;
+      case 'playerList':
+        handleOpenPlayerList();
+        break;
+      case 'courtControl':
+        if (event) {
+          handleOpenCourtControl(event);
+        }
+        break;
+      case 'payment':
+        handleOpenPayment();
+        break;
+      case 'settings':
+        handleOpenSettings();
+        break;
+      default:
+        break;
+    }
   };
-  
-  const isCourtPopoverOpen = Boolean(courtAnchorEl);
   
   return (
     <>
-      {/* Footer Navigation Bar */}
+      {/* Fixed Footer Navigation Bar */}
       <Box
         id="mobile-footer"
         sx={{
@@ -78,125 +126,41 @@ const MobileFooter: React.FC = () => {
           backgroundColor: 'background.paper',
           borderTop: '1px solid',
           borderColor: 'divider',
-          boxShadow: '0 -2px 4px rgba(0,0,0,0.1)',
+          boxShadow: '0 -2px 8px rgba(0,0,0,0.15)',
           zIndex: 1300,
           display: 'flex',
           justifyContent: 'space-around',
           alignItems: 'center',
-          px: 2,
+          px: 1,
         }}
       >
-        {/* Home/Scroll to Top Button */}
-        <Tooltip title="Scroll to Top" placement="top">
-          <IconButton
-            onClick={scrollToTop}
-            sx={{
-              color: 'primary.main',
-              '&:hover': {
-                backgroundColor: 'primary.light',
-                color: 'white',
-              },
-            }}
-          >
-            <HomeIcon />
-          </IconButton>
-        </Tooltip>
-        
-        {/* Add Players Button */}
-        <Tooltip title="Add Players" placement="top">
-          <IconButton
-            onClick={handleOpenParser}
-            sx={{
-              color: 'primary.main',
-              '&:hover': {
-                backgroundColor: 'primary.light',
-                color: 'white',
-              },
-            }}
-          >
-            <Badge badgeContent={totalPlayers} color="secondary" max={99}>
-              <GroupAddIcon />
-            </Badge>
-          </IconButton>
-        </Tooltip>
-
-        {/* Player List Button - NEW */}
-        <Tooltip title="Player List & Skills" placement="top">
-          <IconButton
-            onClick={handleOpenPlayerList}
-            sx={{
-              color: 'info.main',
-              '&:hover': {
-                backgroundColor: 'info.light',
-                color: 'white',
-              },
-            }}
-          >
-            <Badge badgeContent={totalPlayers} color="info" max={99}>
-              <ListIcon />
-            </Badge>
-          </IconButton>
-        </Tooltip>
-        
-        {/* Court Management Button */}
-        <Tooltip title="Manage Courts" placement="top">
-          <IconButton
-            onClick={handleOpenCourtControl}
-            sx={{
-              color: 'primary.main',
-              '&:hover': {
-                backgroundColor: 'primary.light',
-                color: 'white',
-              },
-            }}
-          >
-            <Badge 
-              badgeContent={`${courtCount}C/${queueCount}Q`} 
-              color="secondary"
+        {tabs.map((tab) => (
+          <Tooltip key={tab.value} title={tab.description} placement="top">
+            <IconButton
+              onClick={(event) => handleTabClick(tab.action, event)}
               sx={{
-                '& .MuiBadge-badge': {
-                  fontSize: '0.6rem',
-                  minWidth: '32px',
-                  padding: '0 4px',
+                color: 'text.secondary',
+                backgroundColor: 'transparent',
+                borderRadius: 1,
+                minWidth: 40,
+                height: 40,
+                transition: 'all 0.2s ease',
+                '&:hover': {
+                  backgroundColor: 'action.hover',
+                  color: 'text.primary',
                 },
               }}
             >
-              <AddRoadIcon />
-            </Badge>
-          </IconButton>
-        </Tooltip>
-        
-        {/* Payment Button */}
-        <Tooltip title="Payment Tracking" placement="top">
-          <IconButton
-            onClick={handleOpenPayment}
-            sx={{
-              color: 'success.main',
-              '&:hover': {
-                backgroundColor: 'success.light',
-                color: 'white',
-              },
-            }}
-          >
-            <PaymentIcon />
-          </IconButton>
-        </Tooltip>
-        
-        {/* Settings Button */}
-        <Tooltip title="Settings" placement="top">
-          <IconButton
-            onClick={handleOpenSettings}
-            sx={{
-              color: 'text.secondary',
-              '&:hover': {
-                backgroundColor: 'action.hover',
-              },
-            }}
-          >
-            <SettingsIcon />
-          </IconButton>
-        </Tooltip>
+              {React.cloneElement(tab.icon, { 
+                sx: { fontSize: '1.2rem' }
+              })}
+            </IconButton>
+          </Tooltip>
+        ))}
       </Box>
+
+      {/* Add bottom padding to body to prevent content from being hidden behind fixed footer */}
+      <Box sx={{ height: 60 }} />
       
       {/* Modals and Popovers */}
       <PlayerParserForm open={openParser} onClose={handleCloseParser} />
@@ -223,6 +187,7 @@ const MobileFooter: React.FC = () => {
               p: 2,
               borderRadius: 2,
               maxWidth: '90vw',
+              boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
             },
           },
         }}

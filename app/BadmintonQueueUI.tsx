@@ -13,6 +13,7 @@ import reducer from './lib/store/Reducer';
 import InitialState from './lib/store/InitialState';
 import { RootState } from './lib/store/rootState';
 import Dashboard from './components/dashboard/Dashboard';
+import MobileFooter from './components/MobileFooter';
 import { debouncedSave, isLocalStorageAvailable } from './lib/utils/localStorage';
 
 export const AppContext = React.createContext<{
@@ -151,6 +152,7 @@ const AppContent: React.FC = () => {
 					boxSizing: 'border-box', // 👈 ensures padding doesn't exceed 100vw
 				}}>
 					<Dashboard />
+					<MobileFooter />
 				</Box>
 				<Analytics />
 				<SpeedInsights />

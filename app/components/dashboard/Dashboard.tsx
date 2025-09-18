@@ -1,5 +1,5 @@
 import React, { useContext, useState, useCallback, useMemo, useEffect } from 'react';
-import { Typography, IconButton, Box, Divider, useTheme } from '@mui/material';
+import { Typography, IconButton, Box, Divider, useTheme, useMediaQuery  } from '@mui/material';
 import AddIcon from '@mui/icons-material/GroupAdd';
 import SettingsIcon from '@mui/icons-material/Settings';
 import AttachMoneyIcon from '@mui/icons-material/Payment';
@@ -8,7 +8,6 @@ import { AppContext } from '../../BadmintonQueueUI';
 import CourtZone from '../CourtZone';
 import QueueZone from '../QueueZone';
 import UnqueuedZone from '../PlayerListZone';
-import DataManagement from '../DataManagement';
 import PlayerParserForm from '../input/PlayerParserForm';
 import CourtControlPanel from '../CourtControlPanel';
 import SettingsModal from '../input/SettingsModal';
@@ -20,6 +19,7 @@ import PaymentModal from '../input/PaymentModal';
 const Dashboard: React.FC = React.memo(() => {
   const { state } = useContext(AppContext);
   const theme = useTheme();
+  const isMobile = useMediaQuery('(max-width: 768px)');
 
   // State management
   const [openParser, setOpenParser] = useState(false);
@@ -87,7 +87,6 @@ const Dashboard: React.FC = React.memo(() => {
     p: { xs: 1, sm: 1.5, md: 2 }, // Responsive padding
     gap: { xs: 1, sm: 1.5, md: 2 }, // Responsive gap
     bgcolor: theme.palette.background.default,
-    // Stack vertically on very small tablets
     flexDirection: { xs: 'column', sm: 'row' },
   }), [theme.palette.background.default]);
 
@@ -106,12 +105,15 @@ const Dashboard: React.FC = React.memo(() => {
     bgcolor: theme.palette.background.paper,
     borderRadius: 2,
     boxShadow: theme.shadows[2],
+    order: { xs: 2, sm: 0 },
+    height: { xs: '40vh', sm: 'auto' }
   }), [theme.palette.background.paper, theme.shadows]);
 
   const rightAreaSx = useMemo(() => ({
     flexGrow: 1, 
     overflowY: 'auto', 
-    pr: 2
+    pr: 2,
+    order: { xs: 1, sm: 0 },
   }), []);
 
   const headerSx = useMemo(() => ({
@@ -159,24 +161,28 @@ const Dashboard: React.FC = React.memo(() => {
         Total Players: {mounted ? totalPlayers : 0}
       </Typography>
       <Box sx={buttonGroupSx}>
-        <IconButton onClick={handleOpenParser} title="Add Players">
-          <AddIcon />
-        </IconButton>
-        <IconButton onClick={handleOpenPlayerList} title="View Player List & Skills">
-          <ListIcon />
-        </IconButton>
-        <IconButton onClick={handleOpenPopover} title="Court Settings">
-          <CourtAddIcon />
-        </IconButton>
-        <IconButton onClick={handleOpenPayment} title="Payment Summary">
-          <AttachMoneyIcon />
-        </IconButton>
-        <IconButton onClick={handleOpenSettings} title="App Settings">
-          <SettingsIcon />
-        </IconButton>
+        {!isMobile && (
+          <>
+            <IconButton onClick={handleOpenParser} title="Add Players">
+              <AddIcon />
+            </IconButton>
+            <IconButton onClick={handleOpenPlayerList} title="View Player List & Skills">
+              <ListIcon />
+            </IconButton>
+            <IconButton onClick={handleOpenPopover} title="Court Settings">
+              <CourtAddIcon />
+            </IconButton>
+            <IconButton onClick={handleOpenPayment} title="Payment Summary">
+              <AttachMoneyIcon />
+            </IconButton>
+            <IconButton onClick={handleOpenSettings} title="App Settings">
+              <SettingsIcon />
+            </IconButton>
+          </>
+        )}
       </Box>
     </Box>
-  ), [totalPlayers, headerSx, buttonGroupSx, mounted, handleOpenParser, handleOpenPlayerList, handleOpenPopover, handleOpenPayment, handleOpenSettings]);
+  ), [totalPlayers, headerSx, buttonGroupSx, mounted, isMobile, handleOpenParser, handleOpenPlayerList, handleOpenPopover, handleOpenPayment, handleOpenSettings, ]);
 
   // Memoized popover content
   const popoverContent = useMemo(() => (
@@ -229,7 +235,6 @@ const Dashboard: React.FC = React.memo(() => {
               gap: 0.5
             }}
           >
-            
             Data management & clear options are in <SettingsIcon sx={{ fontSize: '0.8rem' }} /> Settings
           </Typography>
         </Box>
