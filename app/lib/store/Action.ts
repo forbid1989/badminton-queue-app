@@ -20,6 +20,8 @@ const ActionType = {
   REMOVE_PLAYER: "removePlayer",
   TRANSFER_QUEUE_TO_COURT: "transferQueueToCourt",
   END_GAME: "endGame",
+  UNDO_END_GAME: "undoEndGame",
+  CLEAR_COURT_UNDO: "clearCourtUndo",
   UPDATE_PLAYER_NAME: "updatePlayerName",
   RENAME_PLAYER: "renamePlayer",
   CREATE_QUEUE: "createQueue",
@@ -176,6 +178,21 @@ const Action = {
   endGame(courtId: string) {
     return {
       type: ActionType.END_GAME,
+      payload: { courtId },
+    };
+  },
+
+  undoEndGame(courtId: string) {
+    return {
+      type: ActionType.UNDO_END_GAME,
+      payload: { courtId },
+    };
+  },
+
+  // Clear undo data for a specific court (when composition changes)
+  clearCourtUndo(courtId: string) {
+    return {
+      type: ActionType.CLEAR_COURT_UNDO,
       payload: { courtId },
     };
   },

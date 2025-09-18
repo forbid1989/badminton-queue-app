@@ -7,6 +7,7 @@ import DroppableZone from './DroppableZone';
 import PlayerCard from './PlayerCard';
 import { AppContext } from '../BadmintonQueueUI';
 import { Action } from '../lib/store/Action';
+import { UndoGameData } from '../lib/store/rootState';
 import SportsTennisIcon from '@mui/icons-material/SportsTennis';
 
 type CourtZoneProps = {
@@ -165,7 +166,9 @@ const CourtItem = React.memo<{
   onSubmitEdit: (courtId: string) => void;
   onCancelEdit: () => void;
   onEndGame: (courtId: string) => void;
+  onUndoGame: (courtId: string) => void;
   mounted: boolean;
+  undoData?: UndoGameData;
 }>(({ 
   courtId, 
   index, 
@@ -177,8 +180,12 @@ const CourtItem = React.memo<{
   onSubmitEdit, 
   onCancelEdit, 
   onEndGame,
-  mounted
+  onUndoGame,
+  mounted,
+  undoData
 }) => {
+  
+  const { state, dispatch } = useContext(AppContext);
   
   // Memoized match format calculation
   const matchFormat = useMemo(() => {
@@ -213,6 +220,36 @@ const CourtItem = React.memo<{
   const handleEndGame = useCallback(() => {
     onEndGame(courtId);
   }, [courtId, onEndGame]);
+
+  const handleUndoGame = useCallback(() => {
+    onUndoGame(courtId);
+  }, [courtId, onUndoGame]);
+
+  // 🆕 Enhanced logic to check if court composition has changed from when game was ended
+  const courtHasChanged = useMemo(() => {
+    if (!undoData) return false;
+    
+    // Check if court composition has changed since game ended
+    const originalPlayerIds = undoData.playersData.map(p => p.id).sort();
+    const currentPlayerIds = players.map(p => p.id).sort();
+    
+    // Special case: If court is now empty but we have undo data, 
+    // this is the expected state after ending a game - don't clear undo data
+    if (currentPlayerIds.length === 0 && originalPlayerIds.length > 0) {
+      return false; // Don't consider this a "change" that should clear undo data
+    }
+    
+    // For all other cases, check if composition actually changed
+    return originalPlayerIds.length !== currentPlayerIds.length || 
+      !originalPlayerIds.every((id, index) => id === currentPlayerIds[index]);
+  }, [undoData, players]);
+
+  useEffect(() => {
+    if (undoData && courtHasChanged) {
+      console.log(`Court ${courtId} composition changed, clearing undo data`);
+      dispatch(Action.clearCourtUndo(courtId));
+    }
+  }, [courtHasChanged, undoData, courtId, dispatch]);
 
   // Memoized 2x2 position grid for court
   const courtPositionGrid = useMemo(() => (
@@ -387,7 +424,7 @@ const CourtItem = React.memo<{
                 mounted={mounted}
               />
               
-              {mounted && players.length > 0 && (
+              {mounted && players.length > 0 && !undoData &&  (
                 <Button
                   variant="contained"
                   size="small"
@@ -407,6 +444,29 @@ const CourtItem = React.memo<{
                   End Game
                 </Button>
               )}
+
+                {mounted && undoData && (
+                  <Button
+                    variant="contained"
+                    size="small"
+                    onClick={handleUndoGame}
+                    sx={{
+                      fontSize: '0.65rem',
+                      padding: '2px 8px',
+                      backgroundColor: 'rgba(88, 72, 46, 0.8)',
+                      color: '#fff',
+                      textTransform: 'none',
+                      backdropFilter: 'blur(4px)',
+                      border: '1px solid rgba(255,255,255,0.2)',
+                      '&:hover': {
+                        backgroundColor: 'rgba(245, 124, 0, 0.9)',
+                      },
+                    }}
+                    title="Undo game"
+                  >
+                    Undo
+                  </Button>
+                )}
             </Box>
           </Box>
 
@@ -433,29 +493,34 @@ const CourtZone: React.FC<CourtZoneProps> = ({ courtCount }) => {
     }
     return defaultNames;
   });
+
+  const handleUndoGame = useCallback((courtId: string) => {
+    dispatch(Action.undoEndGame(courtId));
+  }, [dispatch]);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
   
   // Memoized court data calculation
   const courtData = useMemo(() => {
-    const courts: Array<{ courtId: string; players: Player[]; index: number }> = [];
+    const courts: Array<{ courtId: string; players: Player[]; index: number; undoData?: UndoGameData; }> = [];
     
     for (let index = 0; index < courtCount; index++) {
       const courtId = `court-${index}`;
       
       // Use the pre-calculated zone mapping instead of filtering players
       const courtPlayers = state.courts.playersByCourt[courtId] || [];
+      const undoData = state.undoableGames[courtId];
       
       // Debug: Log court players and their order
       console.log(`🏟️ Court ${courtId} players:`, courtPlayers.map(p => `${p.name} (order: ${p.courtOrder})`));
       
-      courts.push({ courtId, players: courtPlayers, index });
+      courts.push({ courtId, players: courtPlayers, index, undoData });
     }
     
     return courts;
-  }, [state.courts.playersByCourt, courtCount]);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  }, [state.courts.playersByCourt, state.undoableGames, courtCount]);
 
   // Update court names when court count changes
   useEffect(() => {
@@ -497,7 +562,7 @@ const CourtZone: React.FC<CourtZoneProps> = ({ courtCount }) => {
 
   // Memoized court items
   const courtItems = useMemo(() => 
-    courtData.map(({ courtId, players, index }) => (
+    courtData.map(({ courtId, players, index, undoData }) => (
       <CourtItem
         key={courtId}
         courtId={courtId}
@@ -510,10 +575,12 @@ const CourtZone: React.FC<CourtZoneProps> = ({ courtCount }) => {
         onSubmitEdit={handleSubmitEdit}
         onCancelEdit={handleCancelEdit}
         onEndGame={handleEndGame}
+        onUndoGame={handleUndoGame}
         mounted={mounted}
+        undoData={undoData}
       />
     )), 
-    [courtData, courtNames, editingCourt, handleStartEdit, handleCourtNameChange, handleSubmitEdit, handleCancelEdit, handleEndGame, mounted]
+    [courtData, courtNames, editingCourt, handleStartEdit, handleCourtNameChange, handleSubmitEdit, handleCancelEdit, handleEndGame, mounted, handleUndoGame]
   );
 
   return (

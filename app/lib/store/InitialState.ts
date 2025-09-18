@@ -30,6 +30,9 @@ const baseInitialState = {
   // ⏱️ Whether timers are shown on cards
   showTimers: true,
 
+  // 🆕 Initialize empty undo games storage
+  undoableGames: {},
+
   // ⚙️ App settings
   settings: {
     priorityMode: "FIFO" as "FIFO" | "LongestWaiting",

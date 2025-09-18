@@ -4,6 +4,7 @@ import {
   PlayerStatus,
   SkillLevel,
 } from "../../components/types/Player";
+import { UndoGameData } from "./rootState";
 import { clearLocalStorage } from "../utils/localStorage";
 import { generateMatchHistoryEntries } from "../utils/matchHistoryUtils";
 import { PlayerListSortConfig } from "../../components/types/Settings";
@@ -48,6 +49,8 @@ type Action =
   | { type: "removePlayer"; id: string }
   | { type: "transferQueueToCourt"; payload: { queueId: string } }
   | { type: "endGame"; payload: { courtId: string } }
+  | { type: "undoEndGame"; payload: { courtId: string } }
+  | { type: "clearCourtUndo"; payload: { courtId: string } }
   | { type: "createQueue" }
   | { type: "removeQueue"; payload: { queueId: string } }
   | { type: "togglePlayerCooldowns" }
@@ -341,6 +344,38 @@ function returnPlayerToList(player: Player): Player {
     timeEntered: Date.now(), // Reset time to current (fresh start)
   };
 }
+
+const clearUndoDataForChangedCourts = (
+  oldPlayersByCourt: Record<string, Player[]>,
+  newPlayersByCourt: Record<string, Player[]>,
+  undoableGames: Record<string, UndoGameData>
+): Record<string, UndoGameData> => {
+  const updatedUndoGames = { ...undoableGames };
+
+  Object.keys(undoableGames).forEach((courtId) => {
+    const undoData = updatedUndoGames[courtId];
+    if (!undoData) return;
+
+    // Get current and original player compositions
+    const originalPlayerIds = undoData.playersData.map((p) => p.id).sort();
+    const currentPlayers = newPlayersByCourt[courtId] || [];
+    const currentPlayerIds = currentPlayers.map((p) => p.id).sort();
+
+    // Check if composition changed
+    const compositionChanged =
+      originalPlayerIds.length !== currentPlayerIds.length ||
+      !originalPlayerIds.every((id, index) => id === currentPlayerIds[index]);
+
+    if (compositionChanged) {
+      console.log(
+        `🧹 Court ${courtId} composition changed, clearing undo data`
+      );
+      delete updatedUndoGames[courtId];
+    }
+  });
+
+  return updatedUndoGames;
+};
 
 export default function reducer(state: any, action: Action) {
   switch (action.type) {
@@ -665,6 +700,12 @@ export default function reducer(state: any, action: Action) {
         logPartnershipWarnings(zone, queuePlayers);
       }
 
+      const clearedUndoGames = clearUndoDataForChangedCourts(
+        state.courts.playersByCourt,
+        playersByCourt,
+        state.undoableGames
+      );
+
       return {
         ...state,
         players: updatedPlayers,
@@ -676,6 +717,7 @@ export default function reducer(state: any, action: Action) {
           ...state.queue,
           playersByQueue,
         },
+        undoableGames: clearedUndoGames,
       };
     }
     // ========================================
@@ -923,6 +965,12 @@ export default function reducer(state: any, action: Action) {
         }
       }
 
+      const clearedUndoGames = clearUndoDataForChangedCourts(
+        state.courts.playersByCourt,
+        playersByCourt,
+        state.undoableGames
+      );
+
       return {
         ...state,
         players: updatedPlayers,
@@ -934,6 +982,7 @@ export default function reducer(state: any, action: Action) {
           ...state.queue,
           playersByQueue,
         },
+        undoableGames: clearedUndoGames,
       };
     }
 
@@ -1195,6 +1244,12 @@ export default function reducer(state: any, action: Action) {
         logPartnershipWarnings(to, queuePlayers);
       }
 
+      const clearedUndoGames = clearUndoDataForChangedCourts(
+        state.courts.playersByCourt,
+        playersByCourt,
+        state.undoableGames
+      );
+
       return {
         ...state,
         players: updatedPlayers,
@@ -1207,6 +1262,7 @@ export default function reducer(state: any, action: Action) {
           count: Object.keys(finalPlayersByQueue).length,
           playersByQueue: finalPlayersByQueue,
         },
+        undoableGames: clearedUndoGames,
       };
     }
 
@@ -1934,7 +1990,23 @@ export default function reducer(state: any, action: Action) {
 
       console.log("📝 Generated match history entries:", matchHistoryEntries);
 
-      // Step 5: Update players with enhanced match history
+      // 🆕 Step 5: Store undo data BEFORE modifying players
+      const undoData: UndoGameData = {
+        courtId,
+        endedAt: endTime,
+        playersData: playersOnCourt.map((player, index) => ({
+          id: player.id,
+          name: player.name,
+          previousGamesPlayed: player.gamesPlayed,
+          previousStatus: [...player.status],
+          previousTimeEntered: player.timeEntered,
+          courtOrder: player.courtOrder,
+          courtEnteredTime: player.courtEnteredTime,
+          addedMatchHistoryEntry: matchHistoryEntries[index],
+        })),
+      };
+
+      // Step 6: Update players with enhanced match history
       const updatedPlayers = state.players.map((player: Player) => {
         const isOnCourt = player.status.includes(courtId as PlayerStatus);
         if (!isOnCourt) return player;
@@ -1969,7 +2041,7 @@ export default function reducer(state: any, action: Action) {
         };
       });
 
-      // Step 6: Rebuild zone mappings using order fields
+      // Step 7: Rebuild zone mappings using order fields
       const { playersByCourt, playersByQueue } = rebuildZoneMappings(
         updatedPlayers,
         state.courts.count,
@@ -1989,6 +2061,104 @@ export default function reducer(state: any, action: Action) {
           ...state.queue,
           playersByQueue,
         },
+        // 🆕 Store undo data and clear any previous undo data for this court
+        undoableGames: {
+          ...state.undoableGames,
+          [courtId]: undoData,
+        },
+      };
+    }
+
+    case ActionType.UNDO_END_GAME: {
+      const courtId = action.payload.courtId;
+      const undoData = state.undoableGames[courtId];
+
+      if (!undoData) {
+        console.log("⛔ No undo data found for court", courtId);
+        return state;
+      }
+
+      console.log("⏪ Undoing ended game on", courtId);
+
+      // Restore players to their previous state
+      const updatedPlayers = state.players.map((player: Player) => {
+        const playerUndoData = undoData.playersData.find(
+          (p: Player) => p.id === player.id
+        );
+
+        if (!playerUndoData) return player;
+
+        // Remove the last match history entry (the one we added)
+        const updatedMatchHistory = player.matchHistory
+          ? player.matchHistory.filter(
+              (entry) =>
+                entry.matchId !== playerUndoData.addedMatchHistoryEntry.matchId
+            )
+          : [];
+
+        console.log(
+          `⏪ ${player.name}: games ${player.gamesPlayed} → ${playerUndoData.previousGamesPlayed}, ` +
+            `status ${JSON.stringify(player.status)} → ${JSON.stringify(
+              playerUndoData.previousStatus
+            )}`
+        );
+
+        return {
+          ...player,
+          gamesPlayed: playerUndoData.previousGamesPlayed,
+          status: playerUndoData.previousStatus,
+          timeEntered: playerUndoData.previousTimeEntered,
+          matchHistory: updatedMatchHistory,
+          courtOrder: playerUndoData.courtOrder,
+          courtEnteredTime: playerUndoData.courtEnteredTime,
+        };
+      });
+
+      // Rebuild zone mappings
+      const { playersByCourt, playersByQueue } = rebuildZoneMappings(
+        updatedPlayers,
+        state.courts.count,
+        Object.keys(state.queue.playersByQueue)
+      );
+
+      // Remove the undo data for this court
+      const { [courtId]: removedUndoData, ...remainingUndoGames } =
+        state.undoableGames;
+
+      console.log("✅ Game undo completed successfully");
+
+      return {
+        ...state,
+        players: updatedPlayers,
+        courts: {
+          ...state.courts,
+          playersByCourt,
+        },
+        queue: {
+          ...state.queue,
+          playersByQueue,
+        },
+        undoableGames: remainingUndoGames,
+      };
+    }
+
+    case ActionType.CLEAR_COURT_UNDO: {
+      const { courtId } = action.payload;
+
+      if (!state.undoableGames[courtId]) {
+        return state; // No undo data for this court
+      }
+
+      const { [courtId]: removedUndoData, ...remainingUndoGames } =
+        state.undoableGames;
+
+      console.log(
+        `🧹 Cleared undo data for court ${courtId} due to composition change`
+      );
+
+      return {
+        ...state,
+        undoableGames: remainingUndoGames,
       };
     }
 
@@ -2057,10 +2227,17 @@ export default function reducer(state: any, action: Action) {
         players: [],
         playerTextInput: "",
         showTimers: true,
+        undoableGames: {},
         settings: {
           priorityMode: "FIFO",
           colorCodedTimers: true,
           playerCooldowns: false,
+          playerListSort: {
+            secondarySort: "gamesPlayed",
+            secondaryDirection: "asc",
+            tertiarySort: "timeEntered",
+            tertiaryDirection: "asc",
+          },
           paymentSettings: {
             feeStructure: "flat" as "flat" | "per_game",
             flatFee: 50,

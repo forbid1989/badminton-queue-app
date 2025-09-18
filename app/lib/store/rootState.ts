@@ -1,4 +1,4 @@
-import { Player } from "../../components/types/Player";
+import { MatchHistoryEntry, Player } from "../../components/types/Player";
 
 // ✅ Only valid formats are allowed; no "rest", "queue", or "court" alone
 export type PlayerStatus = `queue-${number}` | `court-${number}`;
@@ -18,6 +18,21 @@ export interface PlayerListSortConfig {
   secondaryDirection: "asc" | "desc";
   tertiarySort: "timeEntered" | "gamesPlayed" | "skillLevel";
   tertiaryDirection: "asc" | "desc";
+}
+
+export interface UndoGameData {
+  courtId: string;
+  endedAt: number; // Timestamp when the game was ended
+  playersData: {
+    id: string;
+    name: string;
+    previousGamesPlayed: number;
+    previousStatus: PlayerStatus[];
+    previousTimeEntered: number;
+    courtOrder: number | null;
+    courtEnteredTime?: number;
+    addedMatchHistoryEntry: MatchHistoryEntry;
+  }[];
 }
 
 // ✅ Root state structure
@@ -42,6 +57,8 @@ export type RootState = {
 
   // ⏱ Toggle timers
   showTimers: boolean;
+
+  undoableGames: Record<string, UndoGameData>; // courtId -> undo data
 
   // ⚙️ App settings
   settings: {
