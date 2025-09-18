@@ -1,8 +1,9 @@
 import React, { useContext, useMemo, useCallback, useState, useEffect } from 'react';
 import Grid from '@mui/material/Grid';
-import { Typography, Button, Box, Chip, IconButton } from '@mui/material';
+import { Typography, Button, Box, Chip, IconButton, useMediaQuery, Popover, Modal, Paper, FormControl, InputLabel, Select, MenuItem, Divider } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import CloseIcon from '@mui/icons-material/Close';
+import SportsIcon from '@mui/icons-material/Sports';
 import { Player } from './types/Player';
 import PlayerCard from './PlayerCard';
 import DroppableZone from './DroppableZone';
@@ -130,6 +131,390 @@ const QueueBackground = React.memo(() => (
 
 QueueBackground.displayName = 'QueueBackground';
 
+const EnhancedTransferButton = React.memo<{
+  queueId: string;
+  players: Player[];
+  courtCount: number;
+  courtOccupancy: Record<string, number>;
+  onTransferToCourt: (queueId: string) => void;
+  onTransferToSpecificCourt: (queueId: string, courtId: string) => void;
+}>(({ queueId, players, courtCount, courtOccupancy, onTransferToCourt, onTransferToSpecificCourt }) => {
+  const isMobile = useMediaQuery('(max-width: 768px)');
+  const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [selectedCourt, setSelectedCourt] = useState('');
+
+  const MAX_PLAYERS_PER_COURT = 4;
+
+  // Calculate available courts and transfer logic
+  const { availableCourts, canTransfer, disabledReason, hasMultipleOptions } = useMemo(() => {
+    if (players.length === 0) {
+      return {
+        availableCourts: [],
+        canTransfer: false,
+        disabledReason: 'No players in queue',
+        hasMultipleOptions: false,
+      };
+    }
+
+    // Check if any player is already on court
+    const hasPlayerOnCourt = players.some((player) =>
+      player.status.some((s) => s.startsWith('court-'))
+    );
+
+    if (hasPlayerOnCourt) {
+      return {
+        availableCourts: [],
+        canTransfer: false,
+        disabledReason: 'Players already on court',
+        hasMultipleOptions: false,
+      };
+    }
+
+    // Find available courts
+    const available: Array<{ courtId: string; courtNumber: number; currentPlayers: number }> = [];
+    for (let i = 0; i < courtCount; i++) {
+      const courtId = `court-${i}`;
+      const currentPlayers = courtOccupancy[courtId] || 0;
+      if (currentPlayers + players.length <= MAX_PLAYERS_PER_COURT) {
+        available.push({
+          courtId,
+          courtNumber: i + 1,
+          currentPlayers,
+        });
+      }
+    }
+
+    return {
+      availableCourts: available,
+      canTransfer: available.length > 0,
+      disabledReason: available.length === 0 ? 'All courts are full' : '',
+      hasMultipleOptions: available.length > 1,
+    };
+  }, [players, courtCount, courtOccupancy]);
+
+  const handleTransferClick = (event: React.MouseEvent<HTMLElement>) => {
+    if (!canTransfer) return;
+
+    if (hasMultipleOptions) {
+      // Multiple courts available - show selection UI
+      if (isMobile) {
+        setModalOpen(true);
+      } else {
+        setAnchorEl(event.currentTarget);
+      }
+    } else {
+      // Single court available - direct transfer
+      onTransferToCourt(queueId);
+    }
+  };
+
+  const handleSelectCourt = useCallback((courtId: string) => {
+    onTransferToSpecificCourt(queueId, courtId);
+    setSelectedCourt('');
+    setAnchorEl(null);
+    setModalOpen(false);
+  }, [queueId, onTransferToSpecificCourt]);
+
+  const handleConfirm = () => {
+    if (selectedCourt) {
+      handleSelectCourt(selectedCourt);
+    }
+  };
+
+  const handleClose = () => {
+    setSelectedCourt('');
+    setAnchorEl(null);
+    setModalOpen(false);
+  };
+
+  const buttonText = 'Transfer to Court';
+
+  return (
+    <>
+      <Button
+        variant="contained"
+        size="small"
+        disabled={!canTransfer}
+        onClick={handleTransferClick}
+        sx={{
+          fontSize: '0.65rem',
+          padding: '2px 6px',
+          backgroundColor: 'rgba(74, 63, 28, 0.8)',
+          textTransform: 'none',
+          backdropFilter: 'blur(4px)',
+          border: '1px solid rgba(0,0,0,0.2)',
+          '&:hover': {
+            backgroundColor: 'rgba(58, 50, 26, 0.9)',
+          },
+          '&:disabled': {
+            backgroundColor: 'rgba(0,0,0,0.12)',
+            color: 'rgba(0,0,0,0.26)',
+          },
+        }}
+        title={
+          canTransfer
+            ? hasMultipleOptions
+              ? 'Choose from available courts'
+              : `Transfer to Court ${availableCourts[0]?.courtNumber}`
+            : disabledReason
+        }
+      >
+        {buttonText}
+      </Button>
+
+      {/* Desktop Popover */}
+      {!isMobile && (
+        <Popover
+          open={Boolean(anchorEl)}
+          anchorEl={anchorEl}
+          onClose={handleClose}
+          anchorOrigin={{
+            vertical: 'top',
+            horizontal: 'center',
+          }}
+          transformOrigin={{
+            vertical: 'bottom',
+            horizontal: 'center',
+          }}
+          slotProps={{
+            paper: {
+              sx: {
+                p: 2.5,
+                borderRadius: 2,
+                minWidth: 280,
+                maxWidth: 320,
+                boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
+              },
+            },
+          }}
+        >
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <Typography 
+              variant="subtitle1" 
+              sx={{ 
+                fontWeight: 600, 
+                color: 'primary.main',
+                fontSize: '0.95rem',
+                textAlign: 'center'
+              }}
+            >
+              Select Court
+            </Typography>
+            
+            <Typography 
+              variant="body2" 
+              sx={{ 
+                color: 'text.secondary', 
+                fontSize: '0.8rem',
+                textAlign: 'center',
+                mb: 1
+              }}
+            >
+              Transfer {players.length} player{players.length > 1 ? 's' : ''} to:
+            </Typography>
+
+            <FormControl fullWidth size="small">
+              <InputLabel sx={{ fontSize: '0.85rem' }}>Available Court</InputLabel>
+              <Select
+                value={selectedCourt}
+                onChange={(e) => setSelectedCourt(e.target.value)}
+                label="Available Court"
+                sx={{ fontSize: '0.85rem' }}
+              >
+                {availableCourts.map(({ courtId, courtNumber, currentPlayers }) => (
+                  <MenuItem
+                    key={courtId}
+                    value={courtId}
+                    sx={{
+                      fontSize: '0.85rem',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <SportsIcon sx={{ fontSize: '1rem', color: 'primary.main' }} />
+                      <span>Court {courtNumber}</span>
+                    </Box>
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        color: 'text.secondary',
+                        fontWeight: 'bold',
+                        fontSize: '0.7rem',
+                      }}
+                    >
+                      ({currentPlayers + players.length}/4)
+                    </Typography>
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+
+            <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
+              <Button
+                onClick={handleClose}
+                variant="outlined"
+                size="small"
+                fullWidth
+                sx={{ fontSize: '0.8rem' }}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleConfirm}
+                variant="contained"
+                size="small"
+                fullWidth
+                disabled={!selectedCourt}
+                sx={{ fontSize: '0.8rem' }}
+              >
+                Transfer
+              </Button>
+            </Box>
+          </Box>
+        </Popover>
+      )}
+
+      {/* Mobile Modal */}
+      {isMobile && (
+        <Modal 
+          open={modalOpen} 
+          onClose={handleClose}
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Paper
+            sx={{
+              width: '90%',
+              maxWidth: '400px',
+              bgcolor: 'background.paper',
+              borderRadius: 2,
+              p: 3,
+              maxHeight: '80vh',
+              overflowY: 'auto',
+              mx: 2,
+            }}
+          >
+            {/* Modal Header */}
+            <Box sx={{ 
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              alignItems: 'center',
+              mb: 2
+            }}>
+              <Typography 
+                variant="h6" 
+                sx={{ 
+                  fontSize: '1rem',
+                  fontWeight: 600,
+                  color: 'primary.main',
+                }}
+              >
+                Select Court
+              </Typography>
+              <IconButton 
+                onClick={handleClose}
+                sx={{ 
+                  color: 'text.secondary',
+                  '&:hover': {
+                    backgroundColor: 'action.hover',
+                  }
+                }}
+              >
+                <CloseIcon />
+              </IconButton>
+            </Box>
+
+            <Divider sx={{ mb: 2 }} />
+
+            {/* Modal Content */}
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+              <Typography 
+                variant="body1" 
+                sx={{ 
+                  color: 'text.primary', 
+                  fontSize: '0.9rem',
+                  textAlign: 'center',
+                }}
+              >
+                Transfer {players.length} player{players.length > 1 ? 's' : ''} to available court:
+              </Typography>
+
+              <FormControl fullWidth>
+                <InputLabel sx={{ fontSize: '0.9rem' }}>Available Court</InputLabel>
+                <Select
+                  value={selectedCourt}
+                  onChange={(e) => setSelectedCourt(e.target.value)}
+                  label="Available Court"
+                  sx={{ fontSize: '0.9rem' }}
+                >
+                  {availableCourts.map(({ courtId, courtNumber, currentPlayers }) => (
+                    <MenuItem
+                      key={courtId}
+                      value={courtId}
+                      sx={{
+                        fontSize: '0.9rem',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        py: 1.5,
+                      }}
+                    >
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                        <SportsIcon sx={{ fontSize: '1.2rem', color: 'primary.main' }} />
+                        <span>Court {courtNumber}</span>
+                      </Box>
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          color: 'text.secondary',
+                          fontWeight: 'bold',
+                          fontSize: '0.8rem',
+                        }}
+                      >
+                        ({currentPlayers + players.length}/4)
+                      </Typography>
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+
+              <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
+                <Button
+                  onClick={handleClose}
+                  variant="outlined"
+                  size="medium"
+                  fullWidth
+                  sx={{ fontSize: '0.9rem', py: 1 }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleConfirm}
+                  variant="contained"
+                  size="medium"
+                  fullWidth
+                  disabled={!selectedCourt}
+                  sx={{ fontSize: '0.9rem', py: 1 }}
+                >
+                  Transfer
+                </Button>
+              </Box>
+            </Box>
+          </Paper>
+        </Modal>
+      )}
+    </>
+  );
+});
+
+EnhancedTransferButton.displayName = 'EnhancedTransferButton';
+
 // Memoized queue item component
 const QueueItem = React.memo<{
   queueId: string;
@@ -139,45 +524,20 @@ const QueueItem = React.memo<{
   courtOccupancy: Record<string, number>;
   canRemove: boolean;
   onTransferToCourt: (queueId: string) => void;
+  onTransferToSpecificCourt: (queueId: string, courtId: string) => void; // 🆕 New prop
   onRemoveQueue: (queueId: string) => void;
   mounted: boolean;
-}>(({ queueId, index, players, courtCount, courtOccupancy, canRemove, onTransferToCourt, onRemoveQueue, mounted }) => {
+}>(({ queueId, index, players, courtCount, courtOccupancy, canRemove, onTransferToCourt, onTransferToSpecificCourt, onRemoveQueue, mounted }) => {
   
   // Memoized queue format calculation
   const queueFormat = useMemo(() => getQueueFormat(players), [players]);
-  
-  // Memoized the disabled state calculation with more robust logic
-  const isTransferDisabled = useMemo(() => {
-    if (players.length === 0) return true;
-    
-    // Check if any player is already on court
-    const hasPlayerOnCourt = players.some((player) =>
-      player.status.some((s) => s.startsWith('court-'))
-    );
-    
-    if (hasPlayerOnCourt) return true;
-    
-    // More robust check: see if there's any court with space
-    const hasAvailableCourt = Array.from({ length: courtCount }).some((_, i) => {
-      const courtId = `court-${i}`;
-      const currentOccupancy = courtOccupancy[courtId] || 0;
-      return currentOccupancy < MAX_PLAYERS_PER_COURT;
-    });
-    
-    return !hasAvailableCourt;
-  }, [players, courtCount, courtOccupancy]);
-
-  // Memoized the transfer handler
-  const handleTransfer = useCallback(() => {
-    onTransferToCourt(queueId);
-  }, [queueId, onTransferToCourt]);
 
   // Memoized the remove handler
   const handleRemove = useCallback(() => {
     onRemoveQueue(queueId);
   }, [queueId, onRemoveQueue]);
 
-  // Memoized 2x2 position grid for queue
+  // Memoized 2x2 position grid for queue (keeping existing implementation)
   const queuePositionGrid = useMemo(() => (
     <Box
       sx={{
@@ -190,20 +550,16 @@ const QueueItem = React.memo<{
       }}
     >
       {[0, 1, 2, 3].map((position) => {
-        // ✅ FIXED: Find player assigned to this position based on queueOrder
-        // AND ensure they are actually assigned to THIS queue
         const playerInPosition = players.find(p => 
           p.queueOrder === position && 
-          p.status.includes(queueId as any) // Ensure player is actually in this queue
+          p.status.includes(queueId as any)
         );
-        
-        console.log(`🔍 Queue ${queueId} Position ${position}:`, playerInPosition ? `${playerInPosition.name} (order: ${playerInPosition.queueOrder})` : 'Empty');
         
         return (
           <DroppableZone
             key={`${queueId}-position-${position}`}
-            zone={queueId} // ✨ Use regular zone name, not "queue-0-pos-2"
-            position={position} // ✨ Pass position as prop
+            zone={queueId}
+            position={position}
             players={playerInPosition ? [playerInPosition] : []}
           >
             {playerInPosition ? (
@@ -261,7 +617,7 @@ const QueueItem = React.memo<{
             width: '100%',
           }}
         >
-          {/* Header: Queue title, format chip, remove button, and transfer button */}
+          {/* Header with Enhanced Transfer Button */}
           <Box
             display="flex"
             justifyContent="space-between"
@@ -294,7 +650,7 @@ const QueueItem = React.memo<{
                 Queue {index + 1}
               </Typography>
               
-              {/* Remove queue button - only show if we can remove */}
+              {/* Remove queue button */}
               {mounted && canRemove && (
                 <IconButton
                   size="small"
@@ -317,42 +673,21 @@ const QueueItem = React.memo<{
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
               <QueueFormatChip format={queueFormat.format} playerCount={players.length} />
               
+              {/* Enhanced Transfer Button - replaces old Transfer button */}
               {players.length > 0 && (
-                <Button
-                  variant="contained"
-                  size="small"
-                  disabled={isTransferDisabled}
-                  onClick={handleTransfer}
-                  sx={{
-                    fontSize: '0.65rem',
-                    padding: '2px 6px',
-                    backgroundColor: 'rgba(74, 63, 28, 0.8)',
-                    textTransform: 'none',
-                    backdropFilter: 'blur(4px)',
-                    border: '1px solid rgba(0,0,0,0.2)',
-                    '&:hover': {
-                      backgroundColor: 'rgba(58, 50, 26, 0.9)',
-                    },
-                    '&:disabled': {
-                      backgroundColor: 'rgba(0,0,0,0.12)',
-                      color: 'rgba(0,0,0,0.26)',
-                    },
-                  }}
-                  title={
-                    isTransferDisabled
-                      ? players.some(p => p.status.some(s => s.startsWith('court-')))
-                        ? "Players already on court"
-                        : "All courts are full"
-                      : `Transfer to available court (${Object.values(courtOccupancy).filter(count => count < MAX_PLAYERS_PER_COURT).length} courts available)`
-                  }
-                >
-                  Transfer to Court
-                </Button>
+                <EnhancedTransferButton
+                  queueId={queueId}
+                  players={players}
+                  courtCount={courtCount}
+                  courtOccupancy={courtOccupancy}
+                  onTransferToCourt={onTransferToCourt}
+                  onTransferToSpecificCourt={onTransferToSpecificCourt}
+                />
               )}
             </Box>
           </Box>
 
-          {/* Queue Position Grid - Always show the 2x2 grid */}
+          {/* Queue Position Grid */}
           {queuePositionGrid}
         </Box>
       </DroppableZone>
@@ -467,6 +802,10 @@ const QueueZone: React.FC<QueueZoneProps> = ({ courtCount }) => {
     dispatch(Action.transferQueueToCourt(queueId));
   }, [dispatch]);
 
+  const handleTransferToSpecificCourt = useCallback((queueId: string, courtId: string) => {
+    dispatch(Action.transferQueueToSpecificCourt(queueId, courtId));
+  }, [dispatch]);
+
   // Add queue handler
   const handleAddQueue = useCallback(() => {
     dispatch(Action.createQueue());
@@ -496,11 +835,12 @@ const QueueZone: React.FC<QueueZoneProps> = ({ courtCount }) => {
         courtOccupancy={courtOccupancy}
         canRemove={canRemoveQueues}
         onTransferToCourt={handleTransferToCourt}
+        onTransferToSpecificCourt={handleTransferToSpecificCourt}
         onRemoveQueue={handleRemoveQueue}
         mounted={mounted}
       />
     )), 
-    [queueData, courtCount, courtOccupancy, canRemoveQueues, handleTransferToCourt, handleRemoveQueue, mounted]
+    [queueData, courtCount, courtOccupancy, canRemoveQueues, handleTransferToCourt, handleTransferToSpecificCourt, handleRemoveQueue, mounted]
   );
 
   return (

@@ -19,6 +19,7 @@ const ActionType = {
   TOGGLE_PLAYER_COOLDOWNS: "togglePlayerCooldowns",
   REMOVE_PLAYER: "removePlayer",
   TRANSFER_QUEUE_TO_COURT: "transferQueueToCourt",
+  TRANSFER_QUEUE_TO_SPECIFIC_COURT: "transferQueueToSpecificCourt",
   END_GAME: "endGame",
   UNDO_END_GAME: "undoEndGame",
   CLEAR_COURT_UNDO: "clearCourtUndo",
@@ -172,6 +173,13 @@ const Action = {
     return {
       type: ActionType.TRANSFER_QUEUE_TO_COURT,
       payload: { queueId },
+    };
+  },
+
+  transferQueueToSpecificCourt(queueId: string, targetCourtId: string) {
+    return {
+      type: ActionType.TRANSFER_QUEUE_TO_SPECIFIC_COURT,
+      payload: { queueId, targetCourtId },
     };
   },
 

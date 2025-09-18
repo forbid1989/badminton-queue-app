@@ -48,6 +48,10 @@ type Action =
   | { type: "setPriorityMode"; mode: "FIFO" | "LongestWaiting" }
   | { type: "removePlayer"; id: string }
   | { type: "transferQueueToCourt"; payload: { queueId: string } }
+  | {
+      type: "transferQueueToSpecificCourt";
+      payload: { queueId: string; targetCourtId: string };
+    }
   | { type: "endGame"; payload: { courtId: string } }
   | { type: "undoEndGame"; payload: { courtId: string } }
   | { type: "clearCourtUndo"; payload: { courtId: string } }
@@ -376,6 +380,102 @@ const clearUndoDataForChangedCourts = (
 
   return updatedUndoGames;
 };
+
+// 🆕 Helper function to handle the common transfer logic
+function transferQueueToCourtHelper(
+  state: any,
+  queueId: string,
+  targetCourtId: string,
+  playersInQueue: Player[]
+) {
+  console.log(`✅ Transferring queue ${queueId} to court ${targetCourtId}`);
+
+  const timestamp = Date.now();
+  const transferredPlayerIds = new Set(playersInQueue.map((p: Player) => p.id));
+
+  // Calculate positions for transferred players in the target court
+  const existingCourtPlayers = state.courts.playersByCourt[targetCourtId] || [];
+
+  const updatedPlayers = state.players.map((player: Player) => {
+    if (transferredPlayerIds.has(player.id)) {
+      console.log(`🔄 Transferring player ${player.name} to ${targetCourtId}`);
+
+      // Calculate position based on existing court players and transfer order
+      const transferIndex = playersInQueue.findIndex((p) => p.id === player.id);
+      const newCourtPosition = existingCourtPlayers.length + transferIndex;
+
+      // Transfer to court and remove from queue
+      return {
+        ...player,
+        status: [targetCourtId as PlayerStatus],
+        timeEntered: timestamp,
+        queueOrder: null, // Clear queue order
+        courtOrder: newCourtPosition, // Assign court order
+        courtEnteredTime: timestamp,
+      };
+    }
+    return player;
+  });
+
+  // Build new queue mappings - preserve order by removing only the transferred queue
+  const remainingQueueIds = Object.keys(state.queue.playersByQueue)
+    .filter((id) => id !== queueId)
+    .sort((a, b) => {
+      const numA = parseInt(a.split("-")[1]);
+      const numB = parseInt(b.split("-")[1]);
+      return numA - numB;
+    });
+
+  console.log("📋 Remaining queue IDs after transfer:", remainingQueueIds);
+
+  // Update player statuses to match new queue IDs
+  const queueIdMapping: Record<string, string> = {};
+  remainingQueueIds.forEach((oldId, index) => {
+    queueIdMapping[oldId] = `queue-${index}`;
+  });
+
+  const playersWithUpdatedQueueIds = updatedPlayers.map((player: Player) => {
+    if (transferredPlayerIds.has(player.id)) {
+      return player;
+    }
+
+    const newStatus = player.status.map((s) => {
+      if (s.startsWith("queue-") && queueIdMapping[s]) {
+        console.log(`🔄 Updating ${player.name}: ${s} → ${queueIdMapping[s]}`);
+        return queueIdMapping[s] as PlayerStatus;
+      }
+      return s;
+    });
+
+    return {
+      ...player,
+      status: newStatus,
+    };
+  });
+
+  // Rebuild zone mappings using updated order fields
+  const finalQueueIds = remainingQueueIds.map((_, index) => `queue-${index}`);
+  const { playersByCourt, playersByQueue } = rebuildZoneMappings(
+    playersWithUpdatedQueueIds,
+    state.courts.count,
+    finalQueueIds
+  );
+
+  console.log("✅ Transfer completed successfully");
+
+  return {
+    ...state,
+    players: playersWithUpdatedQueueIds,
+    courts: {
+      ...state.courts,
+      playersByCourt,
+    },
+    queue: {
+      count: Object.keys(playersByQueue).length,
+      playersByQueue,
+    },
+  };
+}
 
 export default function reducer(state: any, action: Action) {
   switch (action.type) {
@@ -1845,109 +1945,58 @@ export default function reducer(state: any, action: Action) {
         return state;
       }
 
-      console.log("✅ Available court found:", availableCourtId);
-
-      const timestamp = Date.now();
-
-      // Step 4: Update all players - remove transferred players and update their status
-      const transferredPlayerIds = new Set(
-        playersInQueue.map((p: Player) => p.id)
+      // Use the common transfer logic
+      return transferQueueToCourtHelper(
+        state,
+        queueId,
+        availableCourtId,
+        playersInQueue
       );
+    }
 
-      // ✨ Calculate positions for transferred players in the target court
-      const existingCourtPlayers =
-        state.courts.playersByCourt[availableCourtId] || [];
-
-      const updatedPlayers = state.players.map((player: Player) => {
-        if (transferredPlayerIds.has(player.id)) {
-          console.log(
-            `🔄 Transferring player ${player.name} to ${availableCourtId}`
-          );
-
-          // ✨ Calculate position based on existing court players and transfer order
-          const transferIndex = playersInQueue.findIndex(
-            (p) => p.id === player.id
-          );
-          const newCourtPosition = existingCourtPlayers.length + transferIndex;
-
-          // Transfer to court and remove from queue
-          return {
-            ...player,
-            status: [availableCourtId as PlayerStatus],
-            timeEntered: timestamp,
-            queueOrder: null, // ✨ Clear queue order
-            courtOrder: newCourtPosition, // ✨ Assign court order
-            courtEnteredTime: timestamp,
-          };
-        }
-        return player;
+    case ActionType.TRANSFER_QUEUE_TO_SPECIFIC_COURT: {
+      const { queueId, targetCourtId } = action.payload;
+      console.log("🎯 TRANSFER_QUEUE_TO_SPECIFIC_COURT started:", {
+        queueId,
+        targetCourtId,
       });
 
-      // Step 5: Build new queue mappings - PRESERVE ORDER BY REMOVING ONLY THE TRANSFERRED QUEUE
-      const remainingQueueIds = Object.keys(state.queue.playersByQueue)
-        .filter((id) => id !== queueId)
-        .sort((a, b) => {
-          const numA = parseInt(a.split("-")[1]);
-          const numB = parseInt(b.split("-")[1]);
-          return numA - numB;
-        });
+      // Step 1: Extract players in the queue
+      const playersInQueue: Player[] =
+        state.queue.playersByQueue[queueId] || [];
 
-      console.log("📋 Remaining queue IDs after transfer:", remainingQueueIds);
+      if (playersInQueue.length === 0) {
+        console.log("❌ No players in queue, aborting transfer");
+        return state;
+      }
 
-      // Step 6: Update player statuses to match new queue IDs
-      const queueIdMapping: Record<string, string> = {};
-      remainingQueueIds.forEach((oldId, index) => {
-        queueIdMapping[oldId] = `queue-${index}`;
-      });
-
-      const playersWithUpdatedQueueIds = updatedPlayers.map(
-        (player: Player) => {
-          // Skip transferred players - they're already updated
-          if (transferredPlayerIds.has(player.id)) {
-            return player;
-          }
-
-          const newStatus = player.status.map((s) => {
-            if (s.startsWith("queue-") && queueIdMapping[s]) {
-              console.log(
-                `🔄 Updating ${player.name}: ${s} → ${queueIdMapping[s]}`
-              );
-              return queueIdMapping[s] as PlayerStatus;
-            }
-            return s;
-          });
-
-          return {
-            ...player,
-            status: newStatus,
-          };
-        }
+      // Step 2: Check if any player is already on a court
+      const hasPlayerOnCourt = playersInQueue.some((player: Player) =>
+        player.status.some((s: PlayerStatus) => s.startsWith("court-"))
       );
 
-      // ✨ Rebuild zone mappings using updated order fields
-      const finalQueueIds = remainingQueueIds.map(
-        (_, index) => `queue-${index}`
-      );
-      const { playersByCourt, playersByQueue } = rebuildZoneMappings(
-        playersWithUpdatedQueueIds,
-        state.courts.count,
-        finalQueueIds
-      );
+      if (hasPlayerOnCourt) {
+        console.log("❌ Some players already on court, aborting transfer");
+        return state;
+      }
 
-      console.log("✅ Transfer completed successfully");
+      // Step 3: Validate target court can accommodate all players
+      const currentCourtPlayers =
+        state.courts.playersByCourt[targetCourtId] || [];
+      if (currentCourtPlayers.length + playersInQueue.length > 4) {
+        console.log(
+          `❌ Target court ${targetCourtId} cannot fit ${playersInQueue.length} players`
+        );
+        return state;
+      }
 
-      return {
-        ...state,
-        players: playersWithUpdatedQueueIds,
-        courts: {
-          ...state.courts,
-          playersByCourt,
-        },
-        queue: {
-          count: Object.keys(playersByQueue).length,
-          playersByQueue,
-        },
-      };
+      // Use the common transfer logic
+      return transferQueueToCourtHelper(
+        state,
+        queueId,
+        targetCourtId,
+        playersInQueue
+      );
     }
 
     case ActionType.END_GAME: {
