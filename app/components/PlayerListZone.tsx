@@ -6,6 +6,7 @@ import GroupIcon from '@mui/icons-material/Group';
 import HourglassEmptyIcon from '@mui/icons-material/HourglassEmpty';
 import QueueIcon from '@mui/icons-material/Queue';
 import SportsIcon from '@mui/icons-material/Sports';
+import PaidIcon from '@mui/icons-material/Paid'; 
 import { Player } from './types/Player';
 import PlayerCard from './PlayerCard';
 import DroppableZone from './DroppableZone';
@@ -67,6 +68,13 @@ const tabs: TabConfig[] = [
       color: '#B5CDA3',
       description: 'Players currently playing'
     },
+    { 
+      value: 'paid', 
+      label: 'Paid', 
+      icon: <PaidIcon />,
+      color: '#22C55E', // 🆕 Green color for paid players
+      description: 'Players who have paid'
+    },
   ];
 
 // 🔢 Visual priority for card colors - moved outside component to avoid recreation
@@ -92,24 +100,30 @@ const determineVisualZone = (player: Player): 'rest' | 'queue' | 'court' | 'cour
 const filterPlayersByTab = (players: Player[], tab: string): Player[] => {
   switch (tab) {
     case 'all':
-      return players;
+      return players.filter(player => !player.paymentInfo?.hasPaid);
     
     case 'waiting':
-      return players.filter(player => player.status.length === 0);
+      return players.filter(player => 
+        player.status.length === 0 && !player.paymentInfo?.hasPaid
+      );
     
     case 'queued':
       return players.filter(player => {
         const hasQueue = player.status.some(s => s.startsWith('queue-'));
-        const hasCourt = player.status.some(s => s.startsWith('court-'));
-        // Include players who are only in queue OR players who are in both (teal)
-        return hasQueue;
+        const isPaid = player.paymentInfo?.hasPaid;
+        return hasQueue && !isPaid;
       });
     
     case 'on-court':
       return players.filter(player => {
         const hasCourt = player.status.some(s => s.startsWith('court-'));
-        // Include all players on court (including teal ones)
-        return hasCourt;
+        const isPaid = player.paymentInfo?.hasPaid;
+        return hasCourt && !isPaid;
+      });
+
+    case 'paid':
+      return players.filter(player => {
+        return player.paymentInfo?.hasPaid === true;
       });
     
     default:
@@ -192,6 +206,14 @@ const PlayerListZone: React.FC<PlayerListZoneProps> = ({ state }) => {
 
     // Then sort the filtered results
     return searchFiltered.sort((a, b) => {
+
+      if (activeTab === 'paid') {
+        const aPaidAt = a.paymentInfo?.paidAt || 0;
+        const bPaidAt = b.paymentInfo?.paidAt || 0;
+        if (aPaidAt !== bPaidAt) {
+          return bPaidAt - aPaidAt; // Most recent payments first
+        }
+      }
       // 1st level: Always sort by visual zone status (Court → Queue → Waiting)
       const zoneA = determineVisualZone(a);
       const zoneB = determineVisualZone(b);
@@ -241,6 +263,8 @@ const PlayerListZone: React.FC<PlayerListZoneProps> = ({ state }) => {
         return "No players are currently in queue.";
       case 'on-court':
         return "No players are currently on court.";
+      case 'paid':
+        return "No players have been marked as paid yet.";
       default:
         return "No players found.";
     }
@@ -293,6 +317,13 @@ const PlayerListZone: React.FC<PlayerListZoneProps> = ({ state }) => {
               <Tab
                 key={tab.value}
                 value={tab.value}
+                sx={{
+                  ...(tab.value === 'paid' && {
+                    '&.Mui-selected': {
+                      color: '#22C55E !important',
+                    },
+                  }),
+                }}
                 label={
                   <Badge 
                     badgeContent={mounted ? tabCounts[tab.value] : 0}
@@ -443,7 +474,9 @@ const PlayerListZone: React.FC<PlayerListZoneProps> = ({ state }) => {
           position: 'relative',
           transition: 'all 0.3s ease',
           '&::before': {
-            content: '"Drop players here to return them to the player list"',
+            content: activeTab === 'paid' 
+              ? '"Paid players are shown here. Use \\"Mark Unpaid\\" to move them back to waiting."'
+              : '"Drop players here to return them to the player list"',
             position: 'absolute',
             top: '50%',
             left: '50%',
@@ -461,6 +494,14 @@ const PlayerListZone: React.FC<PlayerListZoneProps> = ({ state }) => {
             borderColor: '#94a3b8',
             backgroundColor: '#f8fafc', // Very light gray on hover
           },
+          ...(activeTab === 'paid' && {
+            backgroundColor: '#f0fdf4', // Light green background
+            borderColor: '#bbf7d0',
+            '&:hover': {
+              borderColor: '#86efac',
+              backgroundColor: '#ecfdf5',
+            },
+          }),
         }}
       >
         <Grid 

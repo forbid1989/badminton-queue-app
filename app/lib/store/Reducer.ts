@@ -76,6 +76,7 @@ type Action =
   | { type: "togglePlayerGuest"; payload: { playerId: string } }
   | { type: "markAllPlayersPaid" }
   | { type: "clearAllPayments" }
+  | { type: "markPlayerUnpaidAndMoveToWaiting"; payload: { playerId: string } }
   | {
       type: "updatePlayerSkillLevel";
       payload: { playerId: string; skillLevel: string };
@@ -2473,6 +2474,55 @@ export default function reducer(state: any, action: Action) {
       }));
 
       // Rebuild zone mappings
+      const { playersByCourt, playersByQueue } = rebuildZoneMappings(
+        updatedPlayers,
+        state.courts.count,
+        Object.keys(state.queue.playersByQueue)
+      );
+
+      return {
+        ...state,
+        players: updatedPlayers,
+        courts: {
+          ...state.courts,
+          playersByCourt,
+        },
+        queue: {
+          ...state.queue,
+          playersByQueue,
+        },
+      };
+    }
+
+    case ActionType.MARK_PLAYER_UNPAID_AND_MOVE_TO_WAITING: {
+      const { playerId } = action.payload;
+
+      const updatedPlayers = state.players.map((player: Player) => {
+        if (player.id === playerId) {
+          const currentPaymentInfo = player.paymentInfo || {
+            hasPaid: false,
+            isGuest: false,
+          };
+
+          return {
+            ...player,
+            // Mark as unpaid
+            paymentInfo: {
+              ...currentPaymentInfo,
+              hasPaid: false,
+              paidAt: undefined,
+            },
+            // Move to waiting status (clear all statuses)
+            status: [],
+            courtOrder: null,
+            queueOrder: null,
+            waitingSince: Date.now(), // Set waiting time
+          };
+        }
+        return player;
+      });
+
+      // Rebuild zone mappings to reflect the player's removal from courts/queues
       const { playersByCourt, playersByQueue } = rebuildZoneMappings(
         updatedPlayers,
         state.courts.count,

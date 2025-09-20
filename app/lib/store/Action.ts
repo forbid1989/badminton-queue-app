@@ -32,6 +32,7 @@ const ActionType = {
   TOGGLE_PLAYER_GUEST: "togglePlayerGuest",
   MARK_ALL_PLAYERS_PAID: "markAllPlayersPaid",
   CLEAR_ALL_PAYMENTS: "clearAllPayments",
+  MARK_PLAYER_UNPAID_AND_MOVE_TO_WAITING: "markPlayerUnpaidAndMoveToWaiting",
   UPDATE_PLAYER_SKILL_LEVEL: "updatePlayerSkillLevel",
   VALIDATE_COURT_PARTNERSHIPS: "validateCourtPartnerships",
   SHOW_PARTNERSHIP_WARNING: "showPartnershipWarning",
@@ -256,6 +257,13 @@ const Action = {
   clearAllPayments() {
     return {
       type: ActionType.CLEAR_ALL_PAYMENTS,
+    };
+  },
+
+  markPlayerUnpaidAndMoveToWaiting(playerId: string) {
+    return {
+      type: ActionType.MARK_PLAYER_UNPAID_AND_MOVE_TO_WAITING,
+      payload: { playerId },
     };
   },
 
