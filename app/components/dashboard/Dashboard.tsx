@@ -20,7 +20,9 @@ import PaymentModal from '../input/PaymentModal';
 const Dashboard: React.FC = React.memo(() => {
   const { state } = useContext(AppContext);
   const theme = useTheme();
-  const isMobile = useMediaQuery('(max-width: 768px)');
+  const isPortraitMobile = useMediaQuery('(max-width: 768px) and (orientation: portrait) and (max-height: 900px)');
+  const isVerySmallScreen = useMediaQuery('(max-width: 480px)');
+  const isMobile = isPortraitMobile || isVerySmallScreen;
 
   // State management
   const [openParser, setOpenParser] = useState(false);
