@@ -30,6 +30,7 @@ import BarChartIcon from '@mui/icons-material/BarChart';
 import SportsIcon from '@mui/icons-material/Sports';
 import QueueIcon from '@mui/icons-material/Queue';
 import AddIcon from '@mui/icons-material/Add';
+import UndoIcon from '@mui/icons-material/Undo';
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
 import { Badge, Chip, Tooltip } from '@mui/material';
 import { Player, getSkillLevelColor, SkillLevel, skillLevelOrder, getSkillLevelDescription, getMatchDescription, MatchHistoryEntry } from './types/Player';
@@ -562,7 +563,8 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
     if (!element) return;
 
     // Prevent dragging if on cooldown from player list
-    const canDrag = !(isOnCooldown && zone === "all");
+    const isPaid = player.paymentInfo?.hasPaid || false;
+    const canDrag = !isPaid && !(isOnCooldown && zone === "all");
 
     if (!canDrag) {
       return;
@@ -622,6 +624,21 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
           type: 'player-card-target'
         }),
         canDrop: ({ source }) => {
+
+          const sourcePlayer = source.data.player as Player;
+          const isPaidSource = sourcePlayer?.paymentInfo?.hasPaid || false;
+          const isPaidTarget = player.paymentInfo?.hasPaid || false;
+
+          if (isPaidSource) {
+            console.log('❌ Blocking drop: source player is paid');
+            return false;
+          }
+          
+          if (isPaidTarget) {
+            console.log('❌ Blocking drop: target player is paid');
+            return false;
+          }
+
           // Only allow drops from other player cards
           if (source.data.type !== 'player-card') return false;
           
@@ -1094,7 +1111,15 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
       >
         <Card
             ref={cardRef}
-            sx={enhancedCardStyles}
+            sx={{
+              ...enhancedCardStyles,
+              ...(player.paymentInfo?.hasPaid && {
+                opacity: 0.8,
+                border: '2px solid #22C55E',
+                backgroundColor: '#f0fdf4',
+              }),
+              cursor: player.paymentInfo?.hasPaid ? 'not-allowed' : (isDragging ? 'grabbing' : 'grab'),
+            }}
             className={getCardClassName()}
             data-player-id={player.id}
             data-zone={zone}
@@ -1857,12 +1882,13 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
                 
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
                   {/* Court Selection */}
-                  <FormControl fullWidth size="medium">
+                  <FormControl fullWidth size="medium" disabled={player.paymentInfo?.hasPaid || false}>
                     <InputLabel sx={{ 
                       fontSize: '0.85rem',
                       display: 'flex',
                       alignItems: 'center',
-                      gap: 0.5
+                      gap: 0.5,
+                      opacity: player.paymentInfo?.hasPaid ? 0.5 : 1
                     }}>
                       <SportsIcon sx={{ fontSize: '1rem' }} />
                       Court
@@ -1886,7 +1912,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
                         closePopover();
                       }}
                       size="medium"
-                      sx={{ fontSize: '0.85rem', borderRadius: 2 }}
+                      sx={{ fontSize: '0.85rem', borderRadius: 2, opacity: player.paymentInfo?.hasPaid ? 0.5 : 1 }}
                     >
                       {Array.from({ length: courtCount }, (_, i) => {
                         const courtKey = `court-${i + 1}`;
@@ -1924,12 +1950,13 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
                   </FormControl>
 
                   {/* Queue Selection */}
-                  <FormControl fullWidth size="medium">
+                  <FormControl fullWidth size="medium" disabled={player.paymentInfo?.hasPaid || false}>
                     <InputLabel sx={{ 
                       fontSize: '0.85rem',
                       display: 'flex',
                       alignItems: 'center',
-                      gap: 0.5
+                      gap: 0.5,
+                      opacity: player.paymentInfo?.hasPaid ? 0.5 : 1
                     }}>
                       <QueueIcon sx={{ fontSize: '1rem' }} />
                       Queue
@@ -1953,7 +1980,8 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
                         closePopover();
                       }}
                       size="medium"
-                      sx={{ fontSize: '0.85rem', borderRadius: 2 }}
+                      sx={{ fontSize: '0.85rem', borderRadius: 2, opacity: player.paymentInfo?.hasPaid ? 0.5 : 1  }}
+                      
                     >
                       {Array.from({ length: queueCount }, (_, i) => {
                         const queueKey = `queue-${i + 1}`;
@@ -1991,6 +2019,35 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
                   </FormControl>
                 </Box>
               </Box>
+
+              {player.paymentInfo?.hasPaid && (
+                <Button
+                  fullWidth
+                  variant="outlined"
+                  color="warning"
+                  size="medium"
+                  startIcon={<UndoIcon />}
+                  onClick={() => {
+                    dispatch(Action.markPlayerUnpaidAndMoveToWaiting(player.id));
+                    closePopover();
+                  }}
+                  sx={{
+                    mb: 1, // Margin bottom to separate from Delete button
+                    fontSize: '0.85rem',
+                    textTransform: 'none',
+                    borderRadius: 2,
+                    backgroundColor: '#fff3cd',
+                    borderColor: '#ffc107',
+                    color: '#856404',
+                    '&:hover': {
+                      backgroundColor: '#fff3cd',
+                      borderColor: '#ffca2c',
+                    },
+                  }}
+                >
+                  Mark Unpaid
+                </Button>
+              )}
 
               {/* Delete Player Button */}
               <Button
@@ -2104,8 +2161,6 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
                 Save
               </Button>
             </Box>
-
-            {/* ... rest of existing popover content */}
           </Box>
         </Popover>
       )}
@@ -2596,12 +2651,13 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
               </Typography>
 
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, mb: 2 }}>
-                <FormControl size="small" fullWidth>
+                <FormControl size="small" fullWidth disabled={player.paymentInfo?.hasPaid || false}>
                   <InputLabel sx={{ 
                     fontSize: isMobile ? '0.7rem' : '0.65rem',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: 0.5
+                    gap: 0.5,
+                    opacity: player.paymentInfo?.hasPaid ? 0.5 : 1 
                   }}>
                     <SportsIcon sx={{ fontSize: '0.9rem' }} />
                     Court
@@ -2630,6 +2686,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
                     sx={{ 
                       fontSize: isMobile ? '0.7rem' : '0.65rem',
                       minHeight: isMobile ? '36px' : 'auto',
+                      opacity: player.paymentInfo?.hasPaid ? 0.5 : 1
                     }}
                   >
                     {Array.from({ length: courtCount }, (_, i) => {
@@ -2673,12 +2730,13 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
                   </Select>
                 </FormControl>
 
-                <FormControl size="small" fullWidth>
+                <FormControl size="small" fullWidth disabled={player.paymentInfo?.hasPaid || false}>
                   <InputLabel sx={{ 
                     fontSize: isMobile ? '0.7rem' : '0.65rem',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: 0.5
+                    gap: 0.5,
+                    opacity: player.paymentInfo?.hasPaid ? 0.5 : 1
                   }}>
                     <QueueIcon sx={{ fontSize: '0.9rem' }} />
                     Queue
@@ -2709,6 +2767,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
                     sx={{ 
                       fontSize: isMobile ? '0.7rem' : '0.65rem',
                       minHeight: isMobile ? '36px' : 'auto',
+                      opacity: player.paymentInfo?.hasPaid ? 0.5 : 1
                     }}
                   >
                     {Object.keys(state.queue.playersByQueue).map((queueId, index) => {
@@ -2754,6 +2813,35 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
                 </FormControl>
               </Box>
             </>
+          )}
+
+          {player.paymentInfo?.hasPaid && (
+            <Button
+              fullWidth
+              variant="outlined"
+              color="warning"
+              size="medium"
+              startIcon={<UndoIcon />}
+              onClick={() => {
+                dispatch(Action.markPlayerUnpaidAndMoveToWaiting(player.id));
+                closePopover();
+              }}
+              sx={{
+                mb: 1, // Margin bottom to separate from Delete button
+                fontSize: '0.85rem',
+                textTransform: 'none',
+                borderRadius: 2,
+                backgroundColor: '#fff3cd',
+                borderColor: '#ffc107',
+                color: '#856404',
+                '&:hover': {
+                  backgroundColor: '#fff3cd',
+                  borderColor: '#ffca2c',
+                },
+              }}
+            >
+              Mark Unpaid
+            </Button>
           )}
 
           {/* Danger Zone */}
