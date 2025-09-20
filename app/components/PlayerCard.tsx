@@ -390,7 +390,8 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
     return null;
   }, [courtCount, queueCount, state.courts.playersByCourt, state.queue.playersByQueue]);
 
-  const isQuickAddDisabled = !availableZone || (isOnCooldown && zone === "all");
+  const isPaid = player.paymentInfo?.hasPaid || false;
+  const isQuickAddDisabled = isPaid || (!availableZone || (isOnCooldown && zone === "all"));
   const showQuickAddIcon = useMemo(() => {
     const { isUnassigned, isOnCourt, isInQueue } = playerStatus;
     return (isUnassigned && !isOnCourt) || (zone === "all" && isOnCourt && !isInQueue);
