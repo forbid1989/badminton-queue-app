@@ -16,8 +16,6 @@ type QueueZoneProps = {
   courtCount: number;
 };
 
-const MAX_PLAYERS_PER_COURT = 4;
-
 // Helper function to determine queue format and organize players
 const getQueueFormat = (players: Player[]) => {
   const playerCount = players.length;
@@ -527,7 +525,8 @@ const QueueItem = React.memo<{
   onTransferToSpecificCourt: (queueId: string, courtId: string) => void; // 🆕 New prop
   onRemoveQueue: (queueId: string) => void;
   mounted: boolean;
-}>(({ queueId, index, players, courtCount, courtOccupancy, canRemove, onTransferToCourt, onTransferToSpecificCourt, onRemoveQueue, mounted }) => {
+  isUltraWide: boolean;
+}>(({ queueId, index, players, courtCount, courtOccupancy, canRemove, onTransferToCourt, onTransferToSpecificCourt, onRemoveQueue, mounted, isUltraWide,  }) => {
   
   // Memoized queue format calculation
   const queueFormat = useMemo(() => getQueueFormat(players), [players]);
@@ -545,7 +544,7 @@ const QueueItem = React.memo<{
         gridTemplateColumns: '1fr 1fr',
         gridTemplateRows: '1fr 1fr',
         gap: 0.5,
-        height: '60px',
+        height: '70px',
         width: '100%',
       }}
     >
@@ -587,7 +586,7 @@ const QueueItem = React.memo<{
 
   return (
     <Grid 
-      size={{ xs: 12, sm: 12, md: 6, lg: 6, xl: 4 }}
+      size={{ xs: 12, sm: 12, md: 6, lg: 6, xl: isUltraWide ? 4 : 6 }}
       sx={{
         '@media (min-width: 600px) and (max-width: 1024px) and (orientation: portrait)': {
           width: '100% !important',
@@ -698,9 +697,9 @@ const QueueItem = React.memo<{
 QueueItem.displayName = 'QueueItem';
 
 // Add Queue Button Component
-const AddQueueButton = React.memo<{ onAddQueue: () => void }>(({ onAddQueue }) => (
+const AddQueueButton = React.memo<{ onAddQueue: () => void; isUltraWide: boolean; }>(({ onAddQueue, isUltraWide  }) => (
   <Grid 
-    size={{ xs: 12, sm: 12, md: 6, lg: 6, xl: 4 }}
+    size={{ xs: 12, sm: 12, md: 6, lg: 6, xl: isUltraWide ? 4 : 6  }}
     sx={{
       '@media (min-width: 600px) and (max-width: 1024px) and (orientation: portrait)': {
         width: '100% !important',
@@ -758,6 +757,8 @@ const QueueZone: React.FC<QueueZoneProps> = ({ courtCount }) => {
 
   const [mounted, setMounted] = useState(false);
   const { state, dispatch } = useContext(AppContext);
+
+  const isUltraWide = useMediaQuery('(min-width: 1830px)');
 
   useEffect(() => {
     setMounted(true);
@@ -838,16 +839,17 @@ const QueueZone: React.FC<QueueZoneProps> = ({ courtCount }) => {
         onTransferToSpecificCourt={handleTransferToSpecificCourt}
         onRemoveQueue={handleRemoveQueue}
         mounted={mounted}
+        isUltraWide={isUltraWide}
       />
     )), 
-    [queueData, courtCount, courtOccupancy, canRemoveQueues, handleTransferToCourt, handleTransferToSpecificCourt, handleRemoveQueue, mounted]
+    [queueData, courtCount, courtOccupancy, canRemoveQueues, handleTransferToCourt, handleTransferToSpecificCourt, handleRemoveQueue, mounted, isUltraWide]
   );
 
   return (
     <Grid container spacing={{ xs: 1, sm: 1.5, md: 2 }} className="court-queue-medium-screen">
       {queueItems}
       {/* Add Queue Button */}
-      <AddQueueButton onAddQueue={handleAddQueue} />
+      <AddQueueButton onAddQueue={handleAddQueue} isUltraWide={isUltraWide} />
     </Grid>
   );
 };

@@ -1,6 +1,6 @@
 import React, { useContext, useState, useEffect, useMemo, useCallback } from 'react';
 import Grid from '@mui/material/Grid';
-import { Card, Button , Typography, Box, TextField, IconButton, Chip } from '@mui/material';
+import { Card, Button , Typography, Box, TextField, IconButton, Chip, useMediaQuery } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import { Player } from './types/Player';
 import DroppableZone from './DroppableZone';
@@ -169,6 +169,7 @@ const CourtItem = React.memo<{
   onUndoGame: (courtId: string) => void;
   mounted: boolean;
   undoData?: UndoGameData;
+  isUltraWide: boolean;
 }>(({ 
   courtId, 
   index, 
@@ -182,7 +183,8 @@ const CourtItem = React.memo<{
   onEndGame,
   onUndoGame,
   mounted,
-  undoData
+  undoData,
+  isUltraWide,
 }) => {
   
   const { state, dispatch } = useContext(AppContext);
@@ -305,7 +307,7 @@ const CourtItem = React.memo<{
 
   return (
     <Grid 
-      size={{ xs: 12, sm: 12, md: 6, lg: 6, xl: 4 }}
+      size={{ xs: 12, sm: 12, md: 6, lg: 6, xl: isUltraWide ? 4 : 6 }}
       sx={{
         '@media (min-width: 600px) and (max-width: 1024px) and (orientation: portrait)': {
           width: '100% !important',
@@ -484,6 +486,7 @@ const CourtZone: React.FC<CourtZoneProps> = ({ courtCount }) => {
   const { state, dispatch } = useContext(AppContext);
   
   const [mounted, setMounted] = useState(false);
+  const isUltraWide = useMediaQuery('(min-width: 1830px)');
   // State for court name editing
   const [editingCourt, setEditingCourt] = useState<string | null>(null);
   const [courtNames, setCourtNames] = useState<Record<string, string>>(() => {
@@ -578,9 +581,10 @@ const CourtZone: React.FC<CourtZoneProps> = ({ courtCount }) => {
         onUndoGame={handleUndoGame}
         mounted={mounted}
         undoData={undoData}
+        isUltraWide={isUltraWide}
       />
     )), 
-    [courtData, courtNames, editingCourt, handleStartEdit, handleCourtNameChange, handleSubmitEdit, handleCancelEdit, handleEndGame, mounted, handleUndoGame]
+    [courtData, courtNames, editingCourt, handleStartEdit, handleCourtNameChange, handleSubmitEdit, handleCancelEdit, handleEndGame, mounted, handleUndoGame, isUltraWide]
   );
 
   return (

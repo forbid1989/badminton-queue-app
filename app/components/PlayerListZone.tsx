@@ -1,8 +1,7 @@
 import React, { useMemo, useState, JSX, useEffect } from 'react';
-import { Typography, Grid, TextField, Box, InputAdornment, Tabs, Tab, Badge } from '@mui/material';
+import { Typography, Grid, TextField, Box, InputAdornment, Tabs, Tab, Badge, useMediaQuery, useTheme } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import ClearIcon from '@mui/icons-material/Clear';
-import { useMediaQuery, useTheme } from '@mui/material';
 import GroupIcon from '@mui/icons-material/Group';
 import HourglassEmptyIcon from '@mui/icons-material/HourglassEmpty';
 import QueueIcon from '@mui/icons-material/Queue';
@@ -155,6 +154,7 @@ const PlayerListZone: React.FC<PlayerListZoneProps> = ({ state }) => {
 
   const theme = useTheme();
 
+  const isUltraWide = useMediaQuery('(min-width: 1830px)');
   const shouldUseIcons = useMediaQuery(theme.breakpoints.between('sm', 'lg'));
 
   useEffect(() => {
@@ -484,7 +484,7 @@ const PlayerListZone: React.FC<PlayerListZoneProps> = ({ state }) => {
             filteredAndSortedPlayers.map((player) => (
               <Grid 
                 key={player.id} 
-                size={{ xs: 6, sm: 12, md: 12, lg: 6, xl: 4 }}
+                size={{ xs: 6, sm: 12, md: 12, lg: 6, xl: isUltraWide ? 4 : 6 }}
               >
                 <PlayerCard player={player} zone="all" />
               </Grid>
