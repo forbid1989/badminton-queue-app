@@ -463,7 +463,11 @@ const PlayerListZone: React.FC<PlayerListZoneProps> = ({ state }) => {
           },
         }}
       >
-        <Grid container spacing={{ xs: 0.5, sm: 1 }}>
+        <Grid 
+          container 
+          spacing={{ xs: 0.5, sm: 1 }} 
+          justifyContent="center"
+        >
           {mounted && filteredAndSortedPlayers.length === 0 ? (
             // Show empty message in a Grid item to maintain structure
             <Grid size={12}>

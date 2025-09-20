@@ -940,7 +940,8 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
   const enhancedCardStyles = useMemo(() => {
     const getCardDimensions = () => {
       return {
-        width: isMobile ? '140px': '100%',
+        width: '100%',
+        maxWidth: '160px',
         height: isMobile ? '32px' : '30px',
         fontSize: isMobile ? '0.72rem' : '0.68rem',
         nameMaxWidth: isMobile ? '130px' : '120px',
@@ -1077,15 +1078,12 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
       transform: `translate(-50%, 0%)`,
     }}
     
-    return isMobile ? {
-      ...muiBadge,
-      width: '100%',
-    } : muiBadge
+    return muiBadge
           
-  }, [isInTeamZone, isMobile, player.skillLevel])
+  }, [isInTeamZone, player.skillLevel])
 
   return (
-    <>
+    <Box sx={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
       <Badge
         badgeContent={player.skillLevel}
         anchorOrigin={{
@@ -2951,7 +2949,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
           </Button>
         </DialogActions>
       </Dialog>
-    </>
+    </Box>
   );
 });
 
