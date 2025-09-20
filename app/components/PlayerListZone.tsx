@@ -1,5 +1,5 @@
 import React, { useMemo, useState, JSX, useEffect } from 'react';
-import { Typography, Grid, TextField, Box, InputAdornment, Tabs, Tab, Badge, useMediaQuery, useTheme } from '@mui/material';
+import { Typography, Grid, TextField, Box, InputAdornment, Tabs, Tab, Badge, useMediaQuery, useTheme, Button, Stack } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import ClearIcon from '@mui/icons-material/Clear';
 import GroupIcon from '@mui/icons-material/Group';
@@ -7,10 +7,12 @@ import HourglassEmptyIcon from '@mui/icons-material/HourglassEmpty';
 import QueueIcon from '@mui/icons-material/Queue';
 import SportsIcon from '@mui/icons-material/Sports';
 import PaidIcon from '@mui/icons-material/Paid'; 
+import GroupAddIcon from '@mui/icons-material/GroupAdd';
 import { Player } from './types/Player';
 import PlayerCard from './PlayerCard';
 import DroppableZone from './DroppableZone';
 import { SortableField } from './types/Settings';
+import PlayerParserForm from './input/PlayerParserForm'; // Adjust path if needed
 
 type PlayerListZoneProps = {
   state: {
@@ -165,6 +167,7 @@ const PlayerListZone: React.FC<PlayerListZoneProps> = ({ state }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('all');
   const [mounted, setMounted] = useState(false);
+  const [openAddPlayers, setOpenAddPlayers] = useState(false);
 
   const theme = useTheme();
 
@@ -512,17 +515,118 @@ const PlayerListZone: React.FC<PlayerListZoneProps> = ({ state }) => {
           {mounted && filteredAndSortedPlayers.length === 0 ? (
             // Show empty message in a Grid item to maintain structure
             <Grid size={12}>
-              <Typography 
-                variant="body2" 
-                sx={{ 
-                  color: '#555555', 
-                  textAlign: 'center', 
-                  py: 2 
-                }}
-                suppressHydrationWarning
-              >
-                {emptyMessage}
-              </Typography>
+              {/* Enhanced empty state for "All" tab when no search query */}
+              {activeTab === 'all' && !searchQuery.trim() ? (
+                <Stack 
+                  spacing={2} 
+                  alignItems="center" 
+                  sx={{ 
+                    py: 4, 
+                    px: 2, 
+                    textAlign: 'center',
+                  }}
+                >
+                  {/* Friendly icon */}
+                  <Box
+                    sx={{
+                      width: 48,
+                      height: 48,
+                      borderRadius: '50%',
+                      backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      mb: 1,
+                    }}
+                  >
+                    <GroupAddIcon 
+                      sx={{ 
+                        fontSize: '1.5rem', 
+                        color: 'primary.main'
+                      }} 
+                    />
+                  </Box>
+
+                  {/* Main message */}
+                  <Typography 
+                    variant="h6"
+                    sx={{ 
+                      fontSize: '1rem',
+                      fontWeight: 600,
+                      color: '#374151',
+                      mb: 0.5,
+                    }}
+                  >
+                    No Players Yet
+                  </Typography>
+
+                  {/* Helpful description */}
+                  <Typography 
+                    variant="body2" 
+                    sx={{ 
+                      color: '#6B7280',
+                      fontSize: '0.85rem',
+                      maxWidth: 280,
+                      lineHeight: 1.4,
+                      mb: 1,
+                    }}
+                  >
+                    Get started by adding players to your queue. You can add them individually or paste a list of names.
+                  </Typography>
+
+                  {/* Call to action button */}
+                  <Button
+                    variant="contained"
+                    color="primary"
+                    size="medium"
+                    startIcon={<GroupAddIcon />}
+                    onClick={() => setOpenAddPlayers(true)}
+                    sx={{
+                      fontSize: '0.85rem',
+                      fontWeight: 600,
+                      textTransform: 'none',
+                      borderRadius: 2,
+                      px: 2.5,
+                      py: 1,
+                      boxShadow: '0 3px 10px rgba(59, 130, 246, 0.3)',
+                      '&:hover': {
+                        boxShadow: '0 4px 14px rgba(59, 130, 246, 0.4)',
+                        transform: 'translateY(-1px)',
+                      },
+                      transition: 'all 0.2s ease-in-out',
+                    }}
+                  >
+                    Add Players
+                  </Button>
+
+                  {/* Helper text */}
+                  <Typography 
+                    variant="caption" 
+                    sx={{ 
+                      color: '#9CA3AF',
+                      fontSize: '0.75rem',
+                      mt: 0.5,
+                    }}
+                  >
+                    You can also use the{' '}
+                    <GroupAddIcon sx={{ fontSize: '0.9rem', verticalAlign: 'middle', mx: 0.3 }} />
+                    {' '}icon in the toolbar
+                  </Typography>
+                </Stack>
+              ) : (
+                // Simple message for other tabs or when searching
+                <Typography 
+                  variant="body2" 
+                  sx={{ 
+                    color: '#555555', 
+                    textAlign: 'center', 
+                    py: 2 
+                  }}
+                  suppressHydrationWarning
+                >
+                  {emptyMessage}
+                </Typography>
+              )}
             </Grid>
           ) : mounted ? (
             // Show player cards when mounted and has players
@@ -540,6 +644,10 @@ const PlayerListZone: React.FC<PlayerListZoneProps> = ({ state }) => {
           )}
         </Grid>
       </DroppableZone>
+      <PlayerParserForm 
+        open={openAddPlayers} 
+        onClose={() => setOpenAddPlayers(false)} 
+      />
     </Box>
   );
 };
