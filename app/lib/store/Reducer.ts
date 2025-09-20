@@ -399,7 +399,7 @@ function transferQueueToCourtHelper(
     (p: Player) => !transferredPlayerIds.has(p.id)
   );
 
-  // Find which positions are actually occupied
+  // Find occupied positions
   const occupiedPositions = new Set(
     nonTransferredPlayers
       .map((p: Player) => p.courtOrder)
@@ -411,24 +411,41 @@ function transferQueueToCourtHelper(
     Array.from(occupiedPositions)
   );
 
-  // Function to find next available position
+  // 🔧 FIX: Sort playersInQueue by their queue order to preserve order
+  const sortedPlayersInQueue = [...playersInQueue].sort(
+    (a, b) => (a.queueOrder || 0) - (b.queueOrder || 0)
+  );
+
+  // 🔧 FIX: Create position mapping for transferred players in correct order
+  const playerPositionMap = new Map<string, number>();
   let nextPositionIndex = 0;
+
   const getNextAvailablePosition = (): number => {
     while (occupiedPositions.has(nextPositionIndex) && nextPositionIndex < 4) {
       nextPositionIndex++;
     }
     const position = nextPositionIndex;
-    occupiedPositions.add(position); // Mark as taken
+    occupiedPositions.add(position);
     nextPositionIndex++;
     return position;
   };
 
+  // 🔧 FIX: Assign positions to players in queue order
+  sortedPlayersInQueue.forEach((player) => {
+    const safePosition = getNextAvailablePosition();
+    playerPositionMap.set(player.id, safePosition);
+    console.log(
+      `Queue order preserved: ${player.name} (queue pos ${player.queueOrder}) → court pos ${safePosition}`
+    );
+  });
+
+  // Update players using the position mapping
   const updatedPlayers = state.players.map((player: Player) => {
     if (transferredPlayerIds.has(player.id)) {
-      const safePosition = getNextAvailablePosition();
+      const assignedPosition = playerPositionMap.get(player.id)!;
 
       console.log(
-        `Transferring ${player.name} to ${targetCourtId} position ${safePosition}`
+        `Transferring ${player.name} to ${targetCourtId} position ${assignedPosition}`
       );
 
       return {
@@ -436,7 +453,7 @@ function transferQueueToCourtHelper(
         status: [targetCourtId as PlayerStatus],
         timeEntered: timestamp,
         queueOrder: null,
-        courtOrder: safePosition, // Safe position
+        courtOrder: assignedPosition,
         courtEnteredTime: timestamp,
       };
     }
