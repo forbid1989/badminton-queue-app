@@ -388,36 +388,62 @@ function transferQueueToCourtHelper(
   targetCourtId: string,
   playersInQueue: Player[]
 ) {
-  console.log(`✅ Transferring queue ${queueId} to court ${targetCourtId}`);
+  console.log(`Transferring queue ${queueId} to court ${targetCourtId}`);
 
   const timestamp = Date.now();
   const transferredPlayerIds = new Set(playersInQueue.map((p: Player) => p.id));
 
-  // Calculate positions for transferred players in the target court
+  // Get existing court players (excluding ones being transferred)
   const existingCourtPlayers = state.courts.playersByCourt[targetCourtId] || [];
+  const nonTransferredPlayers = existingCourtPlayers.filter(
+    (p: Player) => !transferredPlayerIds.has(p.id)
+  );
+
+  // Find which positions are actually occupied
+  const occupiedPositions = new Set(
+    nonTransferredPlayers
+      .map((p: Player) => p.courtOrder)
+      .filter((pos: Player) => pos !== null && pos !== undefined)
+  );
+
+  console.log(
+    `Court ${targetCourtId} occupied positions:`,
+    Array.from(occupiedPositions)
+  );
+
+  // Function to find next available position
+  let nextPositionIndex = 0;
+  const getNextAvailablePosition = (): number => {
+    while (occupiedPositions.has(nextPositionIndex) && nextPositionIndex < 4) {
+      nextPositionIndex++;
+    }
+    const position = nextPositionIndex;
+    occupiedPositions.add(position); // Mark as taken
+    nextPositionIndex++;
+    return position;
+  };
 
   const updatedPlayers = state.players.map((player: Player) => {
     if (transferredPlayerIds.has(player.id)) {
-      console.log(`🔄 Transferring player ${player.name} to ${targetCourtId}`);
+      const safePosition = getNextAvailablePosition();
 
-      // Calculate position based on existing court players and transfer order
-      const transferIndex = playersInQueue.findIndex((p) => p.id === player.id);
-      const newCourtPosition = existingCourtPlayers.length + transferIndex;
+      console.log(
+        `Transferring ${player.name} to ${targetCourtId} position ${safePosition}`
+      );
 
-      // Transfer to court and remove from queue
       return {
         ...player,
         status: [targetCourtId as PlayerStatus],
         timeEntered: timestamp,
-        queueOrder: null, // Clear queue order
-        courtOrder: newCourtPosition, // Assign court order
+        queueOrder: null,
+        courtOrder: safePosition, // Safe position
         courtEnteredTime: timestamp,
       };
     }
     return player;
   });
 
-  // Build new queue mappings - preserve order by removing only the transferred queue
+  // Rest remains the same...
   const remainingQueueIds = Object.keys(state.queue.playersByQueue)
     .filter((id) => id !== queueId)
     .sort((a, b) => {
@@ -426,9 +452,6 @@ function transferQueueToCourtHelper(
       return numA - numB;
     });
 
-  console.log("📋 Remaining queue IDs after transfer:", remainingQueueIds);
-
-  // Update player statuses to match new queue IDs
   const queueIdMapping: Record<string, string> = {};
   remainingQueueIds.forEach((oldId, index) => {
     queueIdMapping[oldId] = `queue-${index}`;
@@ -441,7 +464,6 @@ function transferQueueToCourtHelper(
 
     const newStatus = player.status.map((s) => {
       if (s.startsWith("queue-") && queueIdMapping[s]) {
-        console.log(`🔄 Updating ${player.name}: ${s} → ${queueIdMapping[s]}`);
         return queueIdMapping[s] as PlayerStatus;
       }
       return s;
@@ -453,15 +475,12 @@ function transferQueueToCourtHelper(
     };
   });
 
-  // Rebuild zone mappings using updated order fields
   const finalQueueIds = remainingQueueIds.map((_, index) => `queue-${index}`);
   const { playersByCourt, playersByQueue } = rebuildZoneMappings(
     playersWithUpdatedQueueIds,
     state.courts.count,
     finalQueueIds
   );
-
-  console.log("✅ Transfer completed successfully");
 
   return {
     ...state,
