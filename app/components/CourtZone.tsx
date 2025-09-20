@@ -1,7 +1,8 @@
 import React, { useContext, useState, useEffect, useMemo, useCallback } from 'react';
 import Grid from '@mui/material/Grid';
 import { Card, Button , Typography, Box, TextField, IconButton, Chip, useMediaQuery } from '@mui/material';
-import EditIcon from '@mui/icons-material/Edit';
+import AddIcon from '@mui/icons-material/Add';
+import CloseIcon from '@mui/icons-material/Close';
 import { Player } from './types/Player';
 import DroppableZone from './DroppableZone';
 import PlayerCard from './PlayerCard';
@@ -167,6 +168,8 @@ const CourtItem = React.memo<{
   onCancelEdit: () => void;
   onEndGame: (courtId: string) => void;
   onUndoGame: (courtId: string) => void;
+  onRemoveCourt: (courtId: string) => void; 
+  canRemove: boolean; 
   mounted: boolean;
   undoData?: UndoGameData;
   isUltraWide: boolean;
@@ -182,6 +185,8 @@ const CourtItem = React.memo<{
   onCancelEdit, 
   onEndGame,
   onUndoGame,
+  onRemoveCourt,
+  canRemove,
   mounted,
   undoData,
   isUltraWide,
@@ -226,6 +231,10 @@ const CourtItem = React.memo<{
   const handleUndoGame = useCallback(() => {
     onUndoGame(courtId);
   }, [courtId, onUndoGame]);
+
+  const handleRemoveCourt = useCallback(() => {
+    onRemoveCourt(courtId);
+  }, [courtId, onRemoveCourt]);
 
   // 🆕 Enhanced logic to check if court composition has changed from when game was ended
   const courtHasChanged = useMemo(() => {
@@ -374,8 +383,7 @@ const CourtItem = React.memo<{
                   }}
                 />
               ) : (
-                <>
-                  <Typography
+                <Typography
                     variant="h6"
                     sx={{
                       fontSize: 'clamp(0.65rem, 0.9vw, 0.85rem)',
@@ -399,23 +407,24 @@ const CourtItem = React.memo<{
                       }} 
                     />
                     {courtName}
-                  </Typography>
-                  <IconButton
-                    size="small"
-                    onClick={handleStartEdit}
-                    sx={{
-                      color: 'rgba(255,255,255,0.7)',
-                      padding: '2px',
-                      '&:hover': {
-                        color: 'white',
-                        backgroundColor: 'rgba(255,255,255,0.1)',
-                      },
-                    }}
-                    title="Edit court name"
-                  >
-                    <EditIcon sx={{ fontSize: '0.75rem' }} />
-                  </IconButton>
-                </>
+                </Typography>
+              )}
+              {mounted && canRemove && (
+                <IconButton
+                  size="small"
+                  onClick={handleRemoveCourt}
+                  sx={{
+                    padding: '2px',
+                    backgroundColor: 'rgba(244,67,54,0.8)',
+                    color: 'white',
+                    '&:hover': {
+                      backgroundColor: 'rgba(244,67,54,0.9)',
+                    },
+                  }}
+                  title="Remove this court"
+                >
+                  <CloseIcon sx={{ fontSize: '0.7rem' }} />
+                </IconButton>
               )}
             </Box>
 
@@ -482,11 +491,69 @@ const CourtItem = React.memo<{
 
 CourtItem.displayName = 'CourtItem';
 
+const AddCourtButton = React.memo<{ onAddCourt: () => void; isUltraWide: boolean; }>(({ onAddCourt, isUltraWide }) => (
+  <Grid 
+    size={{ xs: 12, sm: 12, md: 6, lg: 6, xl: isUltraWide ? 4 : 6 }}
+    sx={{
+      '@media (min-width: 600px) and (max-width: 1024px) and (orientation: portrait)': {
+        width: '100% !important',
+        maxWidth: '100% !important', 
+        flexBasis: '100% !important',
+      }
+    }}
+  >
+    <Box
+      onClick={onAddCourt}
+      sx={{
+        minHeight: '80px',
+        backgroundColor: '#f1f5f9',
+        borderRadius: 2,
+        border: '2px dashed #cbd5e1',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        cursor: 'pointer',
+        transition: 'all 0.2s ease',
+        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
+        '&:hover': {
+          backgroundColor: '#e2e8f0',
+          borderColor: '#94a3b8',
+          borderStyle: 'solid',
+          transform: 'translateY(-1px)',
+          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+        },
+      }}
+    >
+      <AddIcon
+        sx={{
+          fontSize: '1.5rem',
+          color: '#64748b',
+          marginBottom: '4px',
+        }}
+      />
+      <Typography
+        variant="body2"
+        sx={{
+          fontSize: '0.75rem',
+          color: '#475569',
+          fontWeight: 600,
+        }}
+      >
+        Add Court
+      </Typography>
+    </Box>
+  </Grid>
+));
+
+AddCourtButton.displayName = 'AddCourtButton';
+
 const CourtZone: React.FC<CourtZoneProps> = ({ courtCount }) => {
   const { state, dispatch } = useContext(AppContext);
   
   const [mounted, setMounted] = useState(false);
   const isUltraWide = useMediaQuery('(min-width: 1830px)');
+
   // State for court name editing
   const [editingCourt, setEditingCourt] = useState<string | null>(null);
   const [courtNames, setCourtNames] = useState<Record<string, string>>(() => {
@@ -563,6 +630,25 @@ const CourtZone: React.FC<CourtZoneProps> = ({ courtCount }) => {
     dispatch(Action.endGame(courtId));
   }, [dispatch]);
 
+  // Add court handler
+  const handleAddCourt = useCallback(() => {
+    dispatch(Action.setCourtCount(courtCount + 1));
+  }, [dispatch, courtCount]);
+
+  // Remove court handler
+  const handleRemoveCourt = useCallback((courtId: string) => {
+    // Only allow removal if we have more than 1 court
+    if (courtCount > 1) {
+      dispatch(Action.setCourtCount(courtCount - 1));
+    }
+  }, [dispatch, courtCount]);
+
+  const canRemoveCourts = useMemo(() => {
+    // On server or before hydration, always return false to prevent showing remove buttons
+    if (!mounted) return false;
+    return courtCount > 1;
+  }, [courtCount, mounted]);
+
   // Memoized court items
   const courtItems = useMemo(() => 
     courtData.map(({ courtId, players, index, undoData }) => (
@@ -579,17 +665,20 @@ const CourtZone: React.FC<CourtZoneProps> = ({ courtCount }) => {
         onCancelEdit={handleCancelEdit}
         onEndGame={handleEndGame}
         onUndoGame={handleUndoGame}
+        onRemoveCourt={handleRemoveCourt}
+        canRemove={canRemoveCourts}
         mounted={mounted}
         undoData={undoData}
         isUltraWide={isUltraWide}
       />
     )), 
-    [courtData, courtNames, editingCourt, handleStartEdit, handleCourtNameChange, handleSubmitEdit, handleCancelEdit, handleEndGame, mounted, handleUndoGame, isUltraWide]
+    [courtData, courtNames, editingCourt, handleStartEdit, handleCourtNameChange, handleSubmitEdit, handleCancelEdit, handleEndGame, mounted, handleUndoGame, isUltraWide,canRemoveCourts, handleRemoveCourt  ]
   );
 
   return (
     <Grid container spacing={{ xs: 1, sm: 1.5, md: 2 }}>
       {courtItems}
+      <AddCourtButton onAddCourt={handleAddCourt} isUltraWide={isUltraWide} />
     </Grid>
   );
 };

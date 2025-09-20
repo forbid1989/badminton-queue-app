@@ -711,36 +711,37 @@ const AddQueueButton = React.memo<{ onAddQueue: () => void; isUltraWide: boolean
     <Box
       onClick={onAddQueue}
       sx={{
-        minHeight: '140px',
+        minHeight: '80px',
         backgroundColor: '#f1f5f9',
         borderRadius: 2,
-        border: '2px solid #cbd5e1',
+        border: '2px dashed #cbd5e1',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
         cursor: 'pointer',
         transition: 'all 0.2s ease',
-        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
+        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
         '&:hover': {
+          borderStyle: 'solid',  
           backgroundColor: '#e2e8f0',
           borderColor: '#94a3b8',
-          transform: 'translateY(-2px)',
-          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+          transform: 'translateY(-1px)',
+          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
         },
       }}
     >
       <AddIcon
         sx={{
-          fontSize: '2rem',
+          fontSize: '1.5rem',
           color: '#64748b',
-          marginBottom: '8px',
+          marginBottom: '4px',
         }}
       />
       <Typography
         variant="body2"
         sx={{
-          fontSize: '0.8rem',
+          fontSize: '0.75rem',
           color: '#475569',
           fontWeight: 600,
         }}
