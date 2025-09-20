@@ -1,5 +1,6 @@
 import React, { useContext, useState, useCallback, useMemo, useEffect } from 'react';
-import { Typography, IconButton, Box, Divider, useTheme, useMediaQuery  } from '@mui/material';
+import { Typography, IconButton, Box, Divider, useTheme, useMediaQuery, Tabs, Tab, Chip  } from '@mui/material';
+import { ViewModule as AllIcon, Queue as QueueIcon, SportsTennis as CourtsIcon } from '@mui/icons-material';
 import AddIcon from '@mui/icons-material/GroupAdd';
 import SettingsIcon from '@mui/icons-material/Settings';
 import AttachMoneyIcon from '@mui/icons-material/Payment';
@@ -28,6 +29,7 @@ const Dashboard: React.FC = React.memo(() => {
   const [openPayment, setOpenPayment] = useState(false);
   const [openPlayerList, setOpenPlayerList] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [mobileActiveTab, setMobileActiveTab] = useState(0);
 
   // Memoized calculations
   const totalPlayers = useMemo(() => state.players.length, [state.players.length]);
@@ -73,6 +75,10 @@ const Dashboard: React.FC = React.memo(() => {
 
   const handleClosePlayerList = useCallback(() => {
     setOpenPlayerList(false);
+  }, []);
+
+  const handleMobileTabChange = useCallback((event: React.SyntheticEvent, newValue: number) => {
+    setMobileActiveTab(newValue);
   }, []);
 
   useEffect(() => {
@@ -205,64 +211,115 @@ const Dashboard: React.FC = React.memo(() => {
   ]);
 
   return (
-    <Box sx={containerSx}>
-      {/* Left Sidebar - Unqueued List */}
-      <Box sx={leftSidebarSx}>
-        {!isMobile ? headerContent : <></>}
-        <UnqueuedZone state={state} />
-        
-        <Box sx={{ 
-          mt: 1, 
-          p: 1, 
-          textAlign: 'center',
-          borderTop: '1px solid',
-          borderColor: 'divider',
-          bgcolor: 'background.paper'
-        }}>
-          <Typography 
-            variant="caption" 
-            sx={{ 
-              fontSize: '0.7rem', 
-              color: 'text.secondary',
-              fontStyle: 'italic',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 0.5
-            }}
-          >
-            Data management & clear options are in <SettingsIcon sx={{ fontSize: '0.8rem' }} /> Settings
-          </Typography>
-        </Box>
-        {popoverContent}
+  <Box sx={containerSx}>
+    {/* Mobile Tabs - Only show on mobile */}
+    {isMobile && (
+      <Box sx={{ 
+        borderBottom: 1, 
+        borderColor: 'divider',
+        backgroundColor: 'background.paper',
+        mb: 2,
+        mx: -1 // Offset container padding
+      }}>
+        <Tabs
+          value={mobileActiveTab}
+          onChange={handleMobileTabChange}
+          variant="fullWidth"
+          sx={{
+            '& .MuiTab-root': {
+              minHeight: 48,
+              fontSize: '0.75rem',
+              textTransform: 'none',
+              fontWeight: 600,
+            },
+            '& .MuiTabs-indicator': {
+              height: 3,
+            },
+          }}
+        >
+          <Tab 
+            icon={<AllIcon sx={{ fontSize: '1.1rem' }} />}
+            label="All"
+            iconPosition="start"
+          />
+          <Tab 
+            icon={<QueueIcon sx={{ fontSize: '1.1rem' }} />}
+            label="Queues"
+            iconPosition="start"
+          />
+          <Tab 
+            icon={<CourtsIcon sx={{ fontSize: '1.1rem' }} />}
+            label="Courts"
+            iconPosition="start"
+          />
+        </Tabs>
       </Box>
+    )}
 
-      {/* Right Main Area */}
-      <Box sx={rightAreaSx}>
-        {/* Courts Section */}
-        <CourtZone courtCount={courtCount} />
-
-        <Divider sx={dividerSx} />
-
-        {/* Queue Section */}
-        <QueueZone courtCount={courtCount} />
-
-        <Divider sx={dividerSx} />
-
-        {/* Player Parser Modal */}
-        <PlayerParserForm open={openParser} onClose={handleCloseParser} />
-
-        {/* Player List Modal */}
-        <PlayerListModal open={openPlayerList} onClose={handleClosePlayerList} />
-        
-        {/* Settings Modal */}
-        <SettingsModal open={openSettings} onClose={handleCloseSettings} />
-
-        {/* Payment Modal */}
-        <PaymentModal open={openPayment} onClose={handleClosePayment} />
+    {/* Left Sidebar - Unqueued List */}
+    <Box sx={leftSidebarSx}>
+      {!isMobile ? headerContent : <></>}
+      <UnqueuedZone state={state} />
+      
+      <Box sx={{ 
+        mt: 1, 
+        p: 1, 
+        textAlign: 'center',
+        borderTop: '1px solid',
+        borderColor: 'divider',
+        bgcolor: 'background.paper'
+      }}>
+        <Typography 
+          variant="caption" 
+          sx={{ 
+            fontSize: '0.7rem', 
+            color: 'text.secondary',
+            fontStyle: 'italic',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 0.5
+          }}
+        >
+          Data management & clear options are in <SettingsIcon sx={{ fontSize: '0.8rem' }} /> Settings
+        </Typography>
       </Box>
+      {popoverContent}
     </Box>
-  );
+
+    {/* Right Main Area */}
+    <Box sx={rightAreaSx}>
+      {/* Show content based on mobile tab selection */}
+      {(!isMobile || mobileActiveTab === 0 || mobileActiveTab === 2) && (
+        <>
+          {/* Courts Section */}
+          <CourtZone courtCount={courtCount} />
+          {(!isMobile || mobileActiveTab === 0) && <Divider sx={dividerSx} />}
+        </>
+      )}
+
+      {(!isMobile || mobileActiveTab === 0 || mobileActiveTab === 1) && (
+        <>
+          {/* Queue Section */}
+          <QueueZone courtCount={courtCount} />
+          <Divider sx={dividerSx} />
+        </>
+      )}
+
+      {/* Player Parser Modal */}
+      <PlayerParserForm open={openParser} onClose={handleCloseParser} />
+
+      {/* Player List Modal */}
+      <PlayerListModal open={openPlayerList} onClose={handleClosePlayerList} />
+      
+      {/* Settings Modal */}
+      <SettingsModal open={openSettings} onClose={handleCloseSettings} />
+
+      {/* Payment Modal */}
+      <PaymentModal open={openPayment} onClose={handleClosePayment} />
+    </Box>
+  </Box>
+);
 });
 
 Dashboard.displayName = 'Dashboard';

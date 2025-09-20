@@ -25,11 +25,11 @@ const getQueueFormat = (players: Player[]) => {
   } else if (playerCount === 1) {
     return { format: 'Solo', teams: [players] };
   } else if (playerCount === 2) {
-    return { format: '1v1 Ready', teams: [players.slice(0, 1), players.slice(1, 2)] };
+    return { format: '1v1', teams: [players.slice(0, 1), players.slice(1, 2)] };
   } else if (playerCount === 3) {
-    return { format: '2v1 Ready', teams: [players.slice(0, 2), players.slice(2, 3)] };
+    return { format: '2v1', teams: [players.slice(0, 2), players.slice(2, 3)] };
   } else if (playerCount === 4) {
-    return { format: '2v2 Ready', teams: [players.slice(0, 2), players.slice(2, 4)] };
+    return { format: '2v2', teams: [players.slice(0, 2), players.slice(2, 4)] };
   } else {
     return { format: 'Overflow', teams: [players] };
   }
@@ -42,9 +42,9 @@ const QueueFormatChip = React.memo<{ format: string; playerCount: number }>(
       switch (format) {
         case 'Empty': return { bg: 'rgba(255,255,255,0.3)', text: 'rgba(0,0,0,0.6)' };
         case 'Solo': return { bg: 'rgba(255,193,7,0.9)', text: '#000' };
-        case '1v1 Ready': return { bg: 'rgba(76,175,80,0.9)', text: 'white' };
-        case '2v1 Ready': return { bg: 'rgba(255,152,0,0.9)', text: 'white' };
-        case '2v2 Ready': return { bg: 'rgba(33,150,243,0.9)', text: 'white' };
+        case '1v1': return { bg: 'rgba(76,175,80,0.9)', text: 'white' };
+        case '2v1': return { bg: 'rgba(255,152,0,0.9)', text: 'white' };
+        case '2v2': return { bg: 'rgba(33,150,243,0.9)', text: 'white' };
         case 'Overflow': return { bg: 'rgba(244,67,54,0.9)', text: 'white' };
         default: return { bg: 'rgba(255,255,255,0.3)', text: 'rgba(0,0,0,0.6)' };
       }
@@ -544,7 +544,7 @@ const QueueItem = React.memo<{
         gridTemplateColumns: '1fr 1fr',
         gridTemplateRows: '1fr 1fr',
         gap: 0.5,
-        height: '70px',
+        height: '80px',
         width: '100%',
       }}
     >
