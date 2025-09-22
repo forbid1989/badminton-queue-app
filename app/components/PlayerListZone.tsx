@@ -299,8 +299,6 @@ const PlayerListZone: React.FC<PlayerListZoneProps> = ({ state }) => {
           scrollButtons="auto"
           allowScrollButtonsMobile
           sx={{
-            paddingLeft: 0,
-            marginLeft: 0,
             '& .MuiTab-root': {
               minHeight: 40,
               fontSize: '0.75rem',
