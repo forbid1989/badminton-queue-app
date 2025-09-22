@@ -41,6 +41,7 @@ const ActionType = {
   SWAP_COURT_PLAYERS: "swapCourtPlayers",
   TRANSFER_QUEUE_TO_SPECIFIC_COURT_FROM_SUBMENU:
     "transferQueueToSpecificCourtFromSubmenu",
+  REMOVE_SPECIFIC_COURT: "removeSpecificCourt",
 } as const;
 
 // 🧠 Action creators
@@ -322,6 +323,13 @@ const Action = {
     return {
       type: ActionType.TRANSFER_QUEUE_TO_SPECIFIC_COURT_FROM_SUBMENU,
       payload: { queueId, targetCourtId },
+    };
+  },
+
+  removeSpecificCourt(courtId: string) {
+    return {
+      type: ActionType.REMOVE_SPECIFIC_COURT,
+      payload: { courtId },
     };
   },
 };

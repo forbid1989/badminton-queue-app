@@ -88,6 +88,10 @@ type Action =
   | {
       type: "transferQueueToSpecificCourtFromSubmenu";
       payload: { queueId: string; targetCourtId: string };
+    }
+  | {
+      type: "removeSpecificCourt";
+      payload: { courtId: string };
     };
 
 function logPartnershipWarnings(zoneId: string, players: Player[]): void {
@@ -3017,6 +3021,156 @@ export default function reducer(state: any, action: Action) {
         },
         queue: {
           count: Object.keys(playersByQueue).length,
+          playersByQueue,
+        },
+        undoableGames: updatedUndoGames,
+      };
+    }
+    case ActionType.REMOVE_SPECIFIC_COURT: {
+      console.log(
+        "🗑️ REDUCER: REMOVE_SPECIFIC_COURT action received:",
+        action.payload
+      );
+
+      const { courtId } = action.payload;
+      const courtIndex = parseInt(courtId.split("-")[1]);
+
+      // ✅ VALIDATION: Prevent removing if only 1 court left
+      if (state.courts.count <= 1) {
+        console.warn(
+          "⚠️ REDUCER: Cannot remove court - at least 1 court must remain"
+        );
+        return state;
+      }
+
+      // ✅ VALIDATION: Check if court exists
+      if (courtIndex >= state.courts.count || courtIndex < 0) {
+        console.warn(`⚠️ REDUCER: Court ${courtId} does not exist`);
+        return state;
+      }
+
+      console.log(`🗑️ Removing ${courtId} (index ${courtIndex})`);
+
+      // Get players currently on the court being deleted
+      const playersOnDeletedCourt = state.courts.playersByCourt[courtId] || [];
+
+      // Move players from deleted court back to player list (unqueued)
+      const updatedPlayers = state.players.map((player: Player) => {
+        const isOnDeletedCourt = player.status.includes(
+          courtId as PlayerStatus
+        );
+
+        if (isOnDeletedCourt) {
+          console.log(
+            `👤 Moving ${player.name} from deleted ${courtId} back to player list`
+          );
+
+          // Remove court status but keep queue status if exists
+          const newStatus = player.status.filter((s) => s !== courtId);
+
+          return {
+            ...player,
+            status: newStatus,
+            courtOrder: null, // Clear court order
+            courtEnteredTime: undefined, // Clear court entry time
+            timeEntered: Date.now(), // Reset time entered for waiting
+          };
+        }
+
+        return player;
+      });
+
+      // Create new court structure with the specific court removed
+      const newCourtCount = state.courts.count - 1;
+      const newPlayersByCourt: Record<string, Player[]> = {};
+
+      // Rebuild court mappings, shifting courts after the deleted one
+      let newCourtIndex = 0;
+      for (let i = 0; i < state.courts.count; i++) {
+        const currentCourtId = `court-${i}`;
+
+        // Skip the deleted court
+        if (i === courtIndex) {
+          continue;
+        }
+
+        // Map to new court ID
+        const newCourtId = `court-${newCourtIndex}`;
+        newPlayersByCourt[newCourtId] =
+          state.courts.playersByCourt[currentCourtId] || [];
+
+        newCourtIndex++;
+      }
+
+      // Update player statuses to reflect new court IDs
+      const playersWithUpdatedCourtIds = updatedPlayers.map(
+        (player: Player) => {
+          const newStatus = player.status.map((status) => {
+            if (status.startsWith("court-")) {
+              const oldCourtIndex = parseInt(status.split("-")[1]);
+
+              // If this court comes after the deleted court, shift it down
+              if (oldCourtIndex > courtIndex) {
+                const newCourtIndex = oldCourtIndex - 1;
+                return `court-${newCourtIndex}` as PlayerStatus;
+              }
+            }
+            return status;
+          });
+
+          return {
+            ...player,
+            status: newStatus,
+          };
+        }
+      );
+
+      // Rebuild final zone mappings
+      const { playersByCourt, playersByQueue } = rebuildZoneMappings(
+        playersWithUpdatedCourtIds,
+        newCourtCount,
+        Object.keys(state.queue.playersByQueue)
+      );
+
+      // Clear undo data for the deleted court and shift remaining court undo data
+      const updatedUndoGames: Record<string, UndoGameData> = {};
+      Object.entries(state.undoableGames).forEach(([undoCourtId, undoData]) => {
+        const undoCourtIndex = parseInt(undoCourtId.split("-")[1]);
+
+        // Skip undo data for deleted court
+        if (undoCourtIndex === courtIndex) {
+          console.log(`🧹 Clearing undo data for deleted ${undoCourtId}`);
+          return;
+        }
+
+        // Shift undo data for courts after deleted court
+        if (undoCourtIndex > courtIndex) {
+          const newUndoCourtId = `court-${undoCourtIndex - 1}`;
+          updatedUndoGames[newUndoCourtId] = undoData as UndoGameData;
+        } else {
+          updatedUndoGames[undoCourtId] = undoData as UndoGameData;
+        }
+      });
+
+      console.log(
+        `✅ REDUCER: Successfully removed ${courtId}. New court count: ${newCourtCount}`
+      );
+
+      if (playersOnDeletedCourt.length > 0) {
+        console.log(
+          `👥 Moved ${playersOnDeletedCourt.length} players back to player list`
+        );
+      }
+
+      return {
+        ...state,
+        players: playersWithUpdatedCourtIds,
+        courts: {
+          count: newCourtCount,
+          playersByCourt,
+        },
+        queue: {
+          ...state.queue,
           playersByQueue,
         },
         undoableGames: updatedUndoGames,

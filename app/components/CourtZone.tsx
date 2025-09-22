@@ -1,6 +1,6 @@
 import React, { useContext, useState, useEffect, useMemo, useCallback } from 'react';
 import Grid from '@mui/material/Grid';
-import { Button , Typography, Box, TextField, IconButton, Chip, useMediaQuery, Popover, Modal, Paper, FormControl, InputLabel, Select, MenuItem   } from '@mui/material';
+import { Button , Typography, Box, IconButton, Chip, useMediaQuery, Popover, Modal, Paper, FormControl, InputLabel, Select, MenuItem   } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
@@ -170,18 +170,13 @@ const CourtItem = React.memo<{
   courtName: string;
   onEndGame: (courtId: string) => void;
   onUndoGame: (courtId: string) => void;
-  onRemoveCourt: (courtId: string) => void; 
   canRemove: boolean; 
   mounted: boolean;
   undoData?: UndoGameData;
   isUltraWide: boolean;
   courtMenuAnchorEl: Record<string, HTMLElement | null>;
-  editingCourtName: Record<string, string>;
   onOpenCourtMenu: (courtId: string, event: React.MouseEvent<HTMLElement>) => void;
   onCloseCourtMenu: (courtId: string) => void;
-  onCourtNameEditChange: (courtId: string, value: string) => void;
-  onCourtNameKeyDown: (courtId: string, e: React.KeyboardEvent) => void;
-  onCourtNameBlur: (courtId: string) => void;
   onDeleteCourt: (courtId: string) => void;
   courtCount: number;
   swapCourtAnchorEl: Record<string, HTMLElement | null>;
@@ -190,7 +185,6 @@ const CourtItem = React.memo<{
   onCloseSwapCourt: (courtId: string) => void;
   onTargetCourtChange: (sourceCourtId: string, targetCourtId: string) => void;
   onConfirmSwap: (sourceCourtId: string) => void;
-  courtNames: Record<string, string>;
   state: any; // Pass full state for access to queue data
   transferQueueAnchorEl: Record<string, HTMLElement | null>;
   selectedQueueId: Record<string, string>;
@@ -209,12 +203,8 @@ const CourtItem = React.memo<{
   undoData,
   isUltraWide,
   courtMenuAnchorEl,
-  editingCourtName,
   onOpenCourtMenu,
   onCloseCourtMenu,
-  onCourtNameEditChange,
-  onCourtNameKeyDown,
-  onCourtNameBlur,
   onDeleteCourt,
   courtCount,
   swapCourtAnchorEl,
@@ -223,7 +213,6 @@ const CourtItem = React.memo<{
   onCloseSwapCourt,
   onTargetCourtChange,
   onConfirmSwap,
-  courtNames,
   state,
   transferQueueAnchorEl,
   selectedQueueId,
@@ -483,38 +472,6 @@ const CourtItem = React.memo<{
 
                       {/* Modal Content */}
                       <Box sx={{ p: 3 }}>
-                        {/* Court Name Edit Section */}
-                        <Box sx={{ mb: 3 }}>
-                          <Typography 
-                            variant="caption" 
-                            sx={{ 
-                              color: 'text.secondary', 
-                              fontSize: '0.75rem',
-                              fontWeight: 600,
-                              mb: 1.5,
-                              display: 'block'
-                            }}
-                          >
-                            EDIT NAME
-                          </Typography>
-                          <TextField
-                            value={editingCourtName[courtId] || ''}
-                            onChange={(e) => onCourtNameEditChange(courtId, e.target.value)}
-                            onBlur={() => onCourtNameBlur(courtId)}
-                            onKeyDown={(e) => onCourtNameKeyDown(courtId, e)}
-                            placeholder="Enter court name"
-                            size="medium"
-                            fullWidth
-                            autoFocus
-                            variant="outlined"
-                            sx={{
-                              '& .MuiOutlinedInput-root': {
-                                borderRadius: 2,
-                                fontSize: '0.9rem',
-                              }
-                            }}
-                          />
-                        </Box>
 
                         <Box sx={{ mb: 3 }}>
                           <Button
@@ -597,7 +554,7 @@ const CourtItem = React.memo<{
                                     .filter(id => id !== courtId)
                                     .map((targetCourtId) => {
                                       const courtNumber = parseInt(targetCourtId.split('-')[1]) + 1;
-                                      const targetCourtName = courtNames[targetCourtId] || `Court ${courtNumber}`;
+                                      const targetCourtName = `Court ${courtNumber}`;
                                       return (
                                         <MenuItem
                                           key={targetCourtId}
@@ -974,44 +931,6 @@ const CourtItem = React.memo<{
 
                     {/* Content */}
                     <Box sx={{ p: 2 }}>
-                      {/* Court Name Edit Section */}
-                      <Box sx={{ mb: 2 }}>
-                        <Typography 
-                          variant="caption" 
-                          sx={{ 
-                            color: 'text.secondary', 
-                            fontSize: '0.75rem',
-                            fontWeight: 600,
-                            mb: 1,
-                            display: 'block'
-                          }}
-                        >
-                          EDIT NAME
-                        </Typography>
-                        <TextField
-                          value={editingCourtName[courtId] || ''}
-                          onChange={(e) => onCourtNameEditChange(courtId, e.target.value)}
-                          onBlur={() => onCourtNameBlur(courtId)}
-                          onKeyDown={(e) => onCourtNameKeyDown(courtId, e)}
-                          placeholder="Enter court name"
-                          size="small"
-                          fullWidth
-                          autoFocus
-                          variant="outlined"
-                          slotProps={{
-                            input: {
-                              sx: { 
-                                fontSize: '0.8rem',
-                              }
-                            }
-                          }}
-                          sx={{
-                            '& .MuiOutlinedInput-root': {
-                              borderRadius: 2,
-                            }
-                          }}
-                        />
-                      </Box>
 
                       <Box sx={{ mb: 3 }}>
                           <Button
@@ -1094,7 +1013,7 @@ const CourtItem = React.memo<{
                                     .filter(id => id !== courtId)
                                     .map((targetCourtId) => {
                                       const courtNumber = parseInt(targetCourtId.split('-')[1]) + 1;
-                                      const targetCourtName = courtNames[targetCourtId] || `Court ${courtNumber}`;
+                                      const targetCourtName = `Court ${courtNumber}`;
                                       return (
                                         <MenuItem
                                           key={targetCourtId}
@@ -1559,38 +1478,14 @@ const CourtZone: React.FC<CourtZoneProps> = ({ courtCount }) => {
   const [mounted, setMounted] = useState(false);
   const isUltraWide = useMediaQuery('(min-width: 1830px)');
   const [courtMenuAnchorEl, setCourtMenuAnchorEl] = useState<Record<string, HTMLElement | null>>({});
-  const [editingCourtName, setEditingCourtName] = useState<Record<string, string>>({});
   const [swapCourtAnchorEl, setSwapCourtAnchorEl] = useState<Record<string, HTMLElement | null>>({});
   const [selectedTargetCourt, setSelectedTargetCourt] = useState<Record<string, string>>({});
   const [transferQueueAnchorEl, setTransferQueueAnchorEl] = useState<Record<string, HTMLElement | null>>({});
   const [selectedQueueId, setSelectedQueueId] = useState<Record<string, string>>({});
 
-  // State for court name editing
-  const [courtNames, setCourtNames] = useState<Record<string, string>>(() => {
-    const defaultNames: Record<string, string> = {};
-    for (let i = 0; i < courtCount; i++) {
-      defaultNames[`court-${i}`] = `Court ${i + 1}`;
-    }
-    return defaultNames;
-  });
-
   useEffect(() => {
     setMounted(true);
   }, []);
-
-    // Update court names when court count changes
-  useEffect(() => {
-    setCourtNames(prev => {
-      const updated = { ...prev };
-      for (let i = 0; i < courtCount; i++) {
-        const courtId = `court-${i}`;
-        if (!updated[courtId]) {
-          updated[courtId] = `Court ${i + 1}`;
-        }
-      }
-      return updated;
-    });
-  }, [courtCount]);
   
   // Memoized court data calculation
   const courtData = useMemo(() => {
@@ -1621,14 +1516,6 @@ const CourtZone: React.FC<CourtZoneProps> = ({ courtCount }) => {
     dispatch(Action.setCourtCount(courtCount + 1));
   }, [dispatch, courtCount]);
 
-  // Remove court handler
-  const handleRemoveCourt = useCallback(() => {
-    // Only allow removal if we have more than 1 court
-    if (courtCount > 1) {
-      dispatch(Action.setCourtCount(courtCount - 1));
-    }
-  }, [dispatch, courtCount]);
-
   const canRemoveCourts = useMemo(() => {
     // On server or before hydration, always return false to prevent showing remove buttons
     if (!mounted) return false;
@@ -1643,12 +1530,8 @@ const CourtZone: React.FC<CourtZoneProps> = ({ courtCount }) => {
       ...prev,
       [courtId]: event.currentTarget
     }));
-    // Initialize the editing value with current court name
-    setEditingCourtName(prev => ({
-      ...prev,
-      [courtId]: courtNames[courtId] || `Court ${courtId.split('-')[1] + 1}`
-    }));
-  }, [courtNames]);
+
+  }, []);
 
   const handleCloseCourtMenu = useCallback((courtId: string) => {
     setCourtMenuAnchorEl(prev => ({
@@ -1657,39 +1540,10 @@ const CourtZone: React.FC<CourtZoneProps> = ({ courtCount }) => {
     }));
   }, []);
 
-  const handleCourtNameEditChange = useCallback((courtId: string, value: string) => {
-    setEditingCourtName(prev => ({
-      ...prev,
-      [courtId]: value
-    }));
-  }, []);
-
-  const handleCourtNameSave = useCallback((courtId: string) => {
-    const newName = editingCourtName[courtId]?.trim();
-    if (newName && newName !== courtNames[courtId]) {
-      setCourtNames(prev => ({
-        ...prev,
-        [courtId]: newName
-      }));
-    }
-  }, [editingCourtName, courtNames]);
-
-  const handleCourtNameKeyDown = useCallback((courtId: string, e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      handleCourtNameSave(courtId);
-    } else if (e.key === 'Escape') {
-      handleCloseCourtMenu(courtId);
-    }
-  }, [handleCourtNameSave, handleCloseCourtMenu]);
-
-  const handleCourtNameBlur = useCallback((courtId: string) => {
-    handleCourtNameSave(courtId);
-  }, [handleCourtNameSave]);
-
   const handleDeleteCourt = useCallback((courtId: string) => {
-    handleRemoveCourt();
+    dispatch(Action.removeSpecificCourt(courtId)); // Use specific court removal
     handleCloseCourtMenu(courtId);
-  }, [handleCloseCourtMenu, handleRemoveCourt]);
+  }, [dispatch, handleCloseCourtMenu]);
   
   const handleUndoGame = useCallback((courtId: string) => {
     dispatch(Action.undoEndGame(courtId));
@@ -1781,21 +1635,16 @@ const CourtZone: React.FC<CourtZoneProps> = ({ courtCount }) => {
         courtId={courtId}
         index={index}
         players={players}
-        courtName={courtNames[courtId] || `Court ${index + 1}`}
+        courtName={`Court ${parseInt(courtId.split('-')[1]) + 1}`}
         onEndGame={handleEndGame}
         onUndoGame={handleUndoGame}
-        onRemoveCourt={handleRemoveCourt}
         canRemove={canRemoveCourts}
         mounted={mounted}
         undoData={undoData}
         isUltraWide={isUltraWide}
         courtMenuAnchorEl={courtMenuAnchorEl}
-        editingCourtName={editingCourtName}
         onOpenCourtMenu={handleOpenCourtMenu}
         onCloseCourtMenu={handleCloseCourtMenu}
-        onCourtNameEditChange={handleCourtNameEditChange}
-        onCourtNameKeyDown={handleCourtNameKeyDown}
-        onCourtNameBlur={handleCourtNameBlur}
         onDeleteCourt={handleDeleteCourt}
         courtCount={courtCount}
         swapCourtAnchorEl={swapCourtAnchorEl}
@@ -1804,7 +1653,6 @@ const CourtZone: React.FC<CourtZoneProps> = ({ courtCount }) => {
         onCloseSwapCourt={handleCloseSwapCourt}
         onTargetCourtChange={handleTargetCourtChange}
         onConfirmSwap={handleConfirmSwap}
-        courtNames={courtNames}
         state={state}
         transferQueueAnchorEl={transferQueueAnchorEl}
         selectedQueueId={selectedQueueId}
@@ -1816,20 +1664,14 @@ const CourtZone: React.FC<CourtZoneProps> = ({ courtCount }) => {
     )), 
     [
       courtData, 
-      courtNames,  
       handleEndGame, 
       mounted, 
       handleUndoGame, 
       isUltraWide, 
       canRemoveCourts, 
-      handleRemoveCourt, 
       courtMenuAnchorEl, 
-      editingCourtName, 
       handleOpenCourtMenu, 
       handleCloseCourtMenu, 
-      handleCourtNameEditChange, 
-      handleCourtNameKeyDown, 
-      handleCourtNameBlur, 
       handleDeleteCourt,
       courtCount,
       swapCourtAnchorEl,
@@ -1844,7 +1686,8 @@ const CourtZone: React.FC<CourtZoneProps> = ({ courtCount }) => {
       handleOpenTransferQueue,
       handleCloseTransferQueue,
       handleQueueSelection,
-      handleConfirmTransfer
+      handleConfirmTransfer,
+      
     ]
   );
 
