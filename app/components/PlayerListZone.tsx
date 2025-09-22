@@ -299,6 +299,8 @@ const PlayerListZone: React.FC<PlayerListZoneProps> = ({ state }) => {
           scrollButtons="auto"
           allowScrollButtonsMobile
           sx={{
+            paddingLeft: 0,
+            marginLeft: 0,
             '& .MuiTab-root': {
               minHeight: 40,
               fontSize: '0.75rem',
@@ -313,6 +315,14 @@ const PlayerListZone: React.FC<PlayerListZoneProps> = ({ state }) => {
             '& .Mui-selected': {
               color: '#1e293b !important',
               fontWeight: 600,
+            },
+            '& .MuiTabs-scroller': {
+              marginLeft: 0,
+              paddingLeft: 0,
+            },
+            '& .MuiTabs-flexContainer': {
+              paddingLeft: 0,
+              marginLeft: 0,
             },
           }}
         >
