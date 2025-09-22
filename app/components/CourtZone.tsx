@@ -1,7 +1,10 @@
 import React, { useContext, useState, useEffect, useMemo, useCallback } from 'react';
 import Grid from '@mui/material/Grid';
-import { Card, Button , Typography, Box, TextField, IconButton, Chip, useMediaQuery } from '@mui/material';
+import { Button , Typography, Box, TextField, IconButton, Chip, useMediaQuery, Popover, Modal, Paper  } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
+import DeleteIcon from '@mui/icons-material/Delete';
+import MoreVertIcon from '@mui/icons-material/MoreVert';
+import SettingsIcon from '@mui/icons-material/Settings';
 import CloseIcon from '@mui/icons-material/Close';
 import { Player } from './types/Player';
 import DroppableZone from './DroppableZone';
@@ -161,11 +164,6 @@ const CourtItem = React.memo<{
   index: number;
   players: Player[];
   courtName: string;
-  isEditing: boolean;
-  onStartEdit: (courtId: string) => void;
-  onNameChange: (courtId: string, name: string) => void;
-  onSubmitEdit: (courtId: string) => void;
-  onCancelEdit: () => void;
   onEndGame: (courtId: string) => void;
   onUndoGame: (courtId: string) => void;
   onRemoveCourt: (courtId: string) => void; 
@@ -173,16 +171,19 @@ const CourtItem = React.memo<{
   mounted: boolean;
   undoData?: UndoGameData;
   isUltraWide: boolean;
+  courtMenuAnchorEl: Record<string, HTMLElement | null>;
+  editingCourtName: Record<string, string>;
+  onOpenCourtMenu: (courtId: string, event: React.MouseEvent<HTMLElement>) => void;
+  onCloseCourtMenu: (courtId: string) => void;
+  onCourtNameEditChange: (courtId: string, value: string) => void;
+  onCourtNameKeyDown: (courtId: string, e: React.KeyboardEvent) => void;
+  onCourtNameBlur: (courtId: string) => void;
+  onDeleteCourt: (courtId: string) => void;
 }>(({ 
   courtId, 
   index, 
   players, 
   courtName, 
-  isEditing, 
-  onStartEdit, 
-  onNameChange, 
-  onSubmitEdit, 
-  onCancelEdit, 
   onEndGame,
   onUndoGame,
   onRemoveCourt,
@@ -190,9 +191,19 @@ const CourtItem = React.memo<{
   mounted,
   undoData,
   isUltraWide,
+  courtMenuAnchorEl,
+  editingCourtName,
+  onOpenCourtMenu,
+  onCloseCourtMenu,
+  onCourtNameEditChange,
+  onCourtNameKeyDown,
+  onCourtNameBlur,
+  onDeleteCourt,
 }) => {
   
   const { state, dispatch } = useContext(AppContext);
+
+  const isMobile = useMediaQuery('(max-width: 768px)');
   
   // Memoized match format calculation
   const matchFormat = useMemo(() => {
@@ -201,28 +212,6 @@ const CourtItem = React.memo<{
     }
     return getMatchFormat(players);
   }, [players, mounted]);
-  
-  // Memoized event handlers
-  const handleStartEdit = useCallback(() => {
-    onStartEdit(courtId);
-  }, [courtId, onStartEdit]);
-
-  const handleNameChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    onNameChange(courtId, e.target.value);
-  }, [courtId, onNameChange]);
-
-  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      onSubmitEdit(courtId);
-    }
-    if (e.key === 'Escape') {
-      onCancelEdit();
-    }
-  }, [courtId, onSubmitEdit, onCancelEdit]);
-
-  const handleBlur = useCallback(() => {
-    onSubmitEdit(courtId);
-  }, [courtId, onSubmitEdit]);
 
   const handleEndGame = useCallback(() => {
     onEndGame(courtId);
@@ -232,9 +221,6 @@ const CourtItem = React.memo<{
     onUndoGame(courtId);
   }, [courtId, onUndoGame]);
 
-  const handleRemoveCourt = useCallback(() => {
-    onRemoveCourt(courtId);
-  }, [courtId, onRemoveCourt]);
 
   // 🆕 Enhanced logic to check if court composition has changed from when game was ended
   const courtHasChanged = useMemo(() => {
@@ -356,76 +342,270 @@ const CourtItem = React.memo<{
             gap={0.5}
           >
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flex: 1 }}>
-              {isEditing ? (
-                <TextField
-                  value={courtName}
-                  onChange={handleNameChange}
-                  onKeyDown={handleKeyDown}
-                  onBlur={handleBlur}
-                  autoFocus
-                  variant="standard"
-                  size="small"
-                  sx={{
-                    '& .MuiInputBase-input': {
-                      fontSize: 'clamp(0.65rem, 0.9vw, 0.85rem)',
-                      fontWeight: 'bold',
-                      color: 'white',
-                      padding: '2px 4px',
-                    },
-                    '& .MuiInputBase-root': {
-                      '&:before': {
-                        borderBottomColor: 'rgba(255,255,255,0.5)',
-                      },
-                      '&:after': {
-                        borderBottomColor: 'white',
-                      },
-                    },
-                  }}
+              <Typography
+                variant="h6"
+                sx={{
+                  fontSize: 'clamp(0.65rem, 0.9vw, 0.85rem)',
+                  fontWeight: 'bold',
+                  color: 'white',
+                  padding: '2px 4px',
+                  textShadow: '1px 1px 2px rgba(0,0,0,0.5)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 0.5,
+                }}
+              >
+                <SportsTennisIcon 
+                  sx={{ 
+                    fontSize: '0.9rem',
+                    color: 'white',
+                    filter: 'drop-shadow(1px 1px 2px rgba(0,0,0,0.7))',
+                  }} 
                 />
-              ) : (
-                <Typography
-                    variant="h6"
-                    sx={{
-                      fontSize: 'clamp(0.65rem, 0.9vw, 0.85rem)',
-                      fontWeight: 'bold',
-                      color: 'white',
-                      padding: '2px 4px',
-                      textShadow: '1px 1px 2px rgba(0,0,0,0.5)',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 0.5,
-                    }}
-                    onClick={handleStartEdit}
-                    title="Click to edit court name"
-                  >
-                    <SportsTennisIcon 
-                      sx={{ 
-                        fontSize: '0.9rem',
-                        color: 'white',
-                        filter: 'drop-shadow(1px 1px 2px rgba(0,0,0,0.7))',
-                      }} 
-                    />
-                    {courtName}
-                </Typography>
-              )}
+                {courtName}
+              </Typography>
               {mounted && canRemove && (
+              <>
                 <IconButton
                   size="small"
-                  onClick={handleRemoveCourt}
+                  onClick={(e) => onOpenCourtMenu(courtId, e)}
                   sx={{
                     padding: '2px',
-                    backgroundColor: 'rgba(244,67,54,0.8)',
+                    backgroundColor: 'rgba(0,0,0,0.2)',
                     color: 'white',
                     '&:hover': {
-                      backgroundColor: 'rgba(244,67,54,0.9)',
+                      backgroundColor: 'rgba(0,0,0,0.4)',
                     },
                   }}
-                  title="Remove this court"
+                  title="Court options"
                 >
-                  <CloseIcon sx={{ fontSize: '0.7rem' }} />
+                  <MoreVertIcon sx={{ fontSize: '0.7rem' }} />
                 </IconButton>
-              )}
+
+                {/* Court Menu - Conditional Modal/Popover */}
+                {isMobile ? (
+                  // Mobile Modal Implementation
+                  <Modal 
+                    open={Boolean(courtMenuAnchorEl[courtId])} 
+                    onClose={() => onCloseCourtMenu(courtId)}
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <Paper
+                      sx={{
+                        width: '95%',
+                        maxWidth: '400px',
+                        bgcolor: 'background.paper',
+                        borderRadius: 2,
+                        p: 0,
+                        maxHeight: '85vh',
+                        overflowY: 'auto',
+                        mx: 2,
+                        overflow: 'hidden',
+                      }}
+                    >
+                      {/* Modal Header */}
+                      <Box sx={{ 
+                        px: 2, 
+                        py: 1.5, 
+                        backgroundColor: '#1e293b',
+                        color: 'white',
+                        display: 'flex', 
+                        justifyContent: 'space-between', 
+                        alignItems: 'center'
+                      }}>
+                        <Typography variant="subtitle2" sx={{ 
+                          fontSize: '0.85rem',
+                          fontWeight: 600,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 1
+                        }}>
+                          <SettingsIcon sx={{ fontSize: '1rem' }} />
+                          {courtName}
+                        </Typography>
+                        <IconButton 
+                          onClick={() => onCloseCourtMenu(courtId)}
+                          sx={{ 
+                            color: 'white',
+                            padding: '4px',
+                            '&:hover': {
+                              backgroundColor: 'rgba(255,255,255,0.1)',
+                            }
+                          }}
+                          size="small"
+                        >
+                          <CloseIcon sx={{ fontSize: '1rem' }} />
+                        </IconButton>
+                      </Box>
+
+                      {/* Modal Content */}
+                      <Box sx={{ p: 3 }}>
+                        {/* Court Name Edit Section */}
+                        <Box sx={{ mb: 3 }}>
+                          <Typography 
+                            variant="caption" 
+                            sx={{ 
+                              color: 'text.secondary', 
+                              fontSize: '0.75rem',
+                              fontWeight: 600,
+                              mb: 1.5,
+                              display: 'block'
+                            }}
+                          >
+                            EDIT NAME
+                          </Typography>
+                          <TextField
+                            value={editingCourtName[courtId] || ''}
+                            onChange={(e) => onCourtNameEditChange(courtId, e.target.value)}
+                            onBlur={() => onCourtNameBlur(courtId)}
+                            onKeyDown={(e) => onCourtNameKeyDown(courtId, e)}
+                            placeholder="Enter court name"
+                            size="medium"
+                            fullWidth
+                            autoFocus
+                            variant="outlined"
+                            sx={{
+                              '& .MuiOutlinedInput-root': {
+                                borderRadius: 2,
+                                fontSize: '0.9rem',
+                              }
+                            }}
+                          />
+                        </Box>
+
+                        {/* Delete Section */}
+                        <Button
+                          onClick={() => onDeleteCourt(courtId)}
+                          startIcon={<DeleteIcon sx={{ fontSize: '1rem' }} />}
+                          variant="outlined"
+                          color="error"
+                          fullWidth
+                          sx={{
+                            textTransform: 'none',
+                            py: 1.5,
+                            borderRadius: 2,
+                            fontSize: '0.85rem',
+                            fontWeight: 600,
+                            '&:hover': {
+                              boxShadow: '0 2px 8px rgba(244, 67, 54, 0.3)',
+                            }
+                          }}
+                        >
+                          Delete Court
+                        </Button>
+                      </Box>
+                    </Paper>
+                  </Modal>
+                ) : (
+                  // Desktop/Tablet Popover Implementation
+                  <Popover
+                    open={Boolean(courtMenuAnchorEl[courtId])}
+                    anchorEl={courtMenuAnchorEl[courtId]}
+                    onClose={() => onCloseCourtMenu(courtId)}
+                    anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+                    transformOrigin={{ vertical: 'top', horizontal: 'left' }}
+                    slotProps={{
+                      paper: {
+                        sx: {
+                          p: 0,
+                          borderRadius: 3,
+                          boxShadow: '0 12px 28px rgba(0,0,0,0.15)',
+                          border: '1px solid rgba(0,0,0,0.08)',
+                          minWidth: 200,
+                          overflow: 'hidden',
+                        },
+                      },
+                    }}
+                  >
+                    {/* Header */}
+                    <Box sx={{ 
+                      px: 2, 
+                      py: 1.5, 
+                      backgroundColor: '#1e293b',
+                      color: 'white'
+                    }}>
+                      <Typography variant="subtitle2" sx={{ 
+                        fontSize: '0.85rem',
+                        fontWeight: 600,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 1
+                      }}>
+                        <SettingsIcon sx={{ fontSize: '1rem' }} />
+                        {courtName}
+                      </Typography>
+                    </Box>
+
+                    {/* Content */}
+                    <Box sx={{ p: 2 }}>
+                      {/* Court Name Edit Section */}
+                      <Box sx={{ mb: 2 }}>
+                        <Typography 
+                          variant="caption" 
+                          sx={{ 
+                            color: 'text.secondary', 
+                            fontSize: '0.75rem',
+                            fontWeight: 600,
+                            mb: 1,
+                            display: 'block'
+                          }}
+                        >
+                          EDIT NAME
+                        </Typography>
+                        <TextField
+                          value={editingCourtName[courtId] || ''}
+                          onChange={(e) => onCourtNameEditChange(courtId, e.target.value)}
+                          onBlur={() => onCourtNameBlur(courtId)}
+                          onKeyDown={(e) => onCourtNameKeyDown(courtId, e)}
+                          placeholder="Enter court name"
+                          size="small"
+                          fullWidth
+                          autoFocus
+                          variant="outlined"
+                          slotProps={{
+                            input: {
+                              sx: { 
+                                fontSize: '0.8rem',
+                              }
+                            }
+                          }}
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              borderRadius: 2,
+                            }
+                          }}
+                        />
+                      </Box>
+
+                      {/* Delete Section */}
+                      <Button
+                        onClick={() => onDeleteCourt(courtId)}
+                        startIcon={<DeleteIcon sx={{ fontSize: '1rem' }} />}
+                        variant="outlined"
+                        color="error"
+                        fullWidth
+                        sx={{
+                          textTransform: 'none',
+                          py: 1,
+                          borderRadius: 2,
+                          fontSize: '0.75rem',
+                          fontWeight: 600,
+                          '&:hover': {
+                            boxShadow: '0 2px 8px rgba(244, 67, 54, 0.3)',
+                          }
+                        }}
+                      >
+                        Delete Court
+                      </Button>
+                    </Box>
+                  </Popover>
+                )}
+              </>
+            )}
             </Box>
 
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
@@ -553,9 +733,10 @@ const CourtZone: React.FC<CourtZoneProps> = ({ courtCount }) => {
   
   const [mounted, setMounted] = useState(false);
   const isUltraWide = useMediaQuery('(min-width: 1830px)');
+  const [courtMenuAnchorEl, setCourtMenuAnchorEl] = useState<Record<string, HTMLElement | null>>({});
+  const [editingCourtName, setEditingCourtName] = useState<Record<string, string>>({});
 
   // State for court name editing
-  const [editingCourt, setEditingCourt] = useState<string | null>(null);
   const [courtNames, setCourtNames] = useState<Record<string, string>>(() => {
     const defaultNames: Record<string, string> = {};
     for (let i = 0; i < courtCount; i++) {
@@ -564,13 +745,23 @@ const CourtZone: React.FC<CourtZoneProps> = ({ courtCount }) => {
     return defaultNames;
   });
 
-  const handleUndoGame = useCallback((courtId: string) => {
-    dispatch(Action.undoEndGame(courtId));
-  }, [dispatch]);
-
   useEffect(() => {
     setMounted(true);
   }, []);
+
+    // Update court names when court count changes
+  useEffect(() => {
+    setCourtNames(prev => {
+      const updated = { ...prev };
+      for (let i = 0; i < courtCount; i++) {
+        const courtId = `court-${i}`;
+        if (!updated[courtId]) {
+          updated[courtId] = `Court ${i + 1}`;
+        }
+      }
+      return updated;
+    });
+  }, [courtCount]);
   
   // Memoized court data calculation
   const courtData = useMemo(() => {
@@ -591,40 +782,6 @@ const CourtZone: React.FC<CourtZoneProps> = ({ courtCount }) => {
     
     return courts;
   }, [state.courts.playersByCourt, state.undoableGames, courtCount]);
-
-  // Update court names when court count changes
-  useEffect(() => {
-    setCourtNames(prev => {
-      const updated = { ...prev };
-      for (let i = 0; i < courtCount; i++) {
-        const courtId = `court-${i}`;
-        if (!updated[courtId]) {
-          updated[courtId] = `Court ${i + 1}`;
-        }
-      }
-      return updated;
-    });
-  }, [courtCount]);
-  
-  // Memoized event handlers
-  const handleStartEdit = useCallback((courtId: string) => {
-    setEditingCourt(courtId);
-  }, []);
-
-  const handleCourtNameChange = useCallback((courtId: string, newName: string) => {
-    setCourtNames(prev => ({
-      ...prev,
-      [courtId]: newName
-    }));
-  }, []);
-  
-  const handleSubmitEdit = useCallback((courtId: string) => {
-    setEditingCourt(null);
-  }, []);
-
-  const handleCancelEdit = useCallback(() => {
-    setEditingCourt(null);
-  }, []);
 
   const handleEndGame = useCallback((courtId: string) => {
     dispatch(Action.endGame(courtId));
@@ -649,6 +806,66 @@ const CourtZone: React.FC<CourtZoneProps> = ({ courtCount }) => {
     return courtCount > 1;
   }, [courtCount, mounted]);
 
+  // Court menu handlers
+  const handleOpenCourtMenu = useCallback((courtId: string, event: React.MouseEvent<HTMLElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setCourtMenuAnchorEl(prev => ({
+      ...prev,
+      [courtId]: event.currentTarget
+    }));
+    // Initialize the editing value with current court name
+    setEditingCourtName(prev => ({
+      ...prev,
+      [courtId]: courtNames[courtId] || `Court ${courtId.split('-')[1] + 1}`
+    }));
+  }, [courtNames]);
+
+  const handleCloseCourtMenu = useCallback((courtId: string) => {
+    setCourtMenuAnchorEl(prev => ({
+      ...prev,
+      [courtId]: null
+    }));
+  }, []);
+
+  const handleCourtNameEditChange = useCallback((courtId: string, value: string) => {
+    setEditingCourtName(prev => ({
+      ...prev,
+      [courtId]: value
+    }));
+  }, []);
+
+  const handleCourtNameSave = useCallback((courtId: string) => {
+    const newName = editingCourtName[courtId]?.trim();
+    if (newName && newName !== courtNames[courtId]) {
+      setCourtNames(prev => ({
+        ...prev,
+        [courtId]: newName
+      }));
+    }
+  }, [editingCourtName, courtNames]);
+
+  const handleCourtNameKeyDown = useCallback((courtId: string, e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleCourtNameSave(courtId);
+    } else if (e.key === 'Escape') {
+      handleCloseCourtMenu(courtId);
+    }
+  }, [handleCourtNameSave, handleCloseCourtMenu]);
+
+  const handleCourtNameBlur = useCallback((courtId: string) => {
+    handleCourtNameSave(courtId);
+  }, [handleCourtNameSave]);
+
+  const handleDeleteCourt = useCallback((courtId: string) => {
+    handleRemoveCourt(courtId);
+    handleCloseCourtMenu(courtId);
+  }, [handleCloseCourtMenu, handleRemoveCourt]);
+  
+  const handleUndoGame = useCallback((courtId: string) => {
+    dispatch(Action.undoEndGame(courtId));
+  }, [dispatch]);
+
   // Memoized court items
   const courtItems = useMemo(() => 
     courtData.map(({ courtId, players, index, undoData }) => (
@@ -658,11 +875,6 @@ const CourtZone: React.FC<CourtZoneProps> = ({ courtCount }) => {
         index={index}
         players={players}
         courtName={courtNames[courtId] || `Court ${index + 1}`}
-        isEditing={editingCourt === courtId}
-        onStartEdit={handleStartEdit}
-        onNameChange={handleCourtNameChange}
-        onSubmitEdit={handleSubmitEdit}
-        onCancelEdit={handleCancelEdit}
         onEndGame={handleEndGame}
         onUndoGame={handleUndoGame}
         onRemoveCourt={handleRemoveCourt}
@@ -670,9 +882,17 @@ const CourtZone: React.FC<CourtZoneProps> = ({ courtCount }) => {
         mounted={mounted}
         undoData={undoData}
         isUltraWide={isUltraWide}
+        courtMenuAnchorEl={courtMenuAnchorEl}
+        editingCourtName={editingCourtName}
+        onOpenCourtMenu={handleOpenCourtMenu}
+        onCloseCourtMenu={handleCloseCourtMenu}
+        onCourtNameEditChange={handleCourtNameEditChange}
+        onCourtNameKeyDown={handleCourtNameKeyDown}
+        onCourtNameBlur={handleCourtNameBlur}
+        onDeleteCourt={handleDeleteCourt}
       />
     )), 
-    [courtData, courtNames, editingCourt, handleStartEdit, handleCourtNameChange, handleSubmitEdit, handleCancelEdit, handleEndGame, mounted, handleUndoGame, isUltraWide,canRemoveCourts, handleRemoveCourt  ]
+    [courtData, courtNames,  handleEndGame, mounted, handleUndoGame, isUltraWide, canRemoveCourts, handleRemoveCourt, courtMenuAnchorEl, editingCourtName, handleOpenCourtMenu, handleCloseCourtMenu, handleCourtNameEditChange, handleCourtNameKeyDown, handleCourtNameBlur, handleDeleteCourt]
   );
 
   return (
