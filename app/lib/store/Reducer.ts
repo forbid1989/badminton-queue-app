@@ -3026,6 +3026,7 @@ export default function reducer(state: any, action: Action) {
         undoableGames: updatedUndoGames,
       };
     }
+
     case ActionType.REMOVE_SPECIFIC_COURT: {
       console.log(
         "🗑️ REDUCER: REMOVE_SPECIFIC_COURT action received:",
@@ -3051,88 +3052,114 @@ export default function reducer(state: any, action: Action) {
 
       console.log(`🗑️ Removing ${courtId} (index ${courtIndex})`);
 
-      // Get players currently on the court being deleted
-      const playersOnDeletedCourt = state.courts.playersByCourt[courtId] || [];
-
-      // Move players from deleted court back to player list (unqueued)
+      // ✅ ROBUST: Single-pass player processing with comprehensive logging
       const updatedPlayers = state.players.map((player: Player) => {
-        const isOnDeletedCourt = player.status.includes(
-          courtId as PlayerStatus
-        );
+        let updatedPlayer = { ...player };
+        let playerModified = false;
 
-        if (isOnDeletedCourt) {
-          console.log(
-            `👤 Moving ${player.name} from deleted ${courtId} back to player list`
-          );
+        // Process each status
+        const newStatus = player.status
+          .map((status) => {
+            if (status === courtId) {
+              // Player is on the deleted court - remove court status
+              console.log(`👤 Removing ${player.name} from deleted ${courtId}`);
+              playerModified = true;
+              return null; // Mark for removal
+            } else if (status.startsWith("court-")) {
+              const statusCourtIndex = parseInt(status.split("-")[1]);
 
-          // Remove court status but keep queue status if exists
-          const newStatus = player.status.filter((s) => s !== courtId);
-
-          return {
-            ...player,
-            status: newStatus,
-            courtOrder: null, // Clear court order
-            courtEnteredTime: undefined, // Clear court entry time
-            timeEntered: Date.now(), // Reset time entered for waiting
-          };
-        }
-
-        return player;
-      });
-
-      // Create new court structure with the specific court removed
-      const newCourtCount = state.courts.count - 1;
-      const newPlayersByCourt: Record<string, Player[]> = {};
-
-      // Rebuild court mappings, shifting courts after the deleted one
-      let newCourtIndex = 0;
-      for (let i = 0; i < state.courts.count; i++) {
-        const currentCourtId = `court-${i}`;
-
-        // Skip the deleted court
-        if (i === courtIndex) {
-          continue;
-        }
-
-        // Map to new court ID
-        const newCourtId = `court-${newCourtIndex}`;
-        newPlayersByCourt[newCourtId] =
-          state.courts.playersByCourt[currentCourtId] || [];
-
-        newCourtIndex++;
-      }
-
-      // Update player statuses to reflect new court IDs
-      const playersWithUpdatedCourtIds = updatedPlayers.map(
-        (player: Player) => {
-          const newStatus = player.status.map((status) => {
-            if (status.startsWith("court-")) {
-              const oldCourtIndex = parseInt(status.split("-")[1]);
-
-              // If this court comes after the deleted court, shift it down
-              if (oldCourtIndex > courtIndex) {
-                const newCourtIndex = oldCourtIndex - 1;
-                return `court-${newCourtIndex}` as PlayerStatus;
+              // Shift courts that come after the deleted court
+              if (statusCourtIndex > courtIndex) {
+                const newCourtIndex = statusCourtIndex - 1;
+                const newCourtId = `court-${newCourtIndex}`;
+                console.log(
+                  `🔄 Shifting ${player.name} from ${status} to ${newCourtId}`
+                );
+                playerModified = true;
+                return newCourtId as PlayerStatus;
               }
             }
             return status;
-          });
+          })
+          .filter((status): status is PlayerStatus => status !== null); // Remove null values
 
-          return {
-            ...player,
+        // Update player if modified
+        if (playerModified) {
+          updatedPlayer = {
+            ...updatedPlayer,
             status: newStatus,
+            // Clear court-specific data if player was on deleted court
+            ...(player.status.includes(courtId as PlayerStatus) && {
+              courtOrder: null,
+              courtEnteredTime: undefined,
+              timeEntered: Date.now(),
+            }),
           };
         }
+
+        return updatedPlayer;
+      });
+
+      // ✅ VALIDATION: Ensure no players were lost
+      if (updatedPlayers.length !== state.players.length) {
+        console.error(
+          "❌ CRITICAL: Player count mismatch during court deletion!"
+        );
+        return state; // Abort if players were lost
+      }
+
+      // ✅ ROBUST: Build new court structure with validation
+      const newCourtCount = state.courts.count - 1;
+      console.log(`📊 Court count: ${state.courts.count} → ${newCourtCount}`);
+
+      // ✅ VALIDATION: Verify all remaining players have valid court references
+      const playersWithInvalidCourts = updatedPlayers.filter((player: Player) =>
+        player.status.some((status: PlayerStatus) => {
+          if (status.startsWith("court-")) {
+            const courtIdx = parseInt(status.split("-")[1]);
+            return courtIdx >= newCourtCount || courtIdx < 0;
+          }
+          return false;
+        })
       );
 
-      // Rebuild final zone mappings
+      if (playersWithInvalidCourts.length > 0) {
+        console.error(
+          "❌ CRITICAL: Players with invalid court references detected:",
+          playersWithInvalidCourts.map(
+            (p: Player) => `${p.name}: ${p.status.join(", ")}`
+          )
+        );
+        return state; // Abort if invalid references exist
+      }
+
+      // ✅ SAFE: Rebuild zone mappings with validated players
       const { playersByCourt, playersByQueue } = rebuildZoneMappings(
-        playersWithUpdatedCourtIds,
+        updatedPlayers,
         newCourtCount,
         Object.keys(state.queue.playersByQueue)
       );
 
-      // Clear undo data for the deleted court and shift remaining court undo data
+      // ✅ VALIDATION: Verify rebuild didn't lose players
+      const totalPlayersInZones = Object.values(playersByCourt)
+        .flat()
+        .concat(Object.values(playersByQueue).flat()).length;
+
+      const playersInQueuesAndCourts = updatedPlayers.filter((p: Player) =>
+        p.status.some(
+          (s: PlayerStatus) => s.startsWith("court-") || s.startsWith("queue-")
+        )
+      ).length;
+
+      if (totalPlayersInZones !== playersInQueuesAndCourts) {
+        console.error("❌ CRITICAL: Zone mapping lost players during rebuild!");
+        console.error(
+          `Expected: ${playersInQueuesAndCourts}, Got: ${totalPlayersInZones}`
+        );
+        return state;
+      }
+
+      // ✅ SAFE: Handle undo data with proper validation
       const updatedUndoGames: Record<string, UndoGameData> = {};
       Object.entries(state.undoableGames).forEach(([undoCourtId, undoData]) => {
         const undoCourtIndex = parseInt(undoCourtId.split("-")[1]);
@@ -3143,28 +3170,41 @@ export default function reducer(state: any, action: Action) {
           return;
         }
 
+        // Validate undo court index
+        if (undoCourtIndex < 0 || undoCourtIndex >= state.courts.count) {
+          console.warn(
+            `⚠️ Invalid undo court index ${undoCourtIndex}, skipping`
+          );
+          return;
+        }
+
         // Shift undo data for courts after deleted court
         if (undoCourtIndex > courtIndex) {
           const newUndoCourtId = `court-${undoCourtIndex - 1}`;
-          updatedUndoGames[newUndoCourtId] = undoData as UndoGameData;
+          // Validate new court ID is within bounds
+          if (undoCourtIndex - 1 >= 0 && undoCourtIndex - 1 < newCourtCount) {
+            updatedUndoGames[newUndoCourtId] = undoData as UndoGameData;
+          }
         } else {
           updatedUndoGames[undoCourtId] = undoData as UndoGameData;
         }
       });
 
-      console.log(
-        `✅ REDUCER: Successfully removed ${courtId}. New court count: ${newCourtCount}`
-      );
+      // ✅ FINAL VALIDATION: Comprehensive state check
+      const playersOnDeletedCourt = state.courts.playersByCourt[courtId] || [];
+      const expectedRemovedPlayers = playersOnDeletedCourt.length;
 
-      if (playersOnDeletedCourt.length > 0) {
-        console.log(
-          `👥 Moved ${playersOnDeletedCourt.length} players back to player list`
-        );
-      }
+      console.log(`✅ Court deletion summary:
+        - Removed court: ${courtId} (index ${courtIndex})
+        - Players moved to waiting: ${expectedRemovedPlayers}
+        - New court count: ${newCourtCount}
+        - Remaining courts: ${Object.keys(playersByCourt).join(", ")}
+        - Total players: ${updatedPlayers.length} (unchanged)
+      `);
 
       return {
         ...state,
-        players: playersWithUpdatedCourtIds,
+        players: updatedPlayers,
         courts: {
           count: newCourtCount,
           playersByCourt,
