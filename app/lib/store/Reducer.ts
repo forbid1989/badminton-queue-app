@@ -421,24 +421,42 @@ function transferQueueToCourtHelper(
   const playerPositionMap = new Map<string, number>();
   let nextPositionIndex = 0;
 
-  const getNextAvailablePosition = (): number => {
-    while (occupiedPositions.has(nextPositionIndex) && nextPositionIndex < 4) {
-      nextPositionIndex++;
+  const getNextAvailablePosition = (): number | null => {
+    for (let position = 0; position < 4; position++) {
+      if (!occupiedPositions.has(position)) {
+        occupiedPositions.add(position);
+        return position;
+      }
     }
-    const position = nextPositionIndex;
-    occupiedPositions.add(position);
-    nextPositionIndex++;
-    return position;
+    // No available positions found
+    console.error("❌ No available court positions - this should not happen!");
+    return null;
   };
 
   // 🔧 FIX: Assign positions to players in queue order
-  sortedPlayersInQueue.forEach((player) => {
+  sortedPlayersInQueue.forEach((player, index) => {
     const safePosition = getNextAvailablePosition();
+
+    if (safePosition === null) {
+      console.error(
+        `❌ Cannot assign position to ${player.name} - court full!`
+      );
+      // Handle gracefully - could abort transfer or use fallback logic
+      return; // Skip this player or implement fallback
+    }
+
     playerPositionMap.set(player.id, safePosition);
     console.log(
       `Queue order preserved: ${player.name} (queue pos ${player.queueOrder}) → court pos ${safePosition}`
     );
   });
+
+  if (playerPositionMap.size !== sortedPlayersInQueue.length) {
+    console.error(
+      "❌ Not all players could be assigned positions - aborting transfer"
+    );
+    return state; // Abort the entire transfer
+  }
 
   // Update players using the position mapping
   const updatedPlayers = state.players.map((player: Player) => {
