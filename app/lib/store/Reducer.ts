@@ -2070,119 +2070,220 @@ export default function reducer(state: any, action: Action) {
       const courtId = action.payload.courtId;
       const endTime = Date.now();
 
-      // Step 1: Find players on this court
-      const playersOnCourt: Player[] = state.players.filter((player: Player) =>
-        player.status.includes(courtId as PlayerStatus)
-      );
-
-      if (playersOnCourt.length === 0) {
-        console.log("⛔ No players found on court", courtId);
-        return state;
-      }
-
-      console.log(
-        "🎮 Ending game on",
-        courtId,
-        "with players:",
-        playersOnCourt.map((p) => p.name)
-      );
-
-      // Step 2: Get court name for match history
-      const courtIndex = parseInt(courtId.split("-")[1]);
-      const courtName = `Court ${courtIndex + 1}`;
-
-      // Step 3: Calculate match start time from earliest courtEnteredTime
-      const matchStartTime = Math.min(
-        ...playersOnCourt.map((p) => p.courtEnteredTime || p.timeEntered)
-      );
-
-      // Step 4: Generate enhanced match history entries using the updated function
-      const matchHistoryEntries = generateMatchHistoryEntries(
-        playersOnCourt,
-        courtName,
-        matchStartTime,
-        endTime
-      );
-
-      console.log("📝 Generated match history entries:", matchHistoryEntries);
-
-      // 🆕 Step 5: Store undo data BEFORE modifying players
-      const undoData: UndoGameData = {
-        courtId,
-        endedAt: endTime,
-        playersData: playersOnCourt.map((player, index) => ({
-          id: player.id,
-          name: player.name,
-          previousGamesPlayed: player.gamesPlayed,
-          previousStatus: [...player.status],
-          previousTimeEntered: player.timeEntered,
-          courtOrder: player.courtOrder,
-          courtEnteredTime: player.courtEnteredTime,
-          addedMatchHistoryEntry: matchHistoryEntries[index],
-        })),
-      };
-
-      // Step 6: Update players with enhanced match history
-      const updatedPlayers = state.players.map((player: Player) => {
-        const isOnCourt = player.status.includes(courtId as PlayerStatus);
-        if (!isOnCourt) return player;
-
-        // Find this player's match history entry based on their position in the court
-        const playerIndex = playersOnCourt.findIndex((p) => p.id === player.id);
-        const playerMatchEntry = matchHistoryEntries[playerIndex];
-
-        if (!playerMatchEntry) {
-          console.warn(`⚠️ No match entry found for player ${player.name}`);
-          return player;
+      try {
+        // 🔍 Step 1: Validate court ID format
+        if (
+          !courtId ||
+          typeof courtId !== "string" ||
+          !courtId.startsWith("court-")
+        ) {
+          console.error("⛔ Invalid court ID:", courtId);
+          return state;
         }
 
-        // Remove this court from status, keep queue if present (Condition #6)
-        const remainingStatus = player.status.filter((s) => s !== courtId);
+        const courtIndex = parseInt(courtId.split("-")[1]);
+        if (isNaN(courtIndex) || courtIndex < 0) {
+          console.error("⛔ Invalid court index in ID:", courtId);
+          return state;
+        }
 
-        console.log(
-          `🔄 ${player.name}: status ${JSON.stringify(
-            player.status
-          )} → ${JSON.stringify(remainingStatus)}, adding match entry:`,
-          playerMatchEntry
+        // 🔍 Step 2: Find players on this court with validation
+        const playersOnCourt: Player[] = state.players.filter(
+          (player: Player) =>
+            Array.isArray(player.status) &&
+            player.status.includes(courtId as PlayerStatus)
         );
 
-        return {
-          ...player,
-          gamesPlayed: player.gamesPlayed + 1,
-          status: remainingStatus,
-          timeEntered: endTime,
-          matchHistory: [...(player.matchHistory || []), playerMatchEntry],
-          courtOrder: null, // ✨ Clear court order when leaving court
-          courtEnteredTime: undefined,
+        if (playersOnCourt.length === 0) {
+          console.log("⛔ No players found on court", courtId);
+          return state;
+        }
+
+        console.log(
+          "🎮 Ending game on",
+          courtId,
+          "with players:",
+          playersOnCourt.map((p) => p.name || `Player-${p.id}`)
+        );
+
+        // 🔍 Step 3: Validate and calculate match start time
+        const validTimes = playersOnCourt
+          .map((p) => p.courtEnteredTime || p.timeEntered)
+          .filter((time) => time && typeof time === "number" && time > 0);
+
+        let matchStartTime: number;
+        if (validTimes.length === 0) {
+          console.warn(
+            "⚠️ No valid entry times found, estimating match duration"
+          );
+          matchStartTime = endTime - 15 * 60 * 1000; // Default 15 min game
+        } else {
+          matchStartTime = Math.min(...validTimes);
+
+          // Sanity check: match can't be longer than 2 hours
+          if (endTime - matchStartTime > 2 * 60 * 60 * 1000) {
+            console.warn("⚠️ Unusually long match detected, capping duration");
+            matchStartTime = endTime - 2 * 60 * 60 * 1000;
+          }
+        }
+
+        // 🔍 Step 4: Generate court name safely
+        const courtName = `Court ${courtIndex + 1}`;
+
+        // 🔍 Step 5: Generate match history entries with error handling
+        let matchHistoryEntries;
+        try {
+          matchHistoryEntries = generateMatchHistoryEntries(
+            playersOnCourt,
+            courtName,
+            matchStartTime,
+            endTime
+          );
+
+          // Validate the result
+          if (!Array.isArray(matchHistoryEntries)) {
+            throw new Error(
+              "generateMatchHistoryEntries did not return an array"
+            );
+          }
+
+          if (matchHistoryEntries.length !== playersOnCourt.length) {
+            throw new Error(
+              `Mismatch: ${playersOnCourt.length} players but ${matchHistoryEntries.length} entries`
+            );
+          }
+        } catch (error) {
+          console.error("⛔ Failed to generate match history entries:", error);
+          return state;
+        }
+
+        console.log("📝 Generated match history entries:", matchHistoryEntries);
+
+        // 🔍 Step 6: Create match entry map for safe lookup
+        const matchEntryMap = new Map<string, any>();
+        playersOnCourt.forEach((player, index) => {
+          if (matchHistoryEntries[index] && player.id) {
+            matchEntryMap.set(player.id, matchHistoryEntries[index]);
+          }
+        });
+
+        // 🔍 Step 7: Store undo data BEFORE modifying players
+        const undoData: UndoGameData = {
+          courtId,
+          endedAt: endTime,
+          playersData: playersOnCourt.map((player, index) => {
+            if (!player.id) {
+              console.warn("⚠️ Player missing ID, using index as fallback");
+            }
+
+            return {
+              id: player.id || `temp-${index}`,
+              name: player.name || `Player-${index}`,
+              previousGamesPlayed: player.gamesPlayed || 0,
+              previousStatus: [...(player.status || [])],
+              previousTimeEntered: player.timeEntered || endTime,
+              courtOrder: player.courtOrder,
+              courtEnteredTime: player.courtEnteredTime,
+              addedMatchHistoryEntry: matchHistoryEntries[index],
+            };
+          }),
         };
-      });
 
-      // Step 7: Rebuild zone mappings using order fields
-      const { playersByCourt, playersByQueue } = rebuildZoneMappings(
-        updatedPlayers,
-        state.courts.count,
-        Object.keys(state.queue.playersByQueue)
-      );
+        // 🔍 Step 8: Update players with comprehensive validation
+        const updatedPlayers = state.players.map((player: Player) => {
+          if (!Array.isArray(player.status)) {
+            console.warn("⚠️ Player has invalid status array:", player.id);
+            return player;
+          }
 
-      console.log("✅ Game ended successfully with enhanced match history");
+          const isOnCourt = player.status.includes(courtId as PlayerStatus);
+          if (!isOnCourt) return player;
 
-      return {
-        ...state,
-        players: updatedPlayers,
-        courts: {
-          ...state.courts,
-          playersByCourt,
-        },
-        queue: {
-          ...state.queue,
-          playersByQueue,
-        },
-        // 🆕 Store undo data and clear any previous undo data for this court
-        undoableGames: {
-          ...state.undoableGames,
-          [courtId]: undoData,
-        },
-      };
+          // Get this player's match history entry
+          const playerMatchEntry = matchEntryMap.get(player.id);
+          if (!playerMatchEntry) {
+            console.warn(
+              `⚠️ No match entry found for player ${player.name || player.id}`
+            );
+            // Continue without adding match history rather than failing completely
+          }
+
+          // Remove this court from status, preserve other statuses
+          const remainingStatus = [...player.status].filter(
+            (s) => s !== courtId
+          );
+
+          console.log(
+            `🔄 ${player.name || player.id}: status ${JSON.stringify(
+              player.status
+            )} → ${JSON.stringify(remainingStatus)}${
+              playerMatchEntry ? ", adding match entry" : ", no match entry"
+            }`
+          );
+
+          const updatedPlayer = {
+            ...player,
+            gamesPlayed: (player.gamesPlayed || 0) + 1,
+            status: remainingStatus,
+            timeEntered: endTime,
+            courtOrder: null,
+            courtEnteredTime: undefined,
+          };
+
+          // Only add match history if we have a valid entry
+          if (playerMatchEntry) {
+            updatedPlayer.matchHistory = [
+              ...(player.matchHistory || []),
+              playerMatchEntry,
+            ];
+          }
+
+          return updatedPlayer;
+        });
+
+        // 🔍 Step 9: Rebuild zone mappings with validation
+        let playersByCourt: Record<string, Player[]>;
+        let playersByQueue: Record<string, Player[]>;
+
+        try {
+          const rebuildResult = rebuildZoneMappings(
+            updatedPlayers,
+            state.courts?.count || 0,
+            Object.keys(state.queue?.playersByQueue || {})
+          );
+
+          playersByCourt = rebuildResult.playersByCourt;
+          playersByQueue = rebuildResult.playersByQueue;
+        } catch (error) {
+          console.error("⛔ Failed to rebuild zone mappings:", error);
+          // Use existing mappings as fallback
+          playersByCourt = state.courts?.playersByCourt || {};
+          playersByQueue = state.queue?.playersByQueue || {};
+        }
+
+        console.log("✅ Game ended successfully with enhanced match history");
+
+        return {
+          ...state,
+          players: updatedPlayers,
+          courts: {
+            ...state.courts,
+            playersByCourt,
+          },
+          queue: {
+            ...state.queue,
+            playersByQueue,
+          },
+          undoableGames: {
+            ...state.undoableGames,
+            [courtId]: undoData,
+          },
+        };
+      } catch (error) {
+        console.error("⛔ Critical error in END_GAME:", error);
+        // Return state unchanged on critical error
+        return state;
+      }
     }
 
     case ActionType.UNDO_END_GAME: {
