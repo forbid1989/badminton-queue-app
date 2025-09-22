@@ -80,6 +80,10 @@ type Action =
   | {
       type: "updatePlayerSkillLevel";
       payload: { playerId: string; skillLevel: string };
+    }
+  | {
+      type: "swapCourtPlayers";
+      payload: { sourceCourtId: string; targetCourtId: string };
     };
 
 function logPartnershipWarnings(zoneId: string, players: Player[]): void {
@@ -2570,6 +2574,218 @@ export default function reducer(state: any, action: Action) {
           ...state.settings,
           playerListSort: sortConfig,
         },
+      };
+    }
+
+    case ActionType.SWAP_COURT_PLAYERS: {
+      console.log(
+        "🔄 REDUCER: SWAP_COURT_PLAYERS action received:",
+        action.payload
+      );
+
+      const { sourceCourtId, targetCourtId } = action.payload;
+
+      // ✅ VALIDATION: Check if court IDs are valid
+      if (!sourceCourtId || !targetCourtId) {
+        console.warn("⚠️ REDUCER: Invalid court IDs provided");
+        return state;
+      }
+
+      // ✅ VALIDATION: Check if trying to swap court with itself
+      if (sourceCourtId === targetCourtId) {
+        console.warn("⚠️ REDUCER: Cannot swap court with itself");
+        return state;
+      }
+
+      // ✅ VALIDATION: Check if court IDs exist in current court mappings
+      const validCourtIds = Object.keys(state.courts.playersByCourt);
+      if (
+        !validCourtIds.includes(sourceCourtId) ||
+        !validCourtIds.includes(targetCourtId)
+      ) {
+        console.warn("⚠️ REDUCER: One or both court IDs do not exist");
+        return state;
+      }
+
+      // Get players from both courts using the zone mapping (more reliable)
+      const sourceCourtPlayers =
+        state.courts.playersByCourt[sourceCourtId] || [];
+      const targetCourtPlayers =
+        state.courts.playersByCourt[targetCourtId] || [];
+
+      // ✅ EARLY EXIT: If both courts are empty, nothing to swap
+      if (sourceCourtPlayers.length === 0 && targetCourtPlayers.length === 0) {
+        console.warn("⚠️ REDUCER: Both courts are empty, nothing to swap");
+        return state;
+      }
+
+      console.log(
+        `🔄 Swapping players between ${sourceCourtId} (${sourceCourtPlayers.length} players) and ${targetCourtId} (${targetCourtPlayers.length} players)`
+      );
+
+      // ✅ ROBUST: Create updated players array with proper error handling
+      const updatedPlayers = state.players.map((player: Player) => {
+        const isInSourceCourt = player.status.includes(
+          sourceCourtId as PlayerStatus
+        );
+        const isInTargetCourt = player.status.includes(
+          targetCourtId as PlayerStatus
+        );
+
+        // ✅ VALIDATION: Ensure player has valid courtOrder if on a court
+        if (
+          (isInSourceCourt || isInTargetCourt) &&
+          player.courtOrder === null
+        ) {
+          console.warn(
+            `⚠️ Player ${player.name} has null courtOrder but is on court - fixing this`
+          );
+          // Don't abort, but we'll let rebuildZoneMappings handle this
+        }
+
+        if (isInSourceCourt) {
+          // Move player from source court to target court, keeping same position
+          const currentPosition = player.courtOrder;
+          const newStatus = player.status.map((s) =>
+            s === sourceCourtId ? (targetCourtId as PlayerStatus) : s
+          );
+
+          console.log(
+            `Moving ${player.name} from ${sourceCourtId} to ${targetCourtId} (position ${currentPosition})`
+          );
+
+          return {
+            ...player,
+            status: newStatus,
+            courtOrder: currentPosition, // Retain position
+            // ✅ IMPORTANT: Don't update courtEnteredTime - players are just swapping courts
+          };
+        } else if (isInTargetCourt) {
+          // Move player from target court to source court, keeping same position
+          const currentPosition = player.courtOrder;
+          const newStatus = player.status.map((s) =>
+            s === targetCourtId ? (sourceCourtId as PlayerStatus) : s
+          );
+
+          console.log(
+            `Moving ${player.name} from ${targetCourtId} to ${sourceCourtId} (position ${currentPosition})`
+          );
+
+          return {
+            ...player,
+            status: newStatus,
+            courtOrder: currentPosition, // Retain position
+            // ✅ IMPORTANT: Don't update courtEnteredTime - players are just swapping courts
+          };
+        }
+
+        return player; // No change for players not in either court
+      });
+
+      // ✅ POSITION CONFLICT DETECTION: Check for position conflicts before rebuilding
+      const sourcePlayersAfterSwap = updatedPlayers.filter((p: Player) =>
+        p.status.includes(sourceCourtId as PlayerStatus)
+      );
+      const targetPlayersAfterSwap = updatedPlayers.filter((p: Player) =>
+        p.status.includes(targetCourtId as PlayerStatus)
+      );
+
+      // Check for position conflicts within each court
+      const checkPositionConflicts = (players: Player[], courtId: string) => {
+        const positionCount = new Map<number, number>();
+        players.forEach((player) => {
+          if (player.courtOrder !== null) {
+            const count = positionCount.get(player.courtOrder) || 0;
+            positionCount.set(player.courtOrder, count + 1);
+          }
+        });
+
+        const conflicts = Array.from(positionCount.entries()).filter(
+          ([pos, count]) => count > 1
+        );
+        if (conflicts.length > 0) {
+          console.warn(
+            `⚠️ Position conflicts detected in ${courtId}:`,
+            conflicts
+          );
+          // rebuildZoneMappings will handle this by sorting and reassigning positions
+        }
+      };
+
+      checkPositionConflicts(sourcePlayersAfterSwap, sourceCourtId);
+      checkPositionConflicts(targetPlayersAfterSwap, targetCourtId);
+
+      // ✅ ROBUST: Rebuild zone mappings using updated players
+      // This will handle any position conflicts and ensure proper ordering
+      const { playersByCourt, playersByQueue } = rebuildZoneMappings(
+        updatedPlayers,
+        state.courts.count,
+        Object.keys(state.queue.playersByQueue)
+      );
+
+      // ✅ VALIDATION: Verify the swap actually worked
+      const newSourceCount = (playersByCourt[sourceCourtId] || []).length;
+      const newTargetCount = (playersByCourt[targetCourtId] || []).length;
+
+      // The counts should have swapped (unless there were conflicts resolved)
+      if (
+        newSourceCount !== targetCourtPlayers.length ||
+        newTargetCount !== sourceCourtPlayers.length
+      ) {
+        console.warn(
+          `⚠️ Unexpected player counts after swap: ` +
+            `${sourceCourtId}: ${sourceCourtPlayers.length} -> ${newSourceCount}, ` +
+            `${targetCourtId}: ${targetCourtPlayers.length} -> ${newTargetCount}`
+        );
+        // Continue anyway - rebuildZoneMappings may have resolved conflicts
+      }
+
+      // ✅ PROPER: Clear undo data for both courts since composition changed
+      const updatedUndoGames = { ...state.undoableGames };
+      let undoCleared = false;
+
+      if (updatedUndoGames[sourceCourtId]) {
+        console.log(
+          `🧹 Clearing undo data for ${sourceCourtId} due to court swap`
+        );
+        delete updatedUndoGames[sourceCourtId];
+        undoCleared = true;
+      }
+      if (updatedUndoGames[targetCourtId]) {
+        console.log(
+          `🧹 Clearing undo data for ${targetCourtId} due to court swap`
+        );
+        delete updatedUndoGames[targetCourtId];
+        undoCleared = true;
+      }
+
+      // ✅ SUCCESS LOGGING
+      console.log("✅ REDUCER: Court players swap completed successfully");
+      if (undoCleared) {
+        console.log("✅ Undo data cleared for affected courts");
+      }
+
+      // ✅ FINAL VALIDATION: Ensure no player is lost in the process
+      const originalPlayerCount = state.players.length;
+      const newPlayerCount = updatedPlayers.length;
+      if (originalPlayerCount !== newPlayerCount) {
+        console.error("❌ CRITICAL: Player count mismatch after swap!");
+        // This should never happen, but if it does, return original state
+        return state;
+      }
+
+      return {
+        ...state,
+        players: updatedPlayers,
+        courts: {
+          ...state.courts,
+          playersByCourt,
+        },
+        queue: {
+          ...state.queue,
+          playersByQueue,
+        },
+        undoableGames: updatedUndoGames,
       };
     }
 

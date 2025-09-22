@@ -1,10 +1,11 @@
 import React, { useContext, useState, useEffect, useMemo, useCallback } from 'react';
 import Grid from '@mui/material/Grid';
-import { Button , Typography, Box, TextField, IconButton, Chip, useMediaQuery, Popover, Modal, Paper  } from '@mui/material';
+import { Button , Typography, Box, TextField, IconButton, Chip, useMediaQuery, Popover, Modal, Paper, FormControl, InputLabel, Select, MenuItem   } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import SettingsIcon from '@mui/icons-material/Settings';
+import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
 import CloseIcon from '@mui/icons-material/Close';
 import { Player } from './types/Player';
 import DroppableZone from './DroppableZone';
@@ -179,6 +180,14 @@ const CourtItem = React.memo<{
   onCourtNameKeyDown: (courtId: string, e: React.KeyboardEvent) => void;
   onCourtNameBlur: (courtId: string) => void;
   onDeleteCourt: (courtId: string) => void;
+  courtCount: number;
+  swapCourtAnchorEl: Record<string, HTMLElement | null>;
+  selectedTargetCourt: Record<string, string>;
+  onOpenSwapCourt: (courtId: string, event: React.MouseEvent<HTMLElement>) => void;
+  onCloseSwapCourt: (courtId: string) => void;
+  onTargetCourtChange: (sourceCourtId: string, targetCourtId: string) => void;
+  onConfirmSwap: (sourceCourtId: string) => void;
+  courtNames: Record<string, string>;
 }>(({ 
   courtId, 
   index, 
@@ -199,6 +208,14 @@ const CourtItem = React.memo<{
   onCourtNameKeyDown,
   onCourtNameBlur,
   onDeleteCourt,
+  courtCount,
+  swapCourtAnchorEl,
+  selectedTargetCourt,
+  onOpenSwapCourt,
+  onCloseSwapCourt,
+  onTargetCourtChange,
+  onConfirmSwap,
+  courtNames,
 }) => {
   
   const { state, dispatch } = useContext(AppContext);
@@ -477,6 +494,142 @@ const CourtItem = React.memo<{
                           />
                         </Box>
 
+                        <Box sx={{ mb: 3 }}>
+                          <Button
+                            onClick={(e) => onOpenSwapCourt(courtId, e)}
+                            startIcon={<SwapHorizIcon sx={{ fontSize: '1rem' }} />}
+                            variant="outlined"
+                            fullWidth
+                            sx={{
+                              textTransform: 'none',
+                              py: 1.5,
+                              borderRadius: 2,
+                              fontSize: '0.85rem',
+                              fontWeight: 600,
+                              '&:hover': {
+                                boxShadow: '0 2px 8px rgba(25, 118, 210, 0.3)',
+                              }
+                            }}
+                          >
+                            Swap Court Players
+                          </Button>
+
+                          {/* Swap Court Selection Popover */}
+                          <Popover
+                            open={Boolean(swapCourtAnchorEl[courtId])}
+                            anchorEl={swapCourtAnchorEl[courtId]}
+                            onClose={() => onCloseSwapCourt(courtId)}
+                            anchorOrigin={{ vertical: 'center', horizontal: 'right' }}
+                            transformOrigin={{ vertical: 'center', horizontal: 'left' }}
+                            slotProps={{
+                              paper: {
+                                sx: {
+                                  p: 2.5,
+                                  borderRadius: 2,
+                                  minWidth: 280,
+                                  maxWidth: 320,
+                                  boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
+                                },
+                              },
+                            }}
+                          >
+                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                              <Typography 
+                                variant="subtitle1" 
+                                sx={{ 
+                                  fontWeight: 600, 
+                                  color: 'primary.main',
+                                  fontSize: '0.95rem',
+                                  textAlign: 'center',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  gap: 1
+                                }}
+                              >
+                                <SwapHorizIcon sx={{ fontSize: '1.1rem' }} />
+                                Swap Court Players
+                              </Typography>
+                              
+                              <Typography 
+                                variant="body2" 
+                                sx={{ 
+                                  color: 'text.secondary', 
+                                  fontSize: '0.8rem',
+                                  textAlign: 'center',
+                                  mb: 1
+                                }}
+                              >
+                                Swap all players between courts while retaining positions
+                              </Typography>
+
+                              <FormControl fullWidth>
+                                <InputLabel sx={{ fontSize: '0.9rem' }}>Target Court</InputLabel>
+                                <Select
+                                  value={selectedTargetCourt[courtId] || ''}
+                                  onChange={(e) => onTargetCourtChange(courtId, e.target.value)}
+                                  label="Target Court"
+                                  sx={{ fontSize: '0.9rem' }}
+                                >
+                                  {Array.from({ length: courtCount }, (_, i) => `court-${i}`)
+                                    .filter(id => id !== courtId)
+                                    .map((targetCourtId) => {
+                                      const courtNumber = parseInt(targetCourtId.split('-')[1]) + 1;
+                                      const targetCourtName = courtNames[targetCourtId] || `Court ${courtNumber}`;
+                                      return (
+                                        <MenuItem
+                                          key={targetCourtId}
+                                          value={targetCourtId}
+                                          sx={{
+                                            fontSize: '0.9rem',
+                                            display: 'flex',
+                                            justifyContent: 'space-between',
+                                            alignItems: 'center',
+                                            py: 1.5,
+                                          }}
+                                        >
+                                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                                            <SwapHorizIcon sx={{ fontSize: '1.2rem', color: 'primary.main' }} />
+                                            <span>{targetCourtName}</span>
+                                          </Box>
+                                        </MenuItem>
+                                      );
+                                    })}
+                                </Select>
+                              </FormControl>
+
+                              <Box sx={{ display: 'flex', gap: 1 }}>
+                                <Button
+                                  onClick={() => onCloseSwapCourt(courtId)}
+                                  variant="outlined"
+                                  sx={{
+                                    flex: 1,
+                                    textTransform: 'none',
+                                    fontSize: '0.85rem',
+                                    py: 1,
+                                  }}
+                                >
+                                  Cancel
+                                </Button>
+                                <Button
+                                  onClick={() => onConfirmSwap(courtId)}
+                                  variant="contained"
+                                  disabled={!selectedTargetCourt[courtId]}
+                                  sx={{
+                                    flex: 1,
+                                    textTransform: 'none',
+                                    fontSize: '0.85rem',
+                                    py: 1,
+                                    fontWeight: 600,
+                                  }}
+                                >
+                                  Swap
+                                </Button>
+                              </Box>
+                            </Box>
+                          </Popover>
+                        </Box>
+
                         {/* Delete Section */}
                         <Button
                           onClick={() => onDeleteCourt(courtId)}
@@ -580,6 +733,142 @@ const CourtItem = React.memo<{
                           }}
                         />
                       </Box>
+
+                      <Box sx={{ mb: 3 }}>
+                          <Button
+                            onClick={(e) => onOpenSwapCourt(courtId, e)}
+                            startIcon={<SwapHorizIcon sx={{ fontSize: '1rem' }} />}
+                            variant="outlined"
+                            fullWidth
+                            sx={{
+                              textTransform: 'none',
+                              py: 1.5,
+                              borderRadius: 2,
+                              fontSize: '0.85rem',
+                              fontWeight: 600,
+                              '&:hover': {
+                                boxShadow: '0 2px 8px rgba(25, 118, 210, 0.3)',
+                              }
+                            }}
+                          >
+                            Swap Court Players
+                          </Button>
+
+                          {/* Swap Court Selection Popover */}
+                          <Popover
+                            open={Boolean(swapCourtAnchorEl[courtId])}
+                            anchorEl={swapCourtAnchorEl[courtId]}
+                            onClose={() => onCloseSwapCourt(courtId)}
+                            anchorOrigin={{ vertical: 'center', horizontal: 'right' }}
+                            transformOrigin={{ vertical: 'center', horizontal: 'left' }}
+                            slotProps={{
+                              paper: {
+                                sx: {
+                                  p: 2.5,
+                                  borderRadius: 2,
+                                  minWidth: 280,
+                                  maxWidth: 320,
+                                  boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
+                                },
+                              },
+                            }}
+                          >
+                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                              <Typography 
+                                variant="subtitle1" 
+                                sx={{ 
+                                  fontWeight: 600, 
+                                  color: 'primary.main',
+                                  fontSize: '0.95rem',
+                                  textAlign: 'center',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  gap: 1
+                                }}
+                              >
+                                <SwapHorizIcon sx={{ fontSize: '1.1rem' }} />
+                                Swap Court Players
+                              </Typography>
+                              
+                              <Typography 
+                                variant="body2" 
+                                sx={{ 
+                                  color: 'text.secondary', 
+                                  fontSize: '0.8rem',
+                                  textAlign: 'center',
+                                  mb: 1
+                                }}
+                              >
+                                Swap all players between courts while retaining positions
+                              </Typography>
+
+                              <FormControl fullWidth>
+                                <InputLabel sx={{ fontSize: '0.9rem' }}>Target Court</InputLabel>
+                                <Select
+                                  value={selectedTargetCourt[courtId] || ''}
+                                  onChange={(e) => onTargetCourtChange(courtId, e.target.value)}
+                                  label="Target Court"
+                                  sx={{ fontSize: '0.9rem' }}
+                                >
+                                  {Array.from({ length: courtCount }, (_, i) => `court-${i}`)
+                                    .filter(id => id !== courtId)
+                                    .map((targetCourtId) => {
+                                      const courtNumber = parseInt(targetCourtId.split('-')[1]) + 1;
+                                      const targetCourtName = courtNames[targetCourtId] || `Court ${courtNumber}`;
+                                      return (
+                                        <MenuItem
+                                          key={targetCourtId}
+                                          value={targetCourtId}
+                                          sx={{
+                                            fontSize: '0.9rem',
+                                            display: 'flex',
+                                            justifyContent: 'space-between',
+                                            alignItems: 'center',
+                                            py: 1.5,
+                                          }}
+                                        >
+                                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                                            <SwapHorizIcon sx={{ fontSize: '1.2rem', color: 'primary.main' }} />
+                                            <span>{targetCourtName}</span>
+                                          </Box>
+                                        </MenuItem>
+                                      );
+                                    })}
+                                </Select>
+                              </FormControl>
+
+                              <Box sx={{ display: 'flex', gap: 1 }}>
+                                <Button
+                                  onClick={() => onCloseSwapCourt(courtId)}
+                                  variant="outlined"
+                                  sx={{
+                                    flex: 1,
+                                    textTransform: 'none',
+                                    fontSize: '0.85rem',
+                                    py: 1,
+                                  }}
+                                >
+                                  Cancel
+                                </Button>
+                                <Button
+                                  onClick={() => onConfirmSwap(courtId)}
+                                  variant="contained"
+                                  disabled={!selectedTargetCourt[courtId]}
+                                  sx={{
+                                    flex: 1,
+                                    textTransform: 'none',
+                                    fontSize: '0.85rem',
+                                    py: 1,
+                                    fontWeight: 600,
+                                  }}
+                                >
+                                  Swap
+                                </Button>
+                              </Box>
+                            </Box>
+                          </Popover>
+                        </Box>
 
                       {/* Delete Section */}
                       <Button
@@ -735,6 +1024,8 @@ const CourtZone: React.FC<CourtZoneProps> = ({ courtCount }) => {
   const isUltraWide = useMediaQuery('(min-width: 1830px)');
   const [courtMenuAnchorEl, setCourtMenuAnchorEl] = useState<Record<string, HTMLElement | null>>({});
   const [editingCourtName, setEditingCourtName] = useState<Record<string, string>>({});
+  const [swapCourtAnchorEl, setSwapCourtAnchorEl] = useState<Record<string, HTMLElement | null>>({});
+  const [selectedTargetCourt, setSelectedTargetCourt] = useState<Record<string, string>>({});
 
   // State for court name editing
   const [courtNames, setCourtNames] = useState<Record<string, string>>(() => {
@@ -866,6 +1157,44 @@ const CourtZone: React.FC<CourtZoneProps> = ({ courtCount }) => {
     dispatch(Action.undoEndGame(courtId));
   }, [dispatch]);
 
+  const handleOpenSwapCourt = useCallback((courtId: string, event: React.MouseEvent<HTMLElement>) => {
+    event.stopPropagation();
+    setSwapCourtAnchorEl(prev => ({
+      ...prev,
+      [courtId]: event.currentTarget
+    }));
+  }, []);
+
+  const handleCloseSwapCourt = useCallback((courtId: string) => {
+    setSwapCourtAnchorEl(prev => ({
+      ...prev,
+      [courtId]: null
+    }));
+    setSelectedTargetCourt(prev => ({
+      ...prev,
+      [courtId]: ''
+    }));
+  }, []);
+
+  const handleSwapCourtPlayers = useCallback((sourceCourtId: string, targetCourtId: string) => {
+    dispatch(Action.swapCourtPlayers(sourceCourtId, targetCourtId));
+    handleCloseSwapCourt(sourceCourtId);
+  }, [dispatch, handleCloseSwapCourt]);
+
+  const handleTargetCourtChange = useCallback((sourceCourtId: string, targetCourtId: string) => {
+    setSelectedTargetCourt(prev => ({
+      ...prev,
+      [sourceCourtId]: targetCourtId
+    }));
+  }, []);
+
+  const handleConfirmSwap = useCallback((sourceCourtId: string) => {
+    const targetCourtId = selectedTargetCourt[sourceCourtId];
+    if (targetCourtId) {
+      handleSwapCourtPlayers(sourceCourtId, targetCourtId);
+    }
+  }, [selectedTargetCourt, handleSwapCourtPlayers]);
+
   // Memoized court items
   const courtItems = useMemo(() => 
     courtData.map(({ courtId, players, index, undoData }) => (
@@ -890,9 +1219,41 @@ const CourtZone: React.FC<CourtZoneProps> = ({ courtCount }) => {
         onCourtNameKeyDown={handleCourtNameKeyDown}
         onCourtNameBlur={handleCourtNameBlur}
         onDeleteCourt={handleDeleteCourt}
+        courtCount={courtCount}
+        swapCourtAnchorEl={swapCourtAnchorEl}
+        selectedTargetCourt={selectedTargetCourt}
+        onOpenSwapCourt={handleOpenSwapCourt}
+        onCloseSwapCourt={handleCloseSwapCourt}
+        onTargetCourtChange={handleTargetCourtChange}
+        onConfirmSwap={handleConfirmSwap}
+        courtNames={courtNames}
       />
     )), 
-    [courtData, courtNames,  handleEndGame, mounted, handleUndoGame, isUltraWide, canRemoveCourts, handleRemoveCourt, courtMenuAnchorEl, editingCourtName, handleOpenCourtMenu, handleCloseCourtMenu, handleCourtNameEditChange, handleCourtNameKeyDown, handleCourtNameBlur, handleDeleteCourt]
+    [
+      courtData, 
+      courtNames,  
+      handleEndGame, 
+      mounted, 
+      handleUndoGame, 
+      isUltraWide, 
+      canRemoveCourts, 
+      handleRemoveCourt, 
+      courtMenuAnchorEl, 
+      editingCourtName, 
+      handleOpenCourtMenu, 
+      handleCloseCourtMenu, 
+      handleCourtNameEditChange, 
+      handleCourtNameKeyDown, 
+      handleCourtNameBlur, 
+      handleDeleteCourt,
+      courtCount,
+      swapCourtAnchorEl,
+      selectedTargetCourt,
+      handleOpenSwapCourt,
+      handleCloseSwapCourt,
+      handleTargetCourtChange,
+      handleConfirmSwap
+    ]
   );
 
   return (

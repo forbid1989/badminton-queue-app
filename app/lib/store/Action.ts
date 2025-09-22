@@ -38,6 +38,7 @@ const ActionType = {
   SHOW_PARTNERSHIP_WARNING: "showPartnershipWarning",
   CLEAR_PARTNERSHIP_WARNINGS: "clearPartnershipWarnings",
   UPDATE_PLAYER_LIST_SORT: "updatePlayerListSort",
+  SWAP_COURT_PLAYERS: "swapCourtPlayers",
 } as const;
 
 // 🧠 Action creators
@@ -302,6 +303,13 @@ const Action = {
     return {
       type: ActionType.UPDATE_PLAYER_LIST_SORT,
       payload: { sortConfig },
+    };
+  },
+
+  swapCourtPlayers(sourceCourtId: string, targetCourtId: string) {
+    return {
+      type: ActionType.SWAP_COURT_PLAYERS,
+      payload: { sourceCourtId, targetCourtId },
     };
   },
 };
