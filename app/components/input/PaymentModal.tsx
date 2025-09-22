@@ -38,6 +38,8 @@ import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
 import SportsIcon from '@mui/icons-material/Sports';
 import PaidIcon from '@mui/icons-material/Paid';
 import PendingIcon from '@mui/icons-material/Pending';
+import SearchIcon from '@mui/icons-material/Search';
+import ClearIcon from '@mui/icons-material/Clear';
 import { AppContext } from '../../BadmintonQueueUI';
 import { Action } from '../../lib/store/Action';
 import { Player } from '../types/Player';
@@ -68,6 +70,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ open, onClose }) => {
   const [perGameFee, setPerGameFee] = useState('15');
   const [guestFee, setGuestFee] = useState('25');
   const [currency, setCurrency] = useState('PHP');
+  const [searchQuery, setSearchQuery] = useState('');
   
   // Sorting state
   const [sortConfig, setSortConfig] = useState<SortConfig>({
@@ -113,45 +116,48 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ open, onClose }) => {
     }));
   };
 
-  // Sort players based on current sort configuration
-  const sortedPlayers = useMemo(() => {
-    if (!sortConfig.column) return state.players;
+  // Filter and sort players
+  const filteredAndSortedPlayers = useMemo(() => {
+    // First, filter by search query
+    let filtered = state.players.filter(player =>
+      player.name.toLowerCase().includes(searchQuery.toLowerCase())
+    );
 
-    return [...state.players].sort((a, b) => {
-      let aValue: any;
-      let bValue: any;
+    // Then sort
+    if (sortConfig.column) {
+      filtered.sort((a, b) => {
+        let aValue: any;
+        let bValue: any;
 
-      switch (sortConfig.column) {
-        case 'name':
-          aValue = a.name.toLowerCase();
-          bValue = b.name.toLowerCase();
-          break;
-        case 'gamesPlayed':
-          aValue = a.gamesPlayed;
-          bValue = b.gamesPlayed;
-          break;
-        case 'amountDue':
-          aValue = calculatePlayerFee(a, a.paymentInfo?.isGuest || false);
-          bValue = calculatePlayerFee(b, b.paymentInfo?.isGuest || false);
-          break;
-        case 'status':
-          // Sort by payment status: Paid comes before Pending
-          aValue = a.paymentInfo?.hasPaid ? 0 : 1;
-          bValue = b.paymentInfo?.hasPaid ? 0 : 1;
-          break;
-        default:
-          return 0;
-      }
+        switch (sortConfig.column) {
+          case 'name':
+            aValue = a.name.toLowerCase();
+            bValue = b.name.toLowerCase();
+            break;
+          case 'gamesPlayed':
+            aValue = a.gamesPlayed;
+            bValue = b.gamesPlayed;
+            break;
+          case 'amountDue':
+            aValue = calculatePlayerFee(a, a.paymentInfo?.isGuest || false);
+            bValue = calculatePlayerFee(b, b.paymentInfo?.isGuest || false);
+            break;
+          case 'status':
+            aValue = a.paymentInfo?.hasPaid ? 1 : 0;
+            bValue = b.paymentInfo?.hasPaid ? 1 : 0;
+            break;
+          default:
+            return 0;
+        }
 
-      if (aValue < bValue) {
-        return sortConfig.direction === 'asc' ? -1 : 1;
-      }
-      if (aValue > bValue) {
-        return sortConfig.direction === 'asc' ? 1 : -1;
-      }
-      return 0;
-    });
-  }, [state.players, sortConfig, calculatePlayerFee]);
+        if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+        if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
+
+    return filtered;
+  }, [state.players, searchQuery, sortConfig, calculatePlayerFee]);
 
   // Save payment settings
   const handleSaveSettings = () => {
@@ -165,6 +171,11 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ open, onClose }) => {
     };
     
     dispatch(Action.updatePaymentSettings(paymentSettings));
+  };
+
+  // Handle clear search
+  const handleClearSearch = () => {
+    setSearchQuery('');
   };
 
   // Toggle payment status for a player
@@ -181,6 +192,33 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ open, onClose }) => {
   const handleClearAllPayments = () => {
     dispatch(Action.clearAllPayments());
   };
+
+  const paymentSummary = useMemo(() => {
+    const totalOwed = filteredAndSortedPlayers.reduce((sum, player) => {
+      const isGuest = player.paymentInfo?.isGuest || false;
+      return sum + calculatePlayerFee(player, isGuest);
+    }, 0);
+
+    const totalPaid = filteredAndSortedPlayers.reduce((sum, player) => {
+      if (player.paymentInfo?.hasPaid) {
+        const isGuest = player.paymentInfo?.isGuest || false;
+        return sum + calculatePlayerFee(player, isGuest);
+      }
+      return sum;
+    }, 0);
+
+    const paidCount = filteredAndSortedPlayers.filter(p => p.paymentInfo?.hasPaid).length;
+    const unpaidCount = filteredAndSortedPlayers.length - paidCount;
+
+    return {
+      totalOwed,
+      totalPaid,
+      totalUnpaid: totalOwed - totalPaid,
+      paidCount,
+      unpaidCount,
+      totalPlayers: filteredAndSortedPlayers.length,
+    };
+  }, [filteredAndSortedPlayers, calculatePlayerFee]);
 
   // Calculate totals
   const totals = useMemo(() => {
@@ -361,10 +399,10 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ open, onClose }) => {
               }}>
                 <Box>
                   <Typography variant="body2" sx={{ fontWeight: 500 }}>Total Paid</Typography>
-                  <Typography variant="caption">{totals.paidCount} players</Typography>
+                  <Typography variant="caption">{paymentSummary.paidCount} players</Typography>
                 </Box>
                 <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
-                  {currency === 'PHP' ? '₱' : currency === 'USD' ? '$' : currency === 'EUR' ? '€' : 'S$'}{totals.totalPaid.toFixed(2)}
+                  {currency === 'PHP' ? '₱' : currency === 'USD' ? '$' : currency === 'EUR' ? '€' : 'S$'}{paymentSummary.totalPaid.toFixed(2)}
                 </Typography>
               </Box>
               
@@ -379,10 +417,10 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ open, onClose }) => {
               }}>
                 <Box>
                   <Typography variant="body2" sx={{ fontWeight: 500 }}>Total Unpaid</Typography>
-                  <Typography variant="caption">{totals.unpaidCount} players</Typography>
+                  <Typography variant="caption">{paymentSummary.unpaidCount} players</Typography>
                 </Box>
                 <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
-                  {currency === 'PHP' ? '₱' : currency === 'USD' ? '$' : currency === 'EUR' ? '€' : 'S$'}{totals.totalUnpaid.toFixed(2)}
+                  {currency === 'PHP' ? '₱' : currency === 'USD' ? '$' : currency === 'EUR' ? '€' : 'S$'}{paymentSummary.totalUnpaid.toFixed(2)}
                 </Typography>
               </Box>
               
@@ -397,10 +435,10 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ open, onClose }) => {
               }}>
                 <Box>
                   <Typography variant="body2" sx={{ fontWeight: 500 }}>Total Expected</Typography>
-                  <Typography variant="caption">{totals.totalPlayers} players</Typography>
+                  <Typography variant="caption">{paymentSummary.totalPlayers} players</Typography>
                 </Box>
                 <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
-                  {currency === 'PHP' ? '₱' : currency === 'USD' ? '$' : currency === 'EUR' ? '€' : 'S$'}{totals.totalOwed.toFixed(2)}
+                  {currency === 'PHP' ? '₱' : currency === 'USD' ? '$' : currency === 'EUR' ? '€' : 'S$'}{paymentSummary.totalOwed.toFixed(2)}
                 </Typography>
               </Box>
             </Stack>
@@ -417,9 +455,9 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ open, onClose }) => {
               }}>
                 <Typography variant="subtitle2">Total Paid</Typography>
                 <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
-                  {currency === 'PHP' ? '₱' : currency === 'USD' ? '$' : currency === 'EUR' ? '€' : 'S$'}{totals.totalPaid.toFixed(2)}
+                  {currency === 'PHP' ? '₱' : currency === 'USD' ? '$' : currency === 'EUR' ? '€' : 'S$'}{paymentSummary.totalPaid.toFixed(2)}
                 </Typography>
-                <Typography variant="caption">{totals.paidCount} players</Typography>
+                <Typography variant="caption">{paymentSummary.paidCount} players</Typography>
               </Box>
               
               <Box sx={{ 
@@ -432,9 +470,9 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ open, onClose }) => {
               }}>
                 <Typography variant="subtitle2">Total Unpaid</Typography>
                 <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
-                  {currency === 'PHP' ? '₱' : currency === 'USD' ? '$' : currency === 'EUR' ? '€' : 'S$'}{totals.totalUnpaid.toFixed(2)}
+                  {currency === 'PHP' ? '₱' : currency === 'USD' ? '$' : currency === 'EUR' ? '€' : 'S$'}{paymentSummary.totalUnpaid.toFixed(2)}
                 </Typography>
-                <Typography variant="caption">{totals.unpaidCount} players</Typography>
+                <Typography variant="caption">{paymentSummary.unpaidCount} players</Typography>
               </Box>
               
               <Box sx={{ 
@@ -447,9 +485,9 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ open, onClose }) => {
               }}>
                 <Typography variant="subtitle2">Total Expected</Typography>
                 <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
-                  {currency === 'PHP' ? '₱' : currency === 'USD' ? '$' : currency === 'EUR' ? '€' : 'S$'}{totals.totalOwed.toFixed(2)}
+                  {currency === 'PHP' ? '₱' : currency === 'USD' ? '$' : currency === 'EUR' ? '€' : 'S$'}{paymentSummary.totalOwed.toFixed(2)}
                 </Typography>
-                <Typography variant="caption">{totals.totalPlayers} players</Typography>
+                <Typography variant="caption">{paymentSummary.totalPlayers} players</Typography>
               </Box>
             </Box>
           )}
@@ -462,7 +500,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ open, onClose }) => {
             color="success"
             onClick={handleMarkAllPaid}
             size="small"
-            disabled={totals.unpaidCount === 0}
+            disabled={paymentSummary.unpaidCount === 0}
             fullWidth={isMobile}
           >
             Mark All Paid
@@ -472,18 +510,62 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ open, onClose }) => {
             color="warning"
             onClick={handleClearAllPayments}
             size="small"
-            disabled={totals.paidCount === 0}
+            disabled={paymentSummary.paidCount === 0}
             fullWidth={isMobile}
           >
             Clear All Payments
           </Button>
         </Box>
 
+        {/* Search Bar */}
+        <Box sx={{ mb: 3 }}>
+          <TextField
+            placeholder="Search players..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            size="small"
+            fullWidth
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon sx={{ fontSize: '1rem', color: 'text.secondary' }} />
+                </InputAdornment>
+              ),
+              endAdornment: searchQuery && (
+                <InputAdornment position="end">
+                  <IconButton onClick={handleClearSearch} size="small">
+                    <ClearIcon sx={{ fontSize: '1rem' }} />
+                  </IconButton>
+                </InputAdornment>
+              ),
+            }}
+            sx={{
+              maxWidth: 400,
+              '& .MuiOutlinedInput-root': {
+                backgroundColor: 'background.default',
+              },
+            }}
+          />
+          {searchQuery && (
+            <Typography 
+              variant="caption" 
+              sx={{ 
+                color: 'text.secondary', 
+                fontSize: '0.7rem',
+                display: 'block',
+                mt: 0.5
+              }}
+            >
+              Showing {filteredAndSortedPlayers.length} of {state.players.length} players
+            </Typography>
+          )}
+        </Box>
+
         {/* Mobile Card Layout */}
         {isMobile ? (
           <Box sx={{ maxHeight: '400px', overflowY: 'auto' }}>
             <Stack spacing={1}>
-              {sortedPlayers.map((player) => {
+              {filteredAndSortedPlayers.map((player) => {
                 const isGuest = player.paymentInfo?.isGuest || false;
                 const hasPaid = player.paymentInfo?.hasPaid || false;
                 const amountDue = calculatePlayerFee(player, isGuest);
@@ -731,7 +813,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ open, onClose }) => {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {sortedPlayers.map((player) => {
+                {filteredAndSortedPlayers.map((player) => {
                   const isGuest = player.paymentInfo?.isGuest || false;
                   const hasPaid = player.paymentInfo?.hasPaid || false;
                   const amountDue = calculatePlayerFee(player, isGuest);
@@ -801,6 +883,12 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ open, onClose }) => {
               </TableBody>
             </Table>
           </TableContainer>
+        )}
+
+        {filteredAndSortedPlayers.length === 0 && searchQuery && (
+          <Alert severity="info" sx={{ mt: 2 }}>
+            No players found matching "{searchQuery}". Try adjusting your search.
+          </Alert>
         )}
 
         {state.players.length === 0 && (
