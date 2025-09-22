@@ -295,7 +295,7 @@ const PlayerListZone: React.FC<PlayerListZoneProps> = ({ state }) => {
         <Tabs
           value={activeTab}
           onChange={handleTabChange}
-          variant="scrollable"
+          variant="fullWidth"
           scrollButtons="auto"
           allowScrollButtonsMobile
           sx={{
