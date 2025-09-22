@@ -7,6 +7,9 @@ import MoreVertIcon from '@mui/icons-material/MoreVert';
 import SettingsIcon from '@mui/icons-material/Settings';
 import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
 import CloseIcon from '@mui/icons-material/Close';
+import QueueIcon from '@mui/icons-material/Queue';
+import TransferWithinAStationIcon from '@mui/icons-material/TransferWithinAStation';
+import WarningIcon from '@mui/icons-material/Warning';
 import { Player } from './types/Player';
 import DroppableZone from './DroppableZone';
 import PlayerCard from './PlayerCard';
@@ -188,14 +191,19 @@ const CourtItem = React.memo<{
   onTargetCourtChange: (sourceCourtId: string, targetCourtId: string) => void;
   onConfirmSwap: (sourceCourtId: string) => void;
   courtNames: Record<string, string>;
+  state: any; // Pass full state for access to queue data
+  transferQueueAnchorEl: Record<string, HTMLElement | null>;
+  selectedQueueId: Record<string, string>;
+  onOpenTransferQueue: (courtId: string, event: React.MouseEvent<HTMLElement>) => void;
+  onCloseTransferQueue: (courtId: string) => void;
+  onQueueSelection: (courtId: string, queueId: string) => void;
+  onConfirmTransfer: (courtId: string) => void;
 }>(({ 
   courtId, 
-  index, 
   players, 
   courtName, 
   onEndGame,
   onUndoGame,
-  onRemoveCourt,
   canRemove,
   mounted,
   undoData,
@@ -216,9 +224,16 @@ const CourtItem = React.memo<{
   onTargetCourtChange,
   onConfirmSwap,
   courtNames,
-}) => {
+  state,
+  transferQueueAnchorEl,
+  selectedQueueId,
+  onOpenTransferQueue,
+  onCloseTransferQueue,
+  onQueueSelection,
+  onConfirmTransfer,
+}) => { 
   
-  const { state, dispatch } = useContext(AppContext);
+  const {dispatch } = useContext(AppContext);
 
   const isMobile = useMediaQuery('(max-width: 768px)');
   
@@ -257,6 +272,13 @@ const CourtItem = React.memo<{
     return originalPlayerIds.length !== currentPlayerIds.length || 
       !originalPlayerIds.every((id, index) => id === currentPlayerIds[index]);
   }, [undoData, players]);
+
+  const hasValidQueuesForTransfer = useMemo(() => {
+    const currentCourtCount = (state.courts.playersByCourt[courtId] || []).length;
+    return Object.entries(state.queue.playersByQueue as Record<string, Player[]>).some(([queueId, players]) => {
+      return players.length > 0 && (currentCourtCount + players.length <= 4);
+    });
+  }, [state.queue.playersByQueue, state.courts.playersByCourt, courtId]);
 
   useEffect(() => {
     if (undoData && courtHasChanged) {
@@ -630,6 +652,263 @@ const CourtItem = React.memo<{
                           </Popover>
                         </Box>
 
+                        <Box sx={{ mb: 3 }}>
+                          <Button
+                            onClick={(e) => onOpenTransferQueue(courtId, e)}
+                            startIcon={<TransferWithinAStationIcon sx={{ fontSize: '1rem' }} />}
+                            variant="outlined"
+                            fullWidth
+                            disabled={!hasValidQueuesForTransfer}
+                            sx={{
+                              textTransform: 'none',
+                              py: 1.5,
+                              borderRadius: 2,
+                              fontSize: '0.85rem',
+                              fontWeight: 600,
+                              opacity: hasValidQueuesForTransfer ? 1 : 0.6,
+                              '&:hover': hasValidQueuesForTransfer ? {
+                                boxShadow: '0 2px 8px rgba(25, 118, 210, 0.3)',
+                              } : {},
+                            }}
+                          >
+                            Transfer Queue to Court
+                          </Button>
+
+                          {/* Transfer Queue Selection Popover */}
+                          <Popover
+                            open={Boolean(transferQueueAnchorEl[courtId])}
+                            anchorEl={transferQueueAnchorEl[courtId]}
+                            onClose={() => onCloseTransferQueue(courtId)}
+                            anchorOrigin={{ vertical: 'center', horizontal: 'right' }}
+                            transformOrigin={{ vertical: 'center', horizontal: 'left' }}
+                            slotProps={{
+                              paper: {
+                                sx: {
+                                  p: 2.5,
+                                  borderRadius: 2,
+                                  minWidth: 320,
+                                  maxWidth: 400,
+                                  boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
+                                },
+                              },
+                            }}
+                          >
+                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                              <Typography 
+                                variant="subtitle1" 
+                                sx={{ 
+                                  fontWeight: 600, 
+                                  color: 'primary.main',
+                                  fontSize: '0.95rem',
+                                  textAlign: 'center',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  gap: 1
+                                }}
+                              >
+                                <TransferWithinAStationIcon sx={{ fontSize: '1.1rem' }} />
+                                Transfer Queue to Court
+                              </Typography>
+                              
+                              <Typography 
+                                variant="body2" 
+                                sx={{ 
+                                  color: 'text.secondary', 
+                                  fontSize: '0.8rem',
+                                  textAlign: 'center',
+                                  mb: 1
+                                }}
+                              >
+                                Select a queue to transfer all its players to this court
+                              </Typography>
+
+                              {/* Court Status Info */}
+                              <Box sx={{ 
+                                p: 1.5, 
+                                backgroundColor: (state.courts.playersByCourt[courtId] || []).length > 0 
+                                  ? 'rgba(255, 152, 0, 0.1)' 
+                                  : 'rgba(76, 175, 80, 0.1)',
+                                borderRadius: 1,
+                                mb: 1
+                              }}>
+                                <Typography variant="body2" sx={{ fontSize: '0.8rem', fontWeight: 600 }}>
+                                  Current Court Status: {(state.courts.playersByCourt[courtId] || []).length}/4 players
+                                </Typography>
+                                {(state.courts.playersByCourt[courtId] || []).length > 0 ? (
+                                  <Typography variant="caption" sx={{ fontSize: '0.7rem', color: 'text.secondary' }}>
+                                    Existing players will be preserved in their positions
+                                  </Typography>
+                                ) : (
+                                  <Typography variant="caption" sx={{ fontSize: '0.7rem', color: 'text.secondary' }}>
+                                    Court is empty - ready for queue transfer
+                                  </Typography>
+                                )}
+                              </Box>
+
+                              {/* Available Queues or No Queues Message */}
+                              {(() => {
+                                const currentCourtCount = (state.courts.playersByCourt[courtId] || []).length;
+                                const availableQueues = Object.entries(state.queue.playersByQueue as Record<string, Player[]>)
+                                  .filter(([, players]) => players.length > 0)
+                                  .map(([queueId, players]) => ({
+                                    queueId,
+                                    players,
+                                    playerCount: players.length,
+                                    canFit: currentCourtCount + players.length <= 4,
+                                    totalAfterTransfer: currentCourtCount + players.length
+                                  }));
+
+                                const validQueues = availableQueues.filter(q => q.canFit);
+
+                                if (availableQueues.length === 0) {
+                                  return (
+                                    <Box sx={{ textAlign: 'center', py: 2 }}>
+                                      <QueueIcon sx={{ fontSize: '2rem', color: 'text.disabled', mb: 1 }} />
+                                      <Typography variant="body2" sx={{ color: 'text.secondary', fontSize: '0.8rem' }}>
+                                        No queues with players available
+                                      </Typography>
+                                    </Box>
+                                  );
+                                }
+
+                                if (validQueues.length === 0) {
+                                  return (
+                                    <Box sx={{ textAlign: 'center', py: 2 }}>
+                                      <WarningIcon sx={{ fontSize: '2rem', color: 'warning.main', mb: 1 }} />
+                                      <Typography variant="body2" sx={{ color: 'warning.main', fontSize: '0.8rem', fontWeight: 600 }}>
+                                        No Valid Transfers Available
+                                      </Typography>
+                                      <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem' }}>
+                                        All queues would cause court overflow (max 4 players)
+                                      </Typography>
+                                      
+                                      {/* Show why each queue can't be transferred */}
+                                      <Box sx={{ mt: 2, textAlign: 'left' }}>
+                                        {availableQueues.map(({ queueId, playerCount, totalAfterTransfer }) => {
+                                          const queueNumber = parseInt(queueId.split('-')[1]) + 1;
+                                          return (
+                                            <Box key={queueId} sx={{ 
+                                              display: 'flex', 
+                                              justifyContent: 'space-between', 
+                                              alignItems: 'center',
+                                              py: 0.5,
+                                              px: 1,
+                                              backgroundColor: 'rgba(244, 67, 54, 0.1)',
+                                              borderRadius: 1,
+                                              mb: 0.5
+                                            }}>
+                                              <Typography variant="caption" sx={{ fontSize: '0.7rem' }}>
+                                                Queue {queueNumber} ({playerCount} players)
+                                              </Typography>
+                                              <Typography variant="caption" sx={{ fontSize: '0.7rem', color: 'error.main', fontWeight: 600 }}>
+                                                Would be {totalAfterTransfer}/4
+                                              </Typography>
+                                            </Box>
+                                          );
+                                        })}
+                                      </Box>
+                                    </Box>
+                                  );
+                                }
+
+                                return (
+                                  <>
+                                    <FormControl fullWidth>
+                                      <InputLabel sx={{ fontSize: '0.9rem' }}>Select Queue</InputLabel>
+                                      <Select
+                                        value={selectedQueueId[courtId] || ''}
+                                        onChange={(e) => onQueueSelection(courtId, e.target.value)}
+                                        label="Select Queue"
+                                        sx={{ fontSize: '0.9rem' }}
+                                      >
+                                        {validQueues.map(({ queueId, players, playerCount, totalAfterTransfer }) => {
+                                          const queueNumber = parseInt(queueId.split('-')[1]) + 1;
+                                          
+                                          return (
+                                            <MenuItem
+                                              key={queueId}
+                                              value={queueId}
+                                              sx={{
+                                                fontSize: '0.9rem',
+                                                py: 1.5,
+                                                flexDirection: 'column',
+                                                alignItems: 'flex-start',
+                                              }}
+                                            >
+                                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, width: '100%' }}>
+                                                <QueueIcon sx={{ fontSize: '1.2rem', color: 'primary.main' }} />
+                                                <Box sx={{ flex: 1 }}>
+                                                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                                                    Queue {queueNumber}
+                                                  </Typography>
+                                                  <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                                                    {playerCount} players • Final total: {totalAfterTransfer}/4
+                                                  </Typography>
+                                                </Box>
+                                                <Box sx={{ 
+                                                  backgroundColor: 'rgba(76, 175, 80, 0.1)', 
+                                                  borderRadius: 1, 
+                                                  px: 1, 
+                                                  py: 0.25 
+                                                }}>
+                                                  <Typography variant="caption" sx={{ 
+                                                    color: 'success.main', 
+                                                    fontSize: '0.65rem',
+                                                    fontWeight: 600 
+                                                  }}>
+                                                    ✓ FITS
+                                                  </Typography>
+                                                </Box>
+                                              </Box>
+                                              
+                                              {/* Show player names */}
+                                              <Box sx={{ mt: 0.5, pl: 3 }}>
+                                                <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem' }}>
+                                                  Players: {players.map(p => p.name).join(', ')}
+                                                </Typography>
+                                              </Box>
+                                            </MenuItem>
+                                          );
+                                        })}
+                                      </Select>
+                                    </FormControl>
+
+                                    <Box sx={{ display: 'flex', gap: 1 }}>
+                                      <Button
+                                        onClick={() => onCloseTransferQueue(courtId)}
+                                        variant="outlined"
+                                        sx={{
+                                          flex: 1,
+                                          textTransform: 'none',
+                                          fontSize: '0.85rem',
+                                          py: 1,
+                                        }}
+                                      >
+                                        Cancel
+                                      </Button>
+                                      <Button
+                                        onClick={() => onConfirmTransfer(courtId)}
+                                        variant="contained"
+                                        disabled={!selectedQueueId[courtId]}
+                                        sx={{
+                                          flex: 1,
+                                          textTransform: 'none',
+                                          fontSize: '0.85rem',
+                                          py: 1,
+                                          fontWeight: 600,
+                                        }}
+                                      >
+                                        Transfer
+                                      </Button>
+                                    </Box>
+                                  </>
+                                );
+                              })()}
+                            </Box>
+                          </Popover>
+                        </Box>
+
                         {/* Delete Section */}
                         <Button
                           onClick={() => onDeleteCourt(courtId)}
@@ -870,6 +1149,263 @@ const CourtItem = React.memo<{
                           </Popover>
                         </Box>
 
+                        <Box sx={{ mb: 3 }}>
+                          <Button
+                            onClick={(e) => onOpenTransferQueue(courtId, e)}
+                            startIcon={<TransferWithinAStationIcon sx={{ fontSize: '1rem' }} />}
+                            variant="outlined"
+                            fullWidth
+                            disabled={!hasValidQueuesForTransfer}
+                            sx={{
+                              textTransform: 'none',
+                              py: 1.5,
+                              borderRadius: 2,
+                              fontSize: '0.85rem',
+                              fontWeight: 600,
+                              opacity: hasValidQueuesForTransfer ? 1 : 0.6,
+                              '&:hover': hasValidQueuesForTransfer ? {
+                                boxShadow: '0 2px 8px rgba(25, 118, 210, 0.3)',
+                              } : {},
+                            }}
+                          >
+                            Transfer Queue to Court
+                          </Button>
+
+                          {/* Transfer Queue Selection Popover */}
+                          <Popover
+                            open={Boolean(transferQueueAnchorEl[courtId])}
+                            anchorEl={transferQueueAnchorEl[courtId]}
+                            onClose={() => onCloseTransferQueue(courtId)}
+                            anchorOrigin={{ vertical: 'center', horizontal: 'right' }}
+                            transformOrigin={{ vertical: 'center', horizontal: 'left' }}
+                            slotProps={{
+                              paper: {
+                                sx: {
+                                  p: 2.5,
+                                  borderRadius: 2,
+                                  minWidth: 320,
+                                  maxWidth: 400,
+                                  boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
+                                },
+                              },
+                            }}
+                          >
+                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                              <Typography 
+                                variant="subtitle1" 
+                                sx={{ 
+                                  fontWeight: 600, 
+                                  color: 'primary.main',
+                                  fontSize: '0.95rem',
+                                  textAlign: 'center',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  gap: 1
+                                }}
+                              >
+                                <TransferWithinAStationIcon sx={{ fontSize: '1.1rem' }} />
+                                Transfer Queue to Court
+                              </Typography>
+                              
+                              <Typography 
+                                variant="body2" 
+                                sx={{ 
+                                  color: 'text.secondary', 
+                                  fontSize: '0.8rem',
+                                  textAlign: 'center',
+                                  mb: 1
+                                }}
+                              >
+                                Select a queue to transfer all its players to this court
+                              </Typography>
+
+                              {/* Court Status Info */}
+                              <Box sx={{ 
+                                p: 1.5, 
+                                backgroundColor: (state.courts.playersByCourt[courtId] || []).length > 0 
+                                  ? 'rgba(255, 152, 0, 0.1)' 
+                                  : 'rgba(76, 175, 80, 0.1)',
+                                borderRadius: 1,
+                                mb: 1
+                              }}>
+                                <Typography variant="body2" sx={{ fontSize: '0.8rem', fontWeight: 600 }}>
+                                  Current Court Status: {(state.courts.playersByCourt[courtId] || []).length}/4 players
+                                </Typography>
+                                {(state.courts.playersByCourt[courtId] || []).length > 0 ? (
+                                  <Typography variant="caption" sx={{ fontSize: '0.7rem', color: 'text.secondary' }}>
+                                    Existing players will be preserved in their positions
+                                  </Typography>
+                                ) : (
+                                  <Typography variant="caption" sx={{ fontSize: '0.7rem', color: 'text.secondary' }}>
+                                    Court is empty - ready for queue transfer
+                                  </Typography>
+                                )}
+                              </Box>
+
+                              {/* Available Queues or No Queues Message */}
+                              {(() => {
+                                const currentCourtCount = (state.courts.playersByCourt[courtId] || []).length;
+                                const availableQueues = Object.entries(state.queue.playersByQueue as Record<string, Player[]>)
+                                  .filter(([, players]) => players.length > 0)
+                                  .map(([queueId, players]) => ({
+                                    queueId,
+                                    players,
+                                    playerCount: players.length,
+                                    canFit: currentCourtCount + players.length <= 4,
+                                    totalAfterTransfer: currentCourtCount + players.length
+                                  }));
+
+                                const validQueues = availableQueues.filter(q => q.canFit);
+
+                                if (availableQueues.length === 0) {
+                                  return (
+                                    <Box sx={{ textAlign: 'center', py: 2 }}>
+                                      <QueueIcon sx={{ fontSize: '2rem', color: 'text.disabled', mb: 1 }} />
+                                      <Typography variant="body2" sx={{ color: 'text.secondary', fontSize: '0.8rem' }}>
+                                        No queues with players available
+                                      </Typography>
+                                    </Box>
+                                  );
+                                }
+
+                                if (validQueues.length === 0) {
+                                  return (
+                                    <Box sx={{ textAlign: 'center', py: 2 }}>
+                                      <WarningIcon sx={{ fontSize: '2rem', color: 'warning.main', mb: 1 }} />
+                                      <Typography variant="body2" sx={{ color: 'warning.main', fontSize: '0.8rem', fontWeight: 600 }}>
+                                        No Valid Transfers Available
+                                      </Typography>
+                                      <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem' }}>
+                                        All queues would cause court overflow (max 4 players)
+                                      </Typography>
+                                      
+                                      {/* Show why each queue can't be transferred */}
+                                      <Box sx={{ mt: 2, textAlign: 'left' }}>
+                                        {availableQueues.map(({ queueId, playerCount, totalAfterTransfer }) => {
+                                          const queueNumber = parseInt(queueId.split('-')[1]) + 1;
+                                          return (
+                                            <Box key={queueId} sx={{ 
+                                              display: 'flex', 
+                                              justifyContent: 'space-between', 
+                                              alignItems: 'center',
+                                              py: 0.5,
+                                              px: 1,
+                                              backgroundColor: 'rgba(244, 67, 54, 0.1)',
+                                              borderRadius: 1,
+                                              mb: 0.5
+                                            }}>
+                                              <Typography variant="caption" sx={{ fontSize: '0.7rem' }}>
+                                                Queue {queueNumber} ({playerCount} players)
+                                              </Typography>
+                                              <Typography variant="caption" sx={{ fontSize: '0.7rem', color: 'error.main', fontWeight: 600 }}>
+                                                Would be {totalAfterTransfer}/4
+                                              </Typography>
+                                            </Box>
+                                          );
+                                        })}
+                                      </Box>
+                                    </Box>
+                                  );
+                                }
+
+                                return (
+                                  <>
+                                    <FormControl fullWidth>
+                                      <InputLabel sx={{ fontSize: '0.9rem' }}>Select Queue</InputLabel>
+                                      <Select
+                                        value={selectedQueueId[courtId] || ''}
+                                        onChange={(e) => onQueueSelection(courtId, e.target.value)}
+                                        label="Select Queue"
+                                        sx={{ fontSize: '0.9rem' }}
+                                      >
+                                        {validQueues.map(({ queueId, players, playerCount, totalAfterTransfer }) => {
+                                          const queueNumber = parseInt(queueId.split('-')[1]) + 1;
+                                          
+                                          return (
+                                            <MenuItem
+                                              key={queueId}
+                                              value={queueId}
+                                              sx={{
+                                                fontSize: '0.9rem',
+                                                py: 1.5,
+                                                flexDirection: 'column',
+                                                alignItems: 'flex-start',
+                                              }}
+                                            >
+                                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, width: '100%' }}>
+                                                <QueueIcon sx={{ fontSize: '1.2rem', color: 'primary.main' }} />
+                                                <Box sx={{ flex: 1 }}>
+                                                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                                                    Queue {queueNumber}
+                                                  </Typography>
+                                                  <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                                                    {playerCount} players • Final total: {totalAfterTransfer}/4
+                                                  </Typography>
+                                                </Box>
+                                                <Box sx={{ 
+                                                  backgroundColor: 'rgba(76, 175, 80, 0.1)', 
+                                                  borderRadius: 1, 
+                                                  px: 1, 
+                                                  py: 0.25 
+                                                }}>
+                                                  <Typography variant="caption" sx={{ 
+                                                    color: 'success.main', 
+                                                    fontSize: '0.65rem',
+                                                    fontWeight: 600 
+                                                  }}>
+                                                    ✓ FITS
+                                                  </Typography>
+                                                </Box>
+                                              </Box>
+                                              
+                                              {/* Show player names */}
+                                              <Box sx={{ mt: 0.5, pl: 3 }}>
+                                                <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem' }}>
+                                                  Players: {players.map(p => p.name).join(', ')}
+                                                </Typography>
+                                              </Box>
+                                            </MenuItem>
+                                          );
+                                        })}
+                                      </Select>
+                                    </FormControl>
+
+                                    <Box sx={{ display: 'flex', gap: 1 }}>
+                                      <Button
+                                        onClick={() => onCloseTransferQueue(courtId)}
+                                        variant="outlined"
+                                        sx={{
+                                          flex: 1,
+                                          textTransform: 'none',
+                                          fontSize: '0.85rem',
+                                          py: 1,
+                                        }}
+                                      >
+                                        Cancel
+                                      </Button>
+                                      <Button
+                                        onClick={() => onConfirmTransfer(courtId)}
+                                        variant="contained"
+                                        disabled={!selectedQueueId[courtId]}
+                                        sx={{
+                                          flex: 1,
+                                          textTransform: 'none',
+                                          fontSize: '0.85rem',
+                                          py: 1,
+                                          fontWeight: 600,
+                                        }}
+                                      >
+                                        Transfer
+                                      </Button>
+                                    </Box>
+                                  </>
+                                );
+                              })()}
+                            </Box>
+                          </Popover>
+                        </Box>
+
                       {/* Delete Section */}
                       <Button
                         onClick={() => onDeleteCourt(courtId)}
@@ -1026,6 +1562,8 @@ const CourtZone: React.FC<CourtZoneProps> = ({ courtCount }) => {
   const [editingCourtName, setEditingCourtName] = useState<Record<string, string>>({});
   const [swapCourtAnchorEl, setSwapCourtAnchorEl] = useState<Record<string, HTMLElement | null>>({});
   const [selectedTargetCourt, setSelectedTargetCourt] = useState<Record<string, string>>({});
+  const [transferQueueAnchorEl, setTransferQueueAnchorEl] = useState<Record<string, HTMLElement | null>>({});
+  const [selectedQueueId, setSelectedQueueId] = useState<Record<string, string>>({});
 
   // State for court name editing
   const [courtNames, setCourtNames] = useState<Record<string, string>>(() => {
@@ -1084,7 +1622,7 @@ const CourtZone: React.FC<CourtZoneProps> = ({ courtCount }) => {
   }, [dispatch, courtCount]);
 
   // Remove court handler
-  const handleRemoveCourt = useCallback((courtId: string) => {
+  const handleRemoveCourt = useCallback(() => {
     // Only allow removal if we have more than 1 court
     if (courtCount > 1) {
       dispatch(Action.setCourtCount(courtCount - 1));
@@ -1149,7 +1687,7 @@ const CourtZone: React.FC<CourtZoneProps> = ({ courtCount }) => {
   }, [handleCourtNameSave]);
 
   const handleDeleteCourt = useCallback((courtId: string) => {
-    handleRemoveCourt(courtId);
+    handleRemoveCourt();
     handleCloseCourtMenu(courtId);
   }, [handleCloseCourtMenu, handleRemoveCourt]);
   
@@ -1178,8 +1716,7 @@ const CourtZone: React.FC<CourtZoneProps> = ({ courtCount }) => {
 
   const handleSwapCourtPlayers = useCallback((sourceCourtId: string, targetCourtId: string) => {
     dispatch(Action.swapCourtPlayers(sourceCourtId, targetCourtId));
-    handleCloseSwapCourt(sourceCourtId);
-  }, [dispatch, handleCloseSwapCourt]);
+  }, [dispatch]);
 
   const handleTargetCourtChange = useCallback((sourceCourtId: string, targetCourtId: string) => {
     setSelectedTargetCourt(prev => ({
@@ -1192,8 +1729,49 @@ const CourtZone: React.FC<CourtZoneProps> = ({ courtCount }) => {
     const targetCourtId = selectedTargetCourt[sourceCourtId];
     if (targetCourtId) {
       handleSwapCourtPlayers(sourceCourtId, targetCourtId);
+
+      // Close the swap court popover
+      handleCloseSwapCourt(sourceCourtId);
+      
+      // Close the main court menu modal/popover  
+      handleCloseCourtMenu(sourceCourtId);
     }
-  }, [selectedTargetCourt, handleSwapCourtPlayers]);
+  }, [selectedTargetCourt, handleSwapCourtPlayers, handleCloseSwapCourt, handleCloseCourtMenu]);
+
+  const handleOpenTransferQueue = useCallback((courtId: string, event: React.MouseEvent<HTMLElement>) => {
+    event.stopPropagation();
+    setTransferQueueAnchorEl(prev => ({
+      ...prev,
+      [courtId]: event.currentTarget
+    }));
+  }, []);
+
+  const handleCloseTransferQueue = useCallback((courtId: string) => {
+    setTransferQueueAnchorEl(prev => ({
+      ...prev,
+      [courtId]: null
+    }));
+    setSelectedQueueId(prev => ({
+      ...prev,
+      [courtId]: ''
+    }));
+  }, []);
+
+  const handleQueueSelection = useCallback((courtId: string, queueId: string) => {
+    setSelectedQueueId(prev => ({
+      ...prev,
+      [courtId]: queueId
+    }));
+  }, []);
+
+  const handleConfirmTransfer = useCallback((courtId: string) => {
+    const queueId = selectedQueueId[courtId];
+    if (queueId) {
+      dispatch(Action.transferQueueToSpecificCourtFromSubmenu(queueId, courtId));
+      handleCloseTransferQueue(courtId);
+      handleCloseCourtMenu(courtId);
+    }
+  }, [selectedQueueId, dispatch, handleCloseTransferQueue, handleCloseCourtMenu]);
 
   // Memoized court items
   const courtItems = useMemo(() => 
@@ -1227,6 +1805,13 @@ const CourtZone: React.FC<CourtZoneProps> = ({ courtCount }) => {
         onTargetCourtChange={handleTargetCourtChange}
         onConfirmSwap={handleConfirmSwap}
         courtNames={courtNames}
+        state={state}
+        transferQueueAnchorEl={transferQueueAnchorEl}
+        selectedQueueId={selectedQueueId}
+        onOpenTransferQueue={handleOpenTransferQueue}
+        onCloseTransferQueue={handleCloseTransferQueue}
+        onQueueSelection={handleQueueSelection}
+        onConfirmTransfer={handleConfirmTransfer}
       />
     )), 
     [
@@ -1252,7 +1837,14 @@ const CourtZone: React.FC<CourtZoneProps> = ({ courtCount }) => {
       handleOpenSwapCourt,
       handleCloseSwapCourt,
       handleTargetCourtChange,
-      handleConfirmSwap
+      handleConfirmSwap,
+      state,
+      transferQueueAnchorEl,
+      selectedQueueId,
+      handleOpenTransferQueue,
+      handleCloseTransferQueue,
+      handleQueueSelection,
+      handleConfirmTransfer
     ]
   );
 

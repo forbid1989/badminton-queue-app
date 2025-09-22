@@ -84,6 +84,10 @@ type Action =
   | {
       type: "swapCourtPlayers";
       payload: { sourceCourtId: string; targetCourtId: string };
+    }
+  | {
+      type: "transferQueueToSpecificCourtFromSubmenu";
+      payload: { queueId: string; targetCourtId: string };
     };
 
 function logPartnershipWarnings(zoneId: string, players: Player[]): void {
@@ -2783,6 +2787,236 @@ export default function reducer(state: any, action: Action) {
         },
         queue: {
           ...state.queue,
+          playersByQueue,
+        },
+        undoableGames: updatedUndoGames,
+      };
+    }
+
+    case ActionType.TRANSFER_QUEUE_TO_SPECIFIC_COURT_FROM_SUBMENU: {
+      console.log(
+        "🎯 REDUCER: TRANSFER_QUEUE_TO_SPECIFIC_COURT_FROM_SUBMENU started:",
+        action.payload
+      );
+
+      const { queueId, targetCourtId } = action.payload;
+
+      // ✅ VALIDATION: Check if inputs are valid
+      if (!queueId || !targetCourtId) {
+        console.warn("⚠️ REDUCER: Invalid queueId or targetCourtId provided");
+        return state;
+      }
+
+      // ✅ VALIDATION: Check if queue exists and has players
+      const playersInQueue = state.queue.playersByQueue[queueId] || [];
+      if (playersInQueue.length === 0) {
+        console.warn(
+          `⚠️ REDUCER: Queue ${queueId} is empty, nothing to transfer`
+        );
+        return state;
+      }
+
+      // ✅ VALIDATION: Check if target court exists
+      const validCourtIds = Object.keys(state.courts.playersByCourt);
+      if (!validCourtIds.includes(targetCourtId)) {
+        console.warn(
+          `⚠️ REDUCER: Target court ${targetCourtId} does not exist`
+        );
+        return state;
+      }
+
+      // ✅ VALIDATION: Check if any queue player is already on a court (advanced queueing check)
+      const hasPlayerOnCourt = playersInQueue.some((player: Player) =>
+        player.status.some((s: PlayerStatus) => s.startsWith("court-"))
+      );
+
+      if (hasPlayerOnCourt) {
+        console.warn(
+          "⚠️ REDUCER: Some players in queue are already on court, aborting transfer"
+        );
+        return state;
+      }
+
+      // ✅ STRICT CAPACITY CHECK: Prevent overflow completely
+      const currentCourtPlayers =
+        state.courts.playersByCourt[targetCourtId] || [];
+      const totalPlayersAfterTransfer =
+        currentCourtPlayers.length + playersInQueue.length;
+
+      if (totalPlayersAfterTransfer > 4) {
+        console.warn(
+          `❌ REDUCER: Transfer rejected - would cause overflow. ` +
+            `Court ${targetCourtId} has ${currentCourtPlayers.length} players, ` +
+            `queue has ${playersInQueue.length} players ` +
+            `(total would be ${totalPlayersAfterTransfer}/4). Transfer aborted.`
+        );
+        return state; // ❌ ABORT: Don't allow overflow
+      }
+
+      console.log(
+        `🚀 Transferring ${playersInQueue.length} players from ${queueId} to ${targetCourtId}. ` +
+          `Court currently has ${currentCourtPlayers.length} players. ` +
+          `Final count will be ${totalPlayersAfterTransfer}/4.`
+      );
+
+      // ✅ EXISTING PLAYER PROTECTION: Get existing players and their positions
+      const existingPlayerIds = new Set(
+        currentCourtPlayers.map((p: Player) => p.id)
+      );
+      const transferredPlayerIds = new Set(
+        playersInQueue.map((p: Player) => p.id)
+      );
+
+      // Find occupied positions by existing players (ones not being transferred)
+      const occupiedPositions = new Set(
+        currentCourtPlayers
+          .filter((p: Player) => !transferredPlayerIds.has(p.id)) // Only non-transferred players
+          .map((p: Player) => p.courtOrder)
+          .filter((pos: Player) => pos !== null && pos !== undefined)
+      );
+
+      console.log(
+        `🏟️ Court ${targetCourtId} occupied positions by existing players:`,
+        Array.from(occupiedPositions)
+      );
+
+      // ✅ PRESERVE QUEUE ORDER: Sort players by their queue order
+      const sortedQueuePlayers = [...playersInQueue].sort(
+        (a, b) => (a.queueOrder || 0) - (b.queueOrder || 0)
+      );
+
+      // ✅ POSITION ASSIGNMENT: Create position mapping for queue players (0-3 only)
+      const playerPositionMap = new Map<string, number>();
+
+      const getNextAvailablePosition = (): number | null => {
+        for (let position = 0; position < 4; position++) {
+          // ✅ STRICT: Only positions 0-3
+          if (!occupiedPositions.has(position)) {
+            occupiedPositions.add(position);
+            return position;
+          }
+        }
+        return null; // ❌ No available positions
+      };
+
+      // Assign positions to queue players in order
+      sortedQueuePlayers.forEach((player, index) => {
+        const assignedPosition = getNextAvailablePosition();
+
+        if (assignedPosition === null) {
+          console.error(
+            `❌ CRITICAL: No available position for ${player.name} - this should not happen!`
+          );
+          return; // This should never happen due to our capacity check above
+        }
+
+        playerPositionMap.set(player.id, assignedPosition);
+        console.log(
+          `📍 Position assignment: ${player.name} (queue pos ${player.queueOrder}) → court pos ${assignedPosition}`
+        );
+      });
+
+      // ✅ FINAL VALIDATION: Ensure all players got positions
+      if (playerPositionMap.size !== sortedQueuePlayers.length) {
+        console.error(
+          "❌ CRITICAL: Not all players could be assigned positions - aborting transfer"
+        );
+        return state;
+      }
+
+      // ✅ UPDATE PLAYERS: Transfer queue players to court
+      const timestamp = Date.now();
+      const updatedPlayers = state.players.map((player: Player) => {
+        if (transferredPlayerIds.has(player.id)) {
+          const assignedPosition = playerPositionMap.get(player.id)!;
+
+          console.log(
+            `🎯 Transferring ${player.name} to ${targetCourtId} position ${assignedPosition}`
+          );
+
+          return {
+            ...player,
+            status: [targetCourtId as PlayerStatus], // Move from queue to court
+            timeEntered: timestamp,
+            queueOrder: null, // Clear queue order
+            courtOrder: assignedPosition, // Set court position
+            courtEnteredTime: timestamp, // Set court entry time
+          };
+        }
+        return player; // No change for other players
+      });
+
+      // ✅ QUEUE CLEANUP: Remove the transferred queue and reindex remaining queues
+      const remainingQueueIds = Object.keys(state.queue.playersByQueue)
+        .filter((id) => id !== queueId)
+        .sort((a, b) => {
+          const numA = parseInt(a.split("-")[1]);
+          const numB = parseInt(b.split("-")[1]);
+          return numA - numB;
+        });
+
+      // Create mapping for queue ID updates
+      const queueIdMapping: Record<string, string> = {};
+      remainingQueueIds.forEach((oldId, index) => {
+        queueIdMapping[oldId] = `queue-${index}`;
+      });
+
+      // Update remaining players' queue IDs
+      const playersWithUpdatedQueueIds = updatedPlayers.map(
+        (player: Player) => {
+          if (transferredPlayerIds.has(player.id)) {
+            return player; // Already updated above
+          }
+
+          const newStatus = player.status.map((s) => {
+            if (s.startsWith("queue-") && queueIdMapping[s]) {
+              return queueIdMapping[s] as PlayerStatus;
+            }
+            return s;
+          });
+
+          return {
+            ...player,
+            status: newStatus,
+          };
+        }
+      );
+
+      // ✅ REBUILD MAPPINGS: Use the helper function to rebuild all zone mappings
+      const finalQueueIds = remainingQueueIds.map(
+        (_, index) => `queue-${index}`
+      );
+      const { playersByCourt, playersByQueue } = rebuildZoneMappings(
+        playersWithUpdatedQueueIds,
+        state.courts.count,
+        finalQueueIds
+      );
+
+      // ✅ UNDO DATA CLEANUP: Clear undo data for the affected court
+      const updatedUndoGames = { ...state.undoableGames };
+      if (updatedUndoGames[targetCourtId]) {
+        console.log(
+          `🧹 Clearing undo data for ${targetCourtId} due to queue transfer`
+        );
+        delete updatedUndoGames[targetCourtId];
+      }
+
+      console.log("✅ REDUCER: Queue to court transfer completed successfully");
+      console.log(
+        `📊 Final state: Court ${targetCourtId} now has ${
+          (playersByCourt[targetCourtId] || []).length
+        }/4 players`
+      );
+
+      return {
+        ...state,
+        players: playersWithUpdatedQueueIds,
+        courts: {
+          ...state.courts,
+          playersByCourt,
+        },
+        queue: {
+          count: Object.keys(playersByQueue).length,
           playersByQueue,
         },
         undoableGames: updatedUndoGames,

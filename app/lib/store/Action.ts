@@ -39,6 +39,8 @@ const ActionType = {
   CLEAR_PARTNERSHIP_WARNINGS: "clearPartnershipWarnings",
   UPDATE_PLAYER_LIST_SORT: "updatePlayerListSort",
   SWAP_COURT_PLAYERS: "swapCourtPlayers",
+  TRANSFER_QUEUE_TO_SPECIFIC_COURT_FROM_SUBMENU:
+    "transferQueueToSpecificCourtFromSubmenu",
 } as const;
 
 // 🧠 Action creators
@@ -310,6 +312,16 @@ const Action = {
     return {
       type: ActionType.SWAP_COURT_PLAYERS,
       payload: { sourceCourtId, targetCourtId },
+    };
+  },
+
+  transferQueueToSpecificCourtFromSubmenu(
+    queueId: string,
+    targetCourtId: string
+  ) {
+    return {
+      type: ActionType.TRANSFER_QUEUE_TO_SPECIFIC_COURT_FROM_SUBMENU,
+      payload: { queueId, targetCourtId },
     };
   },
 };
