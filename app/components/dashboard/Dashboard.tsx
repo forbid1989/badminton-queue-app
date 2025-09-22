@@ -21,7 +21,7 @@ const Dashboard: React.FC = React.memo(() => {
   const { state } = useContext(AppContext);
   const theme = useTheme();
   const isPortraitMobile = useMediaQuery('(max-width: 768px) and (orientation: portrait) and (max-height: 900px)');
-  const isVerySmallScreen = useMediaQuery('(max-width: 480px)');
+  const isVerySmallScreen = useMediaQuery('(max-width: 600px)');
   const isMobile = isPortraitMobile || isVerySmallScreen;
 
   // State management
