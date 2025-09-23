@@ -555,21 +555,114 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
           type: 'player-card'
         }),
         onGenerateDragPreview: ({ nativeSetDragImage }) => {
-          // Create custom drag preview
           setCustomNativeDragPreview({
             nativeSetDragImage,
-            getOffset: () => ({ x: 16, y: 8 }),
+            getOffset: () => ({ x: 20, y: 12 }),
             render({ container }) {
-              // Create a simplified version of the card as preview
+              const isInTeamZone = zone.startsWith('court-') || zone.startsWith('queue-');
+              const isMobilePreview = window.innerWidth <= 768;
+              
+              const cardWidth = isInTeamZone 
+                ? (isMobilePreview ? '120px' : '115px')
+                : (isMobilePreview ? '160px' : '150px');
+              
+              const cardHeight = isMobilePreview ? '32px' : '30px';
+
               const preview = document.createElement('div');
-              preview.style.padding = '4px 8px';
-              preview.style.backgroundColor = cardColors.backgroundColor;
-              preview.style.color = cardColors.textColor;
-              preview.style.borderRadius = '8px';
-              preview.style.fontSize = '0.75rem';
-              preview.style.fontWeight = 'bold';
-              preview.style.boxShadow = '0 2px 8px rgba(0,0,0,0.15)';
-              preview.textContent = player.name;
+              preview.style.cssText = `
+                display: flex;
+                flex-direction: row;
+                width: ${cardWidth};
+                max-width: ${cardWidth};
+                height: ${cardHeight};
+                justify-content: space-between;
+                align-items: center;
+                padding: 3px 8px;
+                background-color: ${cardColors.backgroundColor};
+                color: ${cardColors.textColor};
+                border-radius: 14px;
+                border: 1px solid ${cardColors.backgroundColor};
+                margin: 0 auto 2px;
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+                transform: scale(1.05);
+                backdrop-filter: blur(10px);
+              `;
+
+              const leftSection = document.createElement('div');
+              leftSection.style.cssText = `
+                display: flex;
+                flex-direction: column;
+                align-items: flex-start;
+                overflow: hidden;
+                min-width: 0;
+                flex: 1;
+                gap: 0;
+              `;
+
+              const nameContainer = document.createElement('div');
+              nameContainer.style.cssText = `
+                width: 100%;
+                overflow: hidden;
+                display: flex;
+                align-items: center;
+              `;
+
+              const nameElement = document.createElement('div');
+              nameElement.style.cssText = `
+                font-weight: bold;
+                font-size: ${isInTeamZone 
+                  ? (isMobilePreview ? '0.62rem' : '0.58rem')
+                  : (isMobilePreview ? '0.72rem' : '0.68rem')};
+                line-height: 1.1;
+                text-shadow: ${isMobilePreview ? '1px 1px 2px rgba(0,0,0,0.1)' : 'none'};
+                max-width: ${isInTeamZone 
+                  ? (isMobilePreview ? '85px' : '80px')
+                  : (isMobilePreview ? '120px' : '115px')};
+                text-overflow: ellipsis;
+                overflow: hidden;
+                white-space: nowrap;
+                flex: 1;
+                padding-left: 6px;
+              `;
+              nameElement.textContent = player.name;
+              nameElement.title = player.name;
+
+              const statsContainer = document.createElement('div');
+              statsContainer.style.cssText = `
+                display: flex;
+                align-items: center;
+                background-color: rgba(255, 255, 255, 0.2);
+                border-radius: 6px;
+                padding: 0px 3px;
+                border: 1px solid rgba(255, 255, 255, 0.3);
+                gap: 0.25rem;
+                min-height: 16px;
+                width: fit-content;
+                margin-top: -2.5px;
+              `;
+
+              const gamesElement = document.createElement('div');
+              gamesElement.style.cssText = `
+                display: flex;
+                align-items: center;
+                font-size: ${isInTeamZone 
+                  ? (isMobilePreview ? '0.65rem' : '0.6rem')   
+                  : (isMobilePreview ? '0.7rem' : '0.65rem')};
+                font-weight: 600;
+                line-height: 1;
+                opacity: 0.9;
+              `;
+              
+              const gamesPlayed = player.gamesPlayed || 0;
+              gamesElement.textContent = `${gamesPlayed}`;
+
+              nameContainer.appendChild(nameElement);
+              statsContainer.appendChild(gamesElement);
+              leftSection.appendChild(nameContainer);
+              leftSection.appendChild(statsContainer);
+              preview.appendChild(leftSection);
+              
               container.appendChild(preview);
             }
           });
