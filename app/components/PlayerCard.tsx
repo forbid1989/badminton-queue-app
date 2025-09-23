@@ -90,7 +90,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
 
   const [partnershipSnackbar, setPartnershipSnackbar] = useState(false);
   const [oppositionSnackbar, setOppositionSnackbar] = useState(false);
-  const [snackbarMessage, setSnackbarMessage] = useState('');
+  const [showDragHint, setShowDragHint] = useState(false);
 
   const { showPartnershipSnackbar, showOppositionSnackbar } = useContext(SnackbarContext);
 
@@ -209,44 +209,6 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
     return false;
   }, [player, zone, state.courts.playersByCourt, state.queue.playersByQueue]);
 
-  const partnershipDetails = useMemo(() => {
-    const isOnCourt = zone.startsWith('court-');
-    const isInQueue = zone.startsWith('queue-');
-    
-    if (!isOnCourt && !isInQueue) return null;
-
-    const currentZoneId = zone;
-    let currentZonePlayers: Player[] = [];
-    
-    // Get players from the appropriate zone
-    if (isOnCourt) {
-      currentZonePlayers = state.courts.playersByCourt[currentZoneId] || [];
-    } else if (isInQueue) {
-      currentZonePlayers = state.queue.playersByQueue[currentZoneId] || [];
-    }
-    
-    const otherPlayersInZone = currentZonePlayers.filter(p => p.id !== player.id);
-    
-    const partnerships = otherPlayersInZone
-      .map(otherPlayer => {
-        const count1 = (player.matchHistory || []).filter(
-          match => match.partner?.id === otherPlayer.id
-        ).length;
-        const count2 = (otherPlayer.matchHistory || []).filter(
-          match => match.partner?.id === player.id
-        ).length;
-        const totalCount = Math.max(count1, count2); // Take the higher count
-        
-        return {
-          partner: otherPlayer,
-          count: totalCount
-        };
-      })
-      .filter(p => p.count >= 2);
-
-    return partnerships;
-  }, [player, zone, state.courts.playersByCourt, state.queue.playersByQueue]);
-
   const hasExcessiveOpposition = useMemo(() => {
     const isOnCourt = zone.startsWith('court-');
     const isInQueue = zone.startsWith('queue-');
@@ -298,8 +260,19 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
   }, [player, zone, state.courts.playersByCourt, state.queue.playersByQueue]);
 
   const getCardClassName = () => {
-    let className = `player-card ${isDragging ? "dragging" : ""}`;
+    let className = `player-card player-card-draggable`;
     
+    // Add dragging state
+    if (isDragging) {
+      className += " player-card-dragging";
+    }
+    
+    // Add first-time hint animation
+    if (showDragHint) {
+      className += " first-time-hint";
+    }
+    
+    // Add existing pulse animations
     if (hasExcessivePartnership && hasExcessiveOpposition) {
       className += " purple-pulse"; // Both partnership and opposition
     } else if (hasExcessivePartnership) {
@@ -426,10 +399,6 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
     setAnchorEl(null);
   }, []);
 
-  const handleEditToggle = useCallback(() => {
-    setIsEditing(prev => !prev);
-  }, []);
-
   const handleReturnToRest = useCallback(() => {
     dispatch(Action.movePlayer(player.id, zone, 'all'));
   }, [player.id, zone, dispatch]);
@@ -461,13 +430,6 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
     e.stopPropagation(); // Prevent card drag
     setHistoryAnchorEl(e.currentTarget);
   }, []);
-
-  // Handle pencil icon click for inline name editing
-  const handlePencilClick = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation(); // Prevent card drag
-    setEditNameAnchorEl(e.currentTarget as HTMLElement);
-    setEditNameValue(player.name); // Sync with current name
-  }, [player.name]);
 
   // Handle submenu name change
   const handleSubmenuNameChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -792,6 +754,33 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
       }
     };
   }, []);
+
+  // Check if user should see drag hints (first-time users)
+  useEffect(() => {
+    const hasSeenDragHints = localStorage.getItem('dragHintsSeen');
+    const hasMultiplePlayers = state.players.length >= 2;
+    const isInPlayerList = zone === 'all';
+    
+    // Show hints for first-time users with multiple players in main list
+    if (!hasSeenDragHints && hasMultiplePlayers && isInPlayerList) {
+      setShowDragHint(true);
+      
+      // Auto-hide hint after 8 seconds
+      const timer = setTimeout(() => {
+        setShowDragHint(false);
+      }, 8000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [state.players.length, zone]);
+
+  // Clear hints when user starts dragging (they've learned!)
+  useEffect(() => {
+    if (isDragging && showDragHint) {
+      setShowDragHint(false);
+      localStorage.setItem('dragHintsSeen', 'true');
+    }
+  }, [isDragging, showDragHint]);
 
   useEffect(() => {
     // Handle multiple partnership snackbars
@@ -1119,11 +1108,12 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
                 border: '2px solid #22C55E',
                 backgroundColor: '#f0fdf4',
               }),
-              cursor: player.paymentInfo?.hasPaid ? 'not-allowed' : (isDragging ? 'grabbing' : 'grab'),
+              cursor: player.paymentInfo?.hasPaid ? 'not-allowed' : 'grab',
             }}
             className={getCardClassName()}
             data-player-id={player.id}
             data-zone={zone}
+            title={showDragHint ? (isMobile ? "Hold to drag this player" : "Drag this player to move them") : undefined}
           >
             
               <Box

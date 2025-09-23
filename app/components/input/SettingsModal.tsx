@@ -17,6 +17,9 @@ import CloseIcon from '@mui/icons-material/Close';
 import SortIcon from '@mui/icons-material/Sort';
 import DeleteIcon from '@mui/icons-material/Delete';
 import SaveIcon from '@mui/icons-material/Save';
+import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
+import PlayArrowIcon from '@mui/icons-material/PlayArrow';
+import InfoIcon from '@mui/icons-material/Info';
 import { FormControl, InputLabel, Select, MenuItem } from '@mui/material';
 import { Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
 import { SortableField } from '../types/Settings';
@@ -28,9 +31,10 @@ import { saveToLocalStorage } from '../../lib/utils/localStorage';
 interface SettingsModalProps {
   open: boolean;
   onClose: () => void;
+  onShowTutorial?: () => void;
 }
 
-const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
+const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose, onShowTutorial }) => {
   const theme = useTheme();
   const { state, dispatch } = useContext(AppContext);
   
@@ -43,6 +47,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
   const [clearDialogOpen, setClearDialogOpen] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [mounted, setMounted] = useState(false);
+
+  const [showTutorialSection, setShowTutorialSection] = useState(false);
 
   const sortFieldLabels: Record<SortableField, string> = {
     timeEntered: 'Time Entered (When player joined)',
@@ -161,6 +167,22 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
   const handleClearData = () => {
     dispatch(Action.clearAllData());
     setClearDialogOpen(false);
+  };
+
+  const handleReplayTutorial = () => {
+    // Clear tutorial flags so it shows again
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('dragTutorialSeen');
+      localStorage.removeItem('dragHintsSeen');
+    }
+    
+    // Close settings modal
+    onClose();
+    
+    // Trigger tutorial (if parent component provides the function)
+    if (onShowTutorial) {
+      onShowTutorial();
+    }
   };
 
   // Calculate stats only after mounting to prevent hydration mismatch
@@ -432,6 +454,103 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
                   2nd: {sortFieldLabels[sortConfig.secondarySort]} ({sortConfig.secondaryDirection === 'asc' ? 'Low to High' : 'High to Low'})<br />
                   3rd: {sortFieldLabels[sortConfig.tertiarySort]} ({sortConfig.tertiaryDirection === 'asc' ? 'Low to High' : 'High to Low'})
                 </Typography>
+              </Box>
+            </Box>
+
+            <Divider />
+
+            <Box sx={{ mb: 3 }}>
+              <Typography 
+                variant="h6" 
+                sx={{ 
+                  fontSize: '0.95rem', 
+                  fontWeight: 'bold',
+                  mb: 2,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1,
+                  color: 'text.primary'
+                }}
+              >
+                <HelpOutlineIcon sx={{ fontSize: '1.1rem' }} />
+                Tutorial & Help
+              </Typography>
+
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                {/* Replay Tutorial Button */}
+                <Box sx={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'space-between',
+                  p: 2,
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  borderRadius: 2,
+                  bgcolor: 'grey.50'
+                }}>
+                  <Box>
+                    <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '0.85rem' }}>
+                      Replay Tutorial
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.75rem' }}>
+                      Show the drag & drop tutorial again
+                    </Typography>
+                  </Box>
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    startIcon={<PlayArrowIcon />}
+                    onClick={handleReplayTutorial}
+                    sx={{
+                      fontSize: '0.75rem',
+                      px: 2,
+                      borderColor: 'primary.main',
+                      color: 'primary.main',
+                      '&:hover': {
+                        backgroundColor: 'primary.main',
+                        color: 'white'
+                      }
+                    }}
+                  >
+                    Replay
+                  </Button>
+                </Box>
+
+                {/* App Info */}
+                <Box sx={{ 
+                  p: 2,
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  borderRadius: 2,
+                  bgcolor: 'grey.50'
+                }}>
+                  <Typography 
+                    variant="body2" 
+                    sx={{ 
+                      fontWeight: 'bold', 
+                      fontSize: '0.85rem',
+                      mb: 1,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 1
+                    }}
+                  >
+                    <InfoIcon sx={{ fontSize: '1rem' }} />
+                    Queue Maestro Features
+                  </Typography>
+                  <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.75rem', display: 'block', mb: 1 }}>
+                    • Drag & drop players between courts and queues
+                  </Typography>
+                  <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.75rem', display: 'block', mb: 1 }}>
+                    • Automatic game tracking and player statistics
+                  </Typography>
+                  <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.75rem', display: 'block', mb: 1 }}>
+                    • Smart player rotation and queue management
+                  </Typography>
+                  <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.75rem', display: 'block' }}>
+                    • Payment tracking and court time monitoring
+                  </Typography>
+                </Box>
               </Box>
             </Box>
 

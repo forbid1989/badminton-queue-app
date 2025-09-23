@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useReducer, useEffect } from 'react';
+import React, { useReducer, useEffect, useState } from 'react';
 import { ThemeProvider, CssBaseline, Box, AppBar, Toolbar, Typography } from '@mui/material';
 import { SportsMma, Handshake, Close } from '@mui/icons-material';
 import { SnackbarProvider, useSnackbar, VariantType, closeSnackbar  } from 'notistack';
@@ -12,9 +12,11 @@ import { SpeedInsights } from '@vercel/speed-insights/react';
 import reducer from './lib/store/Reducer';
 import InitialState from './lib/store/InitialState';
 import { RootState } from './lib/store/rootState';
+import { Player } from './components/types/Player';
 import Dashboard from './components/dashboard/Dashboard';
 import MobileFooter from './components/MobileFooter';
 import { debouncedSave, isLocalStorageAvailable } from './lib/utils/localStorage';
+import DragTutorial from './components/DragTutorial';
 
 export const AppContext = React.createContext<{
 	state: RootState;
@@ -36,6 +38,7 @@ export const SnackbarContext = React.createContext<{
 const AppContent: React.FC = () => {
 	const [state, dispatch] = useReducer(reducer, InitialState);
 	const { enqueueSnackbar } = useSnackbar();
+	const [showDragTutorial, setShowDragTutorial] = useState(false);
 
 	const showPartnershipSnackbar = (message: string) => {
 		enqueueSnackbar(message, {
@@ -119,6 +122,32 @@ const AppContent: React.FC = () => {
 		}
 	}, [state]);
 
+	// Tutorial detection - show to first-time users
+	useEffect(() => {
+		const hasSeenTutorial = localStorage.getItem('dragTutorialSeen');
+		const hasPlayers = state.players.length >= 2;
+		
+		// Use type assertion to fix the TypeScript errors
+		const courtValues = Object.values(state.courts.playersByCourt || {}) as Player[][];
+		const queueValues = Object.values(state.queue.playersByQueue || {}) as Player[][];
+		
+		const hasPlayersOnCourts = courtValues.some(court => court.length > 0);
+		const hasPlayersInQueues = queueValues.some(queue => queue.length > 0);
+		
+		if (!hasSeenTutorial && hasPlayers && !hasPlayersOnCourts && !hasPlayersInQueues) {
+			const timer = setTimeout(() => {
+			setShowDragTutorial(true);
+			}, 2000);
+			
+			return () => clearTimeout(timer);
+		}
+	}, [state.players.length, state.courts.playersByCourt, state.queue.playersByQueue]);
+
+	const handleTutorialClose = () => {
+		setShowDragTutorial(false);
+		localStorage.setItem('dragTutorialSeen', 'true');
+	};
+
 	return (
 		<SnackbarContext.Provider value={{ showPartnershipSnackbar, showOppositionSnackbar }}>
 			<CssBaseline />
@@ -151,11 +180,15 @@ const AppContent: React.FC = () => {
 					width: '100vw',       // 👈 makes it full viewport width
 					boxSizing: 'border-box', // 👈 ensures padding doesn't exceed 100vw
 				}}>
-					<Dashboard />
+					<Dashboard onShowTutorial={() => setShowDragTutorial(true)} />
 					<MobileFooter />
 				</Box>
 				<Analytics />
 				<SpeedInsights />
+				<DragTutorial 
+					open={showDragTutorial} 
+					onClose={handleTutorialClose} 
+				/>
 			</AppContext.Provider>
 		</SnackbarContext.Provider>
 	);
