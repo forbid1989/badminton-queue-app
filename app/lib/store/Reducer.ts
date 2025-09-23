@@ -2417,9 +2417,23 @@ export default function reducer(state: any, action: Action) {
         p.id === id ? { ...p, name: newName } : p
       );
 
+      const { playersByCourt, playersByQueue } = rebuildZoneMappings(
+        updatedPlayers,
+        state.courts.count,
+        Object.keys(state.queue.playersByQueue)
+      );
+
       return {
         ...state,
         players: updatedPlayers,
+        courts: {
+          ...state.courts,
+          playersByCourt,
+        },
+        queue: {
+          ...state.queue,
+          playersByQueue,
+        },
       };
     }
 
