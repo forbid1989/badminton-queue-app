@@ -1,4 +1,5 @@
 import React, { useContext, useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import type { SxProps, Theme } from '@mui/system';
 import {
   Card,
   Box,
@@ -76,9 +77,10 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
   const [historyAnchorEl, setHistoryAnchorEl] = useState<null | HTMLElement>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState<boolean>(false);
   const [elapsedSeconds, setElapsedSeconds] = useState<number>(() => {
+    if (typeof window === "undefined") return 0;
     return Math.floor((Date.now() - player.timeEntered) / 1000);
   });
-  const [isEditing, setIsEditing] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const [gamesPlayed, setGamesPlayed] = useState(player.gamesPlayed.toString());
   const [isDragging, setIsDragging] = useState(false);
   const [name, setName] = useState(player.name);
@@ -129,11 +131,11 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
 
   // Calculate if player is on cooldown (< 15 minutes on court)
   const isOnCooldown = useMemo(() => {
-    if (!playerCooldownsEnabled) return false;
+    if (!mounted || !playerCooldownsEnabled) return false;
     if (!playerStatus.isOnCourt) return false;
     
     return elapsedSeconds < 900; // 15 minutes = 900 seconds
-  }, [playerCooldownsEnabled, playerStatus.isOnCourt, elapsedSeconds]);
+  }, [playerCooldownsEnabled, playerStatus.isOnCourt, elapsedSeconds, mounted]);
 
   // Calculate player statistics for delete dialog
   const playerStats = useMemo(() => {
@@ -286,6 +288,14 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
 
   // Memoized color calculations
   const cardColors = useMemo(() => {
+
+    if (!mounted) {
+      return {
+        backgroundColor: '#f5f1eb',
+        textColor: '#5E473B'
+      };
+    }
+
     const getBackgroundColor = () => {
       const { isConflict, isCourtAndQueue, isIdleTooLong, isOnCourt, isInQueue } = playerStatus;
       
@@ -340,7 +350,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
       backgroundColor: getBackgroundColor(),
       textColor: getTextColor()
     };
-  }, [playerStatus, zone, isOnCooldown]);
+  }, [playerStatus, zone, isOnCooldown, mounted]);
 
   // Memoized available zone calculation
   const availableZone = useMemo(() => {
@@ -757,6 +767,9 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
 
   // Check if user should see drag hints (first-time users)
   useEffect(() => {
+
+    if (!mounted) return;
+
     const hasSeenDragHints = localStorage.getItem('dragHintsSeen');
     const hasMultiplePlayers = state.players.length >= 2;
     const isInPlayerList = zone === 'all';
@@ -772,7 +785,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
       
       return () => clearTimeout(timer);
     }
-  }, [state.players.length, zone]);
+  }, [state.players.length, zone, mounted]);
 
   // Clear hints when user starts dragging (they've learned!)
   useEffect(() => {
@@ -781,6 +794,10 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
       localStorage.setItem('dragHintsSeen', 'true');
     }
   }, [isDragging, showDragHint]);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     // Handle multiple partnership snackbars
@@ -945,6 +962,39 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
 
   // Enhanced card styles with mobile optimizations and context menu prevention
   const enhancedCardStyles = useMemo(() => {
+    // Base properties that exist in both mounted and non-mounted states
+    const baseStyles: SxProps<Theme> = {
+      display: 'flex',
+      flexDirection: 'row',
+      width: '100%',
+      maxWidth: '160px',
+      height: isMobile ? '32px' : '30px',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      padding: '3px 8px',
+      backgroundColor: '#f5f1eb', // Default background
+      borderRadius: '14px',
+      border: '1px solid #f5f1eb',
+      margin: '0 auto 2px',
+      color: '#5E473B', // Default text color
+      cursor: 'grab',
+      opacity: 1,
+      transform: 'scale(1)',
+      transition: 'all 0.2s ease-in-out',
+      userSelect: 'none',
+      WebkitUserSelect: 'none',
+      WebkitTapHighlightColor: 'transparent',
+      WebkitTouchCallout: 'none',
+      MozUserSelect: 'none',
+      msUserSelect: 'none',
+    };
+
+    // Return early for SSR with minimal styles
+    if (!mounted) {
+      return baseStyles;
+    }
+
+    // Client-side: Apply full enhanced styles
     const getCardDimensions = () => {
       return {
         width: '100%',
@@ -961,21 +1011,21 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
     const getBorderAndAnimation = () => {
       if (hasExcessivePartnership && hasExcessiveOpposition) {
         return {
-          border: '2px solid #9C27B0', // Purple for both
+          border: '2px solid #9C27B0',
           animation: 'purplePulse 2s ease-in-out infinite',
           boxShadow: '0 0 12px rgba(156, 39, 176, 0.6)',
           transition: 'border-color 0.3s ease-in-out, box-shadow 0.3s ease-in-out'
         };
       } else if (hasExcessivePartnership) {
         return {
-          border: '2px solid #1565C0', // Blue for partnerships
+          border: '2px solid #1565C0',
           animation: 'bluePulse 2s ease-in-out infinite', 
           boxShadow: '0 0 12px rgba(21, 101, 192, 0.6)',
           transition: 'border-color 0.3s ease-in-out, box-shadow 0.3s ease-in-out'
         };
       } else if (hasExcessiveOpposition) {
         return {
-          border: '2px solid #D32F2F', // Red for opponents
+          border: '2px solid #D32F2F',
           animation: 'redPulse 2s ease-in-out infinite',
           boxShadow: '0 0 12px rgba(211, 47, 47, 0.6)', 
           transition: 'border-color 0.3s ease-in-out, box-shadow 0.3s ease-in-out'
@@ -1006,35 +1056,19 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
 
     const borderAndAnimation = getBorderAndAnimation();
 
-    return {
-      display: 'flex',
-      flexDirection: 'row' as const,
+    // Return the complete enhanced styles object with proper typing
+    const enhancedStyles: SxProps<Theme> = {
+      ...baseStyles,
       width: dimensions.width,
       height: dimensions.height,
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      padding: '3px 8px',
-      backgroundColor: isDropTarget 
-        ? '#E8F5E9'
-        : cardColors.backgroundColor,
-      borderRadius: '14px',
-      boxShadow: borderAndAnimation.boxShadow,
-      cursor: isOnCooldown && zone === "all" ? 'not-allowed' : 'grab',
-      margin: '0 auto 2px',
+      backgroundColor: isDropTarget ? '#E8F5E9' : cardColors.backgroundColor,
       color: cardColors.textColor,
-      border: borderAndAnimation.border,
+      cursor: isOnCooldown && zone === "all" ? 'not-allowed' : 'grab',
       opacity: isDragging ? 0.5 : 1,
       transform: isDropTarget 
         ? 'scale(1.05)' 
         : (isDragging ? 'scale(0.95)' : 'scale(1)'),
-      transition: borderAndAnimation.transition,
-      animation: borderAndAnimation.animation,
-      userSelect: 'none',
-      WebkitUserSelect: 'none',
-      WebkitTapHighlightColor: 'transparent',
-      WebkitTouchCallout: 'none',
-      MozUserSelect: 'none',
-      msUserSelect: 'none',
+      ...borderAndAnimation, // Spread the border and animation properties
       '&:active': {
         cursor: 'grabbing',
         transform: 'scale(0.95)',
@@ -1067,7 +1101,9 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
         pointerEvents: 'none',
       },
     };
-  }, [isMobile, cardColors, isDragging, isDropTarget, isSwapping, isOnCooldown, zone, hasExcessivePartnership, hasExcessiveOpposition]);
+
+    return enhancedStyles;
+  }, [mounted, isMobile, cardColors, isDragging, isDropTarget, isSwapping, isOnCooldown, zone, hasExcessivePartnership, hasExcessiveOpposition]);
 
   const enhancedBadgeStyle = useMemo(() => {
 
@@ -1091,7 +1127,8 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
 
   return (
     <Box sx={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
-      <Badge
+      {mounted ? (
+        <Badge
         badgeContent={player.skillLevel}
         anchorOrigin={{
           vertical: 'top',
@@ -1115,7 +1152,6 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
             data-zone={zone}
             title={showDragHint ? (isMobile ? "Hold to drag this player" : "Drag this player to move them") : undefined}
           >
-            
               <Box
                 sx={{
                   display: 'flex',
@@ -1372,7 +1408,52 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
         </Card>
       </Badge>
 
+      ) : (
 
+        <Box
+          sx={{
+            display: 'flex',
+            flexDirection: 'row',
+            width: '100%',
+            maxWidth: '160px',
+            height: isMobile ? '32px' : '30px',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            padding: '3px 8px',
+            backgroundColor: '#f5f1eb', // Default neutral background
+            borderRadius: '14px',
+            border: '1px solid #f5f1eb',
+            margin: '0 auto 2px',
+            opacity: 0.7, // Slightly transparent to indicate loading
+          }}
+        >
+          {/* Minimal placeholder content */}
+          <Box sx={{ 
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'flex-start',
+            overflow: 'hidden',
+            minWidth: 0,
+            flex: 1,
+            gap: 0,
+          }}>
+            <Box sx={{ 
+              width: '60px',
+              height: '8px',
+              backgroundColor: 'rgba(0,0,0,0.1)',
+              borderRadius: '4px',
+              marginBottom: '2px'
+            }} />
+            <Box sx={{ 
+              width: '40px',
+              height: '6px',
+              backgroundColor: 'rgba(0,0,0,0.1)',
+              borderRadius: '3px'
+            }} />
+          </Box>
+        </Box>
+      )}
+      
       {/* Match History Popover */}
       {!isMobile && (
         <Popover
@@ -2058,7 +2139,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
                 }}
               >
                 <DeleteIcon sx={{ fontSize: '1rem' }} />
-                Delete Player
+                Delete {player.name}
               </Button>
             </Box>
           </Paper>
@@ -2859,7 +2940,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
                 }
               }}
             >
-              Delete Player
+              Delete {player.name}
             </Button>
           </Box>
         </Box>
@@ -3024,7 +3105,7 @@ const PlayerCard: React.FC<PlayerCardProps> = React.memo(({ player, zone }) => {
             startIcon={<DeleteIcon sx={{ fontSize: '0.8rem' }} />}
             sx={{ fontSize: '0.75rem' }}
           >
-            Delete Player
+            Delete {player.name}
           </Button>
         </DialogActions>
       </Dialog>
