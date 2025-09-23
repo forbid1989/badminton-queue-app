@@ -16,6 +16,29 @@ const nextConfig = {
   assetPrefix: process.env.NODE_ENV === "production" ? "" : "",
   trailingSlash: true,
   images: { unoptimized: true },
+  compress: true,
+  poweredByHeader: false,
+  async headers() {
+    return [
+      {
+        source: "/(.*)",
+        headers: [
+          {
+            key: "X-Content-Type-Options",
+            value: "nosniff", // Prevents MIME type sniffing
+          },
+          {
+            key: "X-Frame-Options",
+            value: "DENY", // Prevents your site from being embedded in iframes
+          },
+          {
+            key: "Referrer-Policy",
+            value: "strict-origin-when-cross-origin", // Controls referrer information
+          },
+        ],
+      },
+    ];
+  },
 };
 
 module.exports = nextConfig;

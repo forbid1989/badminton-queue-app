@@ -8,10 +8,44 @@ const inter = Inter({
   variable: '--font-inter'
 })
 
+function StructuredData() {
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'SoftwareApplication',
+    name: 'Queue Maestro',
+    description: 'Court queue management system for racket sports facilities',
+    applicationCategory: 'BusinessApplication',
+    operatingSystem: 'Web Browser',
+    offers: {
+      '@type': 'Offer',
+      price: '0',
+      priceCurrency: 'USD'
+    },
+    featureList: [
+      'Drag-and-drop player management',
+      'Real-time queue tracking',
+      'Payment management',
+      'Multi-court support',
+      'Player skill tracking'
+    ],
+    applicationSubCategory: 'Sports Management Software'
+  }
+
+  return (
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+    />
+  )
+}
+
 export const metadata: Metadata = {
   title: 'Queue Maestro - Professional Racket Sports Court Management',
-  description: 'Efficiently manage court queues and player rotations for badminton, tennis, pickleball, and other racket sports. Real-time drag-and-drop interface with skill-based tracking and payment management for sports facilities.',
-  keywords: ['racket sports', 'court management', 'queue system', 'badminton', 'tennis', 'pickleball', 'sports facility', 'player tracking', 'racket', 'table tennis'],
+  description: 'Digital queue management system for badminton, tennis, pickleball, and table tennis courts. Organize player rotations, track games, and manage payments efficiently.',
+  keywords: ['racket sports', 'court management', 'queue system', 'badminton', 'tennis', 'pickleball', 'sports facility', 
+    'player tracking', 'racket', 'table tennis', 'court queue management', 'racket sports software', 'badminton queue system',
+    'tennis court management', 'pickleball queue', 'table tennis rotation', 'badminton queue', 'tennis queue', 'pickleball queue', 'player queue app'
+  ,'racket sports organizer', 'badminton queue app', 'pickleball queue app', 'tennis queue app'],
   authors: [{ name: 'Carl Meyrick Cheng', url: 'https://www.linkedin.com/in/carlmeyrickcheng/' }],
   creator: 'Carl Meyrick Cheng',
   publisher: 'Carl Meyrick Cheng',
@@ -76,6 +110,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className={inter.variable}>
+      <head>
+        <StructuredData />
+      </head>
       <body className={inter.className}>{children}</body>
     </html>
   )
