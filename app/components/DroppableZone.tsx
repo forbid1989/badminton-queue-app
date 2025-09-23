@@ -25,6 +25,19 @@ const DroppableZone: React.FC<DroppableZoneProps> = React.memo(({ zone, players,
   const [isDragOverValid, setIsDragOverValid] = useState(false);
   const [isMobileDevice, setIsMobileDevice] = useState(false);
   const elementRef = useRef<HTMLDivElement>(null);
+  const dragStateRef = useRef({ isHovered: false, isDragOverValid: false });
+
+  const resetDragStates = () => {
+    setIsHovered(false);
+    setIsDragOverValid(false);
+    dragStateRef.current = { isHovered: false, isDragOverValid: false };
+  };
+
+  const setDragStates = (hovered: boolean, valid: boolean) => {
+    setIsHovered(hovered);
+    setIsDragOverValid(valid);
+    dragStateRef.current = { isHovered: hovered, isDragOverValid: valid };
+  };
 
   useEffect(() => {
     // Only run on client-side
@@ -37,6 +50,26 @@ const DroppableZone: React.FC<DroppableZoneProps> = React.memo(({ zone, players,
       setIsMobileDevice(checkMobileDevice());
     }
   }, []);
+
+  useEffect(() => {
+    const handleGlobalDragEnd = () => {
+      // Small delay to ensure all drag events have processed
+      setTimeout(() => {
+        if (dragStateRef.current.isHovered || dragStateRef.current.isDragOverValid) {
+          console.log(`🧹 Global cleanup: resetting drag states for zone ${zone}`);
+          resetDragStates();
+        }
+      }, 100);
+    };
+
+    document.addEventListener('dragend', handleGlobalDragEnd);
+    document.addEventListener('drop', handleGlobalDragEnd);
+    
+    return () => {
+      document.removeEventListener('dragend', handleGlobalDragEnd);
+      document.removeEventListener('drop', handleGlobalDragEnd);
+    };
+  }, [zone]);
 
   // Determine if this is a position-specific zone
   const isPositionZone = position !== undefined;
@@ -215,30 +248,30 @@ const DroppableZone: React.FC<DroppableZoneProps> = React.memo(({ zone, players,
         },
         onDragEnter: ({ source }) => {
           const sourceZone = source.data.playerZone as string;
-          
-          // 🆕 Enhanced logging for player list drops
+  
           if (isPlayerListZone) {
-            console.log(`🔙 Player list drag enter: from ${sourceZone} to player list`);
+            console.log(`📙 Player list drag enter: from ${sourceZone} to player list`);
           } else {
             console.log(`🎯 Drag enter: zone=${zone}, position=${position}, isPositionZone=${isPositionZone}`);
           }
           
-          setIsHovered(true);
-          setIsDragOverValid(true);
+          setDragStates(true, true);
         },
         onDragLeave: () => {
-          setIsHovered(false);
-          setIsDragOverValid(false);
+          console.log(`🚪 Drag leave: zone=${zone}, position=${position}`);
+          resetDragStates();
         },
         onDrop: ({ source, location }) => {
           const playerId = source.data.playerId as string;
           const playerZone = source.data.playerZone as string;
+
+          resetDragStates();
           
           // 🆕 SPECIAL HANDLING: Drops to player list zone (returns)
           if (isPlayerListZone) {
             console.log(`🔙 PLAYER LIST DROP: Returning ${playerId} from ${playerZone} to player list`);
-            setIsHovered(false);
-            setIsDragOverValid(false);
+            // setIsHovered(false);
+            // setIsDragOverValid(false);
             
             // 🆕 FIXED: Use movePlayer to only remove from the specific zone, preserving other assignments
             dispatch(Action.movePlayer(playerId, playerZone, 'all'));
