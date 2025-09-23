@@ -8,6 +8,7 @@ import { UndoGameData } from "./rootState";
 import { clearLocalStorage } from "../utils/localStorage";
 import { generateMatchHistoryEntries } from "../utils/matchHistoryUtils";
 import { PlayerListSortConfig } from "../../components/types/Settings";
+import { MatchHistoryEntry } from "../../components/types/Player";
 
 type Action =
   | { type: "setCourtCount"; payload: number }
@@ -2131,7 +2132,7 @@ export default function reducer(state: any, action: Action) {
         const courtName = `Court ${courtIndex + 1}`;
 
         // 🔍 Step 5: Generate match history entries with error handling
-        let matchHistoryEntries;
+        let matchHistoryEntries: MatchHistoryEntry[];
         try {
           matchHistoryEntries = generateMatchHistoryEntries(
             playersOnCourt,
