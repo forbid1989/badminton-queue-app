@@ -20,11 +20,25 @@ export const metadata: Metadata = {
     description: 'Professional queue management system for badminton, tennis, pickleball, and racket sports courts',
     type: 'website',
     locale: 'en_US',
+    url: 'https://queuemaestrosports.app',
+    siteName: 'Queue Maestro',
+    images: [
+      {
+        url: 'https://queuemaestrosports.app/logos/blue_logo/android-chrome-512x512.png',
+        width: 512,
+        height: 512,
+        alt: 'Queue Maestro - Racket Sports Court Management',
+      }
+    ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Queue Maestro',
+    title: 'Queue Maestro - Racket Sports Court Management',
     description: 'Professional racket sports court management system',
+    images: ['https://queuemaestrosports.app/logos/blue_logo/android-chrome-512x512.png'],
+  },
+  alternates: {
+    canonical: 'https://queuemaestrosports.app',  // 🔥 Canonical URL for SEO
   },
   viewport: {
     width: 'device-width',
