@@ -300,12 +300,13 @@ const PlayerListZone: React.FC<PlayerListZoneProps> = ({ state }) => {
           allowScrollButtonsMobile
           sx={{
             '& .MuiTab-root': {
-              minHeight: 40,
+              minHeight: { xs: 48, sm: 40 },
               fontSize: '0.75rem',
               textTransform: 'none',
               fontWeight: 500,
               minWidth: 'auto',
-              px: { xs: 1, sm: 1, md: 2 },
+              px: { xs: 0.5, sm: 1, md: 2 },
+              position: 'relative',
             },
             '& .MuiTabs-indicator': {
               backgroundColor: '#1e293b',
@@ -342,15 +343,16 @@ const PlayerListZone: React.FC<PlayerListZoneProps> = ({ state }) => {
                     suppressHydrationWarning
                     sx={{
                       '& .MuiBadge-badge': {
-                        fontSize: '0.6rem',
-                        minWidth: '16px',
-                        height: '16px',
-                        right: -2,
-                        top: -4,
+                        fontSize: { xs: '0.65rem', sm: '0.6rem' },
+                        minWidth: { xs: '18px', sm: '16px' },
+                        height: { xs: '18px', sm: '16px' },
+                        right: { xs: 3, sm: 0 },
+                        top: { xs: -6, sm: -4 },
                         backgroundColor: 'transparent',
                         color: '#1e293b',
                         border: 'none',
                         fontWeight: 'bold',
+                        textShadow: { xs: '0 0 2px rgba(255,255,255,0.8)', sm: 'none' },
                       }
                     }}
                   >
@@ -359,8 +361,10 @@ const PlayerListZone: React.FC<PlayerListZoneProps> = ({ state }) => {
                         display: 'flex', 
                         alignItems: 'center',
                         color: tab.color,
+                        width: '100%',
+                        minHeight: { xs: 32, sm: 24 }
                       }}>
-                        {React.cloneElement(tab.icon, { sx: { fontSize: '1.1rem' } })}
+                        {React.cloneElement(tab.icon, { sx: { xs: '1.2rem', sm: '1.1rem' } })}
                       </Box>
                     ) : (
                       // Desktop/Laptop: Color dot + label
@@ -368,7 +372,9 @@ const PlayerListZone: React.FC<PlayerListZoneProps> = ({ state }) => {
                         display: 'flex', 
                         alignItems: 'center', 
                         gap: 0.75,
-                        flexDirection: 'row'
+                        flexDirection: 'row',
+                        justifyContent: 'center',
+                        width: '100%',
                       }}>
                         <Box
                           sx={{
