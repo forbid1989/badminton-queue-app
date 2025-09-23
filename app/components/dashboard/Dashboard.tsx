@@ -340,6 +340,58 @@ const Dashboard: React.FC<DashboardProps> = React.memo(({ onShowTutorial }) => {
         >
           Data management & clear options are in <SettingsIcon sx={{ fontSize: '0.8rem' }} /> Settings
         </Typography>
+
+        {/* Developer Credits */}
+        <Typography 
+          variant="caption" 
+          sx={{ 
+            fontSize: '0.65rem', 
+            color: 'text.secondary',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 0.5,
+            mt: 0.5,
+            pt: 0.5,
+            borderTop: '1px solid',
+            borderColor: 'divider'
+          }}
+        >
+          © 2025{' '}
+          <Typography
+            component="a"
+            href="https://www.linkedin.com/in/carlmeyrickcheng/"
+            target="_blank"
+            rel="noopener noreferrer"
+            sx={{
+              color: 'primary.main',
+              textDecoration: 'none',
+              fontSize: '0.65rem',
+              fontWeight: 500,
+              '&:hover': {
+                textDecoration: 'underline',
+              }
+            }}
+          >
+            Carl Meyrick Cheng
+          </Typography>
+          {' • '}
+          <Typography
+            component="a"
+            href="mailto:carlmeyrickcheng@gmail.com"
+            sx={{
+              color: 'primary.main',
+              textDecoration: 'none',
+              fontSize: '0.65rem',
+              fontWeight: 500,
+              '&:hover': {
+                textDecoration: 'underline',
+              }
+            }}
+          >
+            Contact
+          </Typography>
+        </Typography>
       </Box>
       {popoverContent}
     </Box>

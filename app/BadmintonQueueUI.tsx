@@ -209,11 +209,6 @@ const BadmintonQueueUI: React.FC = () => {
 					vertical: 'top',
 					horizontal: 'right',
 				}}
-				// Custom styling for better appearance
-				// classes={{
-				// 	variantInfo: 'snackbar-partnership',
-				// 	variantWarning: 'snackbar-opposition',
-				// }}
 			>
 				<AppContent />
 			</SnackbarProvider>

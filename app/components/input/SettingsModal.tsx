@@ -614,6 +614,83 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose, onShowTuto
                 )}
               </Typography>
             </Box>
+
+            <Divider />
+
+            <Box sx={{ 
+                  p: 2,
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  borderRadius: 2,
+                  bgcolor: 'grey.50'
+                }}>
+                  <Typography 
+                    variant="body2" 
+                    sx={{ 
+                      fontWeight: 'bold', 
+                      fontSize: '0.85rem',
+                      mb: 1,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 1
+                    }}
+                  >
+                    <InfoIcon sx={{ fontSize: '1rem' }} />
+                    Developer
+                  </Typography>
+                  
+                  <Typography 
+                    variant="caption" 
+                    sx={{ 
+                      color: 'text.secondary', 
+                      fontSize: '0.75rem', 
+                      display: 'block', 
+                      mb: 0.5 
+                    }}
+                  >
+                    © 2025{' '}
+                    <Typography
+                      component="a"
+                      href="https://www.linkedin.com/in/carlmeyrickcheng/"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      sx={{
+                        color: 'primary.main',
+                        textDecoration: 'none',
+                        fontWeight: 'medium',
+                        '&:hover': {
+                          textDecoration: 'underline'
+                        }
+                      }}
+                    >
+                      Carl Meyrick Cheng
+                    </Typography>
+                  </Typography>
+                  
+                  <Typography 
+                    variant="caption" 
+                    sx={{ 
+                      color: 'text.secondary', 
+                      fontSize: '0.75rem', 
+                      display: 'block' 
+                    }}
+                  >
+                    Contact:{' '}
+                    <Typography
+                      component="a"
+                      href="mailto:carlmeyrickcheng@gmail.com"
+                      sx={{
+                        color: 'primary.main',
+                        textDecoration: 'none',
+                        '&:hover': {
+                          textDecoration: 'underline'
+                        }
+                      }}
+                    >
+                      carlmeyrickcheng@gmail.com
+                    </Typography>
+                  </Typography>
+                </Box>
           </Box>
         </Box>
 
