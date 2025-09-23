@@ -1,5 +1,13 @@
 import type { Metadata, Viewport  } from 'next'
+import { Inter } from 'next/font/google'
 import './globals.css'
+
+const inter = Inter({ 
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-inter'
+})
+
 
 export const metadata: Metadata = {
   title: 'Queue Maestro - Professional Racket Sports Court Management',
@@ -28,12 +36,12 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: '/logos/brown_logo/favicon.ico' },
-      { url: '/logos/brown_logo/favicon-32x32.png', sizes: '32x32', type: 'image/png' },
-      { url: '/logos/brown_logo/favicon-16x16.png', sizes: '16x16', type: 'image/png' },
+      { url: '/logos/blue_logo/favicon.ico' },
+      { url: '/logos/blue_logo/favicon-32x32.png', sizes: '32x32', type: 'image/png' },
+      { url: '/logos/blue_logo/favicon-16x16.png', sizes: '16x16', type: 'image/png' },
     ],
     apple: [
-      { url: '/logos/brown_logo/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
+      { url: '/logos/blue_logo/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
     ],
   },
   manifest: '/manifest.json',
@@ -52,8 +60,9 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
-      <body>{children}</body>
+    <html lang="en" className={inter.variable}>
+      <body className={inter.className}>{children}</body>
     </html>
   )
 }
+

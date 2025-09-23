@@ -1,4 +1,3 @@
-// app/components/QueueMaestroLogo.tsx
 'use client'
 
 import Image from 'next/image'
@@ -6,7 +5,7 @@ import { Box } from '@mui/material'
 import { useMemo } from 'react'
 
 interface QueueMaestroLogoProps {
-  variant?: 'brown' | 'white' | 'auto'
+  variant?: 'brown' | 'white' | 'blue' | 'svg' | 'auto'
   context?: 'header' | 'main' | 'modal' | 'loading' | 'error'
   size?: number
   width?: number
@@ -32,17 +31,17 @@ const QueueMaestroLogo: React.FC<QueueMaestroLogoProps> = ({
     // Context-based selection for optimal visibility
     switch (context) {
       case 'header':
-        return 'white' // White against brown AppBar
+        return 'white' // White against navy AppBar
       case 'modal':
       case 'loading':
       case 'error':
       case 'main':
       default:
-        return 'brown' // Brown against beige/white backgrounds
+        return 'svg' // Use SVG for main content (scalable and navy blue)
     }
   }, [variant, context])
 
-  // Select appropriate logo size based on requested dimensions - matches your actual file structure
+  // Always calculate logoSrc, even if we don't use it
   const logoSrc = useMemo(() => {
     const maxDimension = Math.max(width, height)
     
@@ -59,6 +58,34 @@ const QueueMaestroLogo: React.FC<QueueMaestroLogoProps> = ({
 
   const logoAlt = 'Queue Maestro Logo'
 
+  // Handle SVG variant with navy blue color
+  if (logoVariant === 'svg' || logoVariant === 'blue') {
+    return (
+      <Box 
+        className={className}
+        sx={{ 
+          display: 'inline-flex',
+          alignItems: 'center',
+          position: 'relative'
+        }}
+      >
+        <img
+          src="/logos/Queue Maestro Logo.svg"
+          alt={logoAlt}
+          width={width}
+          height={height}
+          style={{
+            maxWidth: '100%',
+            height: 'auto',
+            filter: 'brightness(0) saturate(100%) invert(1)',
+            transition: 'filter 0.3s ease'
+          }}
+        />
+      </Box>
+    )
+  }
+
+  // Original PNG logic for brown/white variants
   return (
     <Box 
       className={className}
@@ -101,4 +128,9 @@ export const ModalLogo = (props: Omit<QueueMaestroLogoProps, 'context'>) => (
 
 export const LoadingLogo = (props: Omit<QueueMaestroLogoProps, 'context' | 'priority'>) => (
   <QueueMaestroLogo {...props} context="loading" priority />
+)
+
+// New: SVG Logo component that's always navy blue
+export const NavyLogo = (props: Omit<QueueMaestroLogoProps, 'variant'>) => (
+  <QueueMaestroLogo {...props} variant="svg" />
 )

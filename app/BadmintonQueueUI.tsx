@@ -156,16 +156,20 @@ const AppContent: React.FC = () => {
 					<Toolbar sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
 						<Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
 							<QueueMaestroLogo 
-								variant="white" 
+								variant="svg" 
 								size={32} 
 								priority 
+								context="header"
 							/>
 							<Typography 
 								variant="h6" 
 								color="inherit"
 								sx={{ 
-									fontWeight: 'bold',
-									fontSize: { xs: '1.1rem', sm: '1.25rem' }
+									fontFamily: 'var(--font-inter)',
+									fontWeight: 600,
+									fontSize: { xs: '1.1rem', sm: '1.3rem' },
+									letterSpacing: '-0.025em',
+									lineHeight: 1.2,
 								}}
 							>
 								Queue Maestro
