@@ -648,7 +648,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose, onShowTuto
                       mb: 0.5 
                     }}
                   >
-                    © 2025{' '}
+                    © {new Date().getFullYear()}{' '}
                     <Typography
                       component="a"
                       href="https://www.linkedin.com/in/carlmeyrickcheng/"

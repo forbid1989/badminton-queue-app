@@ -357,7 +357,7 @@ const Dashboard: React.FC<DashboardProps> = React.memo(({ onShowTutorial }) => {
             borderColor: 'divider'
           }}
         >
-          © 2025{' '}
+          © {new Date().getFullYear()}{' '}
           <Typography
             component="a"
             href="https://www.linkedin.com/in/carlmeyrickcheng/"
