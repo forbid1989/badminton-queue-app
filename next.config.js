@@ -10,12 +10,11 @@ const nextConfig = {
     "@atlaskit/pragmatic-drag-and-drop-auto-scroll",
     "@atlaskit/pragmatic-drag-and-drop-react-drop-indicator",
   ],
-  // For GitHub Pages deployment (keep your current setup)
-  output: process.env.NODE_ENV === "production" ? "export" : undefined,
-  basePath: process.env.NODE_ENV === "production" ? "" : "",
-  assetPrefix: process.env.NODE_ENV === "production" ? "" : "",
-  trailingSlash: true,
-  images: { unoptimized: true },
+  // output: process.env.NODE_ENV === "production" ? "export" : undefined,
+  // basePath: process.env.NODE_ENV === "production" ? "" : "",
+  // assetPrefix: process.env.NODE_ENV === "production" ? "" : "",
+  // trailingSlash: true,
+  // images: { unoptimized: true },
   compress: true,
   poweredByHeader: false,
   async headers() {
