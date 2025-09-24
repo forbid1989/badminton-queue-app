@@ -1,46 +1,91 @@
-# Getting Started with Create React App
+# Queue Maestro
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+A digital queue management system for racket sports courts, including badminton, tennis, pickleball, and table tennis. Built with Next.js and React, Queue Maestro helps sports facilities organize player rotations, track games, and manage payments efficiently.
+
+🌐 **Live Demo:** [queuemaestrosports.app](https://queuemaestrosports.app)
+
+## Features
+
+- **Drag & Drop Interface**: Intuitive player management with drag-and-drop functionality
+- **Multi-Court Support**: Manage multiple courts simultaneously
+- **Real-Time Queue Tracking**: Track player queues and rotations in real-time
+- **Player Statistics**: Track games played, skill levels, and match history
+- **Payment Management**: Built-in payment tracking with flexible fee structures
+- **Mobile Responsive**: Fully optimized for mobile devices
+- **PWA Support**: Can be installed as a Progressive Web App
+
+## Technologies Used
+
+- **Frontend**: Next.js 15, React 19, TypeScript
+- **UI Library**: Material-UI (MUI)
+- **Drag & Drop**: Atlaskit Pragmatic Drag and Drop
+- **State Management**: React Context + useReducer
+- **Deployment**: Vercel
+- **Analytics**: Vercel Analytics & Speed Insights
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js (version 18 or higher)
+- npm or yarn
+
+### Installation
+
+1. Clone the repository
+```bash
+git clone https://github.com/forbid1989/badminton-queue-app.git
+cd badminton-queue-app
+```
+
+2. Install dependencies
+```bash
+npm install
+```
+
+3. Run the development server
+```bash
+npm run dev
+```
+
+4. Open [http://localhost:3000](http://localhost:3000) in your browser
 
 ## Available Scripts
 
-In the project directory, you can run:
-
-### `npm start`
-
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
-
-The page will reload if you make edits.\
-You will also see any lint errors in the console.
-
-### `npm test`
-
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+### `npm run dev`
+Runs the app in development mode at `http://localhost:3000`. The page will reload automatically when you make edits.
 
 ### `npm run build`
+Builds the app for production. Creates an optimized build in the `.next` folder.
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+### `npm run start`
+Starts the production server (requires `npm run build` first).
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+### `npm run lint`
+Runs ESLint to check for code quality issues.
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+## Usage
 
-### `npm run eject`
+1. **Add Players**: Use the player parser to quickly add multiple players at once
+2. **Organize Queues**: Drag players into queue positions
+3. **Assign Courts**: Drop players onto court positions to start matches
+4. **Track Games**: End games to automatically update player statistics
+5. **Manage Payments**: Track player payments with flexible fee structures
 
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
+## Contributing
 
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+Contributions are welcome! Please feel free to submit a Pull Request.
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
+## License
 
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
+This project is private and proprietary.
 
-## Learn More
+## Contact
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+**Developer**: Carl Meyrick Cheng
+- LinkedIn: [linkedin.com/in/carlmeyrickcheng](https://www.linkedin.com/in/carlmeyrickcheng/)
+- Email: carlmeyrickcheng@gmail.com
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+---
+
+Built with ❤️ for the racket sports community
