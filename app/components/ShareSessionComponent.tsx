@@ -22,7 +22,7 @@ import {
   QrCode as QrCodeIcon,
   Add as AddIcon
 } from '@mui/icons-material';
-import { useWebSocket } from '../lib/contexts/WebSocketContext';
+import { useSSE } from '../lib/contexts/SSEContext';
 
 interface ShareSessionComponentProps {
   isUltraWide: boolean;
@@ -39,7 +39,7 @@ const ShareSessionComponent: React.FC<ShareSessionComponentProps> = ({
     qrCodeUrl,
     createSession,
     endSession
-  } = useWebSocket();
+ } = useSSE();
 
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
   const [isCreating, setIsCreating] = useState(false);

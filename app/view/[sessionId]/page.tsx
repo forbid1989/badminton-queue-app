@@ -4,18 +4,17 @@ import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { Box, Chip, Typography, Alert, CircularProgress } from '@mui/material';
 import { Visibility as ViewIcon } from '@mui/icons-material';
-import { WebSocketProvider, useWebSocket } from '../../lib/contexts/WebSocketContext';
+import { SSEProvider, useSSE } from '../../lib/contexts/SSEContext';
 import { AppContext } from '../../lib/AppContext';
 import { useReducer } from 'react';
 import Reducer from '../../lib/store/Reducer';
-import { RootState } from '../../lib/store/rootState';
 import InitialState from '../../lib/store/InitialState';
 import ViewerCourtZone from '../../components/ViewerCourtZone';
 import ViewerQueueZone from '../../components/ViewerQueueZone';
 
 // Viewer Mode Content Component
 const ViewerModeContent: React.FC<{ sessionId: string }> = ({ sessionId }) => {
-  const { joinSession, isViewer } = useWebSocket();
+  const { joinSession, isViewer, connectionStatus } = useSSE();
   const [isConnecting, setIsConnecting] = useState(true);
   const [connectionError, setConnectionError] = useState(false);
 
@@ -119,11 +118,11 @@ const ViewerModeWrapper: React.FC<{ sessionId: string }> = ({ sessionId }) => {
 
   return (
     <AppContext.Provider value={{ state, dispatch }}>
-      <WebSocketProvider onStateUpdate={handleStateUpdate}>
+        <SSEProvider onStateUpdate={handleStateUpdate}>
         <ViewerModeContent sessionId={sessionId} />
-      </WebSocketProvider>
+        </SSEProvider>
     </AppContext.Provider>
-  );
+    );
 };
 
 export default function ViewSessionPage() {

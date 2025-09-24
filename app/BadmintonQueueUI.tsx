@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useReducer, useEffect, useState } from 'react';
+import React, { useReducer, useEffect, useState, useCallback } from 'react';
 import { ThemeProvider, CssBaseline, Box, AppBar, Toolbar, Typography } from '@mui/material';
 import { SportsMma, Handshake, Close } from '@mui/icons-material';
 import { SnackbarProvider, useSnackbar, VariantType, closeSnackbar  } from 'notistack';
@@ -17,7 +17,7 @@ import Dashboard from './components/dashboard/Dashboard';
 import MobileFooter from './components/MobileFooter';
 import { debouncedSave, isLocalStorageAvailable } from './lib/utils/localStorage';
 import DragTutorial from './components/DragTutorial';
-import { WebSocketProvider } from './lib/contexts/WebSocketContext';
+import { SSEProvider, useSSE  } from './lib/contexts/SSEContext';
 
 export const AppContext = React.createContext<{
 	state: RootState;
@@ -40,6 +40,8 @@ const AppContent: React.FC = () => {
 	const [state, dispatch] = useReducer(reducer, InitialState);
 	const { enqueueSnackbar } = useSnackbar();
 	const [showDragTutorial, setShowDragTutorial] = useState(false);
+
+	const { isHost, broadcastState } = useSSE();
 
 	const showPartnershipSnackbar = (message: string) => {
 		enqueueSnackbar(message, {
@@ -123,6 +125,18 @@ const AppContent: React.FC = () => {
 		}
 	}, [state]);
 
+	useEffect(() => {
+		if (isHost && state) {
+			// Small delay to avoid broadcasting during initial state setup
+			const timeoutId = setTimeout(() => {
+				console.log('📡 Host broadcasting state update');
+				broadcastState(state);
+			}, 100);
+			
+			return () => clearTimeout(timeoutId);
+		}
+	}, [state, isHost, broadcastState]);
+
 	// Tutorial detection - show to first-time users
 	useEffect(() => {
 		const hasSeenTutorial = localStorage.getItem('dragTutorialSeen');
@@ -182,8 +196,8 @@ const AppContent: React.FC = () => {
 					p: 2, 
 					bgcolor: (theme) => theme.palette.background.default, 
 					minHeight: '100vh',
-					width: '100vw',       // 👈 makes it full viewport width
-					boxSizing: 'border-box', // 👈 ensures padding doesn't exceed 100vw
+					width: '100vw',
+					boxSizing: 'border-box', 
 				}}>
 					<Dashboard onShowTutorial={() => setShowDragTutorial(true)} />
 					<MobileFooter />
@@ -199,23 +213,38 @@ const AppContent: React.FC = () => {
 	);
 };
 
+const AppWithSSE: React.FC = () => {
+	// This function will be called when viewers receive state updates
+	const handleStateUpdate = useCallback((newState: RootState) => {
+		console.log('🔄 Received state update from host via SSE');
+		// For the main app (host), we don't need to do anything here
+		// This is primarily for the viewer pages
+	}, []);
+
+	return (
+		<SSEProvider onStateUpdate={handleStateUpdate}>
+			<AppContent />
+		</SSEProvider>
+	);
+};
+
 const BadmintonQueueUI: React.FC = () => {
 	return (
-		<WebSocketProvider>
-			<ThemeProvider theme={theme}>
-				<SnackbarProvider 
-					maxSnack={5}  // Allow up to 5 snackbars simultaneously
-					dense={false}
-					preventDuplicate={true}  // Prevent duplicate messages
-					anchorOrigin={{
-						vertical: 'top',
-						horizontal: 'right',
-					}}
-				>
-					<AppContent />
-				</SnackbarProvider>
-			</ThemeProvider>
-		</WebSocketProvider>
+
+		<ThemeProvider theme={theme}>
+			<SnackbarProvider 
+				maxSnack={5}  // Allow up to 5 snackbars simultaneously
+				dense={false}
+				preventDuplicate={true}  // Prevent duplicate messages
+				anchorOrigin={{
+					vertical: 'top',
+					horizontal: 'right',
+				}}
+			>
+				<AppWithSSE />
+			</SnackbarProvider>
+		</ThemeProvider>
+
 	);
 }
 

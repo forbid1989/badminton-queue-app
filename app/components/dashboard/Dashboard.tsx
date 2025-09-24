@@ -6,7 +6,7 @@ import SettingsIcon from '@mui/icons-material/Settings';
 import AttachMoneyIcon from '@mui/icons-material/Payment';
 import ListIcon from '@mui/icons-material/List';
 import QrCodeIcon from '@mui/icons-material/QrCode';
-import { useWebSocket } from '../../lib/contexts/WebSocketContext';
+import { useSSE } from '../../lib/contexts/SSEContext';
 import { AppContext } from '../../BadmintonQueueUI';
 import CourtZone from '../CourtZone';
 import QueueZone from '../QueueZone';
@@ -16,7 +16,6 @@ import CourtControlPanel from '../CourtControlPanel';
 import SettingsModal from '../input/SettingsModal';
 import Popover from '@mui/material/Popover';
 import PlayerListModal from '../input/PlayerListModal';
-import CourtAddIcon from '../input/CourtAddIcon';
 import PaymentModal from '../input/PaymentModal';
 
 type DashboardProps = {
@@ -33,7 +32,7 @@ const Dashboard: React.FC<DashboardProps> = React.memo(({ onShowTutorial }) => {
     qrCodeUrl,
     createSession,
     endSession
-  } = useWebSocket();
+  } = useSSE();
 
   const theme = useTheme();
   const isPortraitMobile = useMediaQuery('(max-width: 768px) and (orientation: portrait) and (max-height: 900px)');
