@@ -1,6 +1,4 @@
-// PaymentModal.tsx - Updated with sortable table headers and mobile responsiveness
-
-import React, { useState, useEffect, useContext, useMemo } from 'react';
+import React, { useState, useEffect, useContext, useMemo, useCallback   } from 'react';
 import {
   Modal,
   Paper,
@@ -58,6 +56,51 @@ interface SortConfig {
   direction: SortDirection;
 }
 
+// Currency mapping for symbols
+const CURRENCY_SYMBOLS: Record<string, string> = {
+  // Original currencies
+  PHP: '₱',
+  USD: '$',
+  EUR: '€',
+  SGD: 'S$',
+  
+  // Requested additions
+  GBP: '£',
+  JPY: '¥',
+  CAD: 'C$',
+  AUD: 'A$',
+  CHF: 'CHF',
+  CNY: '¥',
+  KRW: '₩',
+  INR: '₹',
+  
+  // Additional badminton-popular countries
+  BRL: 'R$',     // Brazil
+  PLN: 'zł',     // Poland
+  THB: '฿',      // Thailand
+  MYR: 'RM',     // Malaysia
+  IDR: 'Rp',     // Indonesia
+  TWD: 'NT$',    // Taiwan
+  VND: '₫',      // Vietnam
+  HKD: 'HK$',    // Hong Kong
+  NZD: 'NZ$',    // New Zealand
+  DKK: 'kr',     // Denmark
+  SEK: 'kr',     // Sweden
+  NOK: 'kr',     // Norway
+  CZK: 'Kč',     // Czech Republic
+  HUF: 'Ft',     // Hungary
+  RUB: '₽',      // Russia
+  ZAR: 'R',      // South Africa
+  KES: 'KSh',    // Kenya
+  NGN: '₦',      // Nigeria
+  EGP: 'E£',     // Egypt
+};
+
+// Helper function to get currency symbol
+const getCurrencySymbol = (currency: string): string => {
+  return CURRENCY_SYMBOLS[currency] || currency;
+};
+
 const PaymentModal: React.FC<PaymentModalProps> = ({ open, onClose }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery('(max-width: 768px)');
@@ -78,56 +121,47 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ open, onClose }) => {
     direction: 'asc'
   });
 
-  // Load payment settings from state or localStorage
+  // Load payment settings from state on component mount
   useEffect(() => {
-    const savedSettings = state.settings.paymentSettings;
-    if (savedSettings) {
-      setFeeStructure(savedSettings.feeStructure || 'flat');
-      setFlatFee(savedSettings.flatFee?.toString() || '50');
-      setCourtFee(savedSettings.courtFee?.toString() || '20');
-      setPerGameFee(savedSettings.perGameFee?.toString() || '15');
-      setGuestFee(savedSettings.guestFee?.toString() || '25');
-      setCurrency(savedSettings.currency || 'PHP');
+    if (state.settings.paymentSettings) {
+      const settings = state.settings.paymentSettings;
+      setFeeStructure(settings.feeStructure);
+      setFlatFee(settings.flatFee.toString());
+      setCourtFee(settings.courtFee.toString());
+      setPerGameFee(settings.perGameFee.toString());
+      setGuestFee(settings.guestFee.toString());
+      setCurrency(settings.currency);
     }
   }, [state.settings.paymentSettings]);
 
   // Calculate fee for a player
-  const calculatePlayerFee = useMemo(() => {
-    return (player: Player, isGuest: boolean = false) => {
-      const courtFeeNum = parseFloat(courtFee) || 0;
-      const guestFeeNum = parseFloat(guestFee) || 0;
-      
-      if (feeStructure === 'flat') {
-        const flatFeeNum = parseFloat(flatFee) || 0;
-        return flatFeeNum + (isGuest ? guestFeeNum : 0);
-      } else {
-        const perGameFeeNum = parseFloat(perGameFee) || 0;
-        const gamesFee = player.gamesPlayed * perGameFeeNum;
-        return courtFeeNum + gamesFee + (isGuest ? guestFeeNum : 0);
-      }
-    };
+  const calculatePlayerFee = useCallback((player: Player, isGuest: boolean = false) => {
+    const baseFee = feeStructure === 'flat' 
+      ? parseFloat(flatFee) || 0
+      : (parseFloat(courtFee) || 0) + (player.gamesPlayed * (parseFloat(perGameFee) || 0));
+    
+    const guestFeeAmount = isGuest ? (parseFloat(guestFee) || 0) : 0;
+    return baseFee + guestFeeAmount;
   }, [feeStructure, flatFee, courtFee, perGameFee, guestFee]);
 
   // Handle sorting
   const handleSort = (column: SortableColumns) => {
-    setSortConfig(prev => ({
+    setSortConfig(prevConfig => ({
       column,
-      direction: prev.column === column && prev.direction === 'asc' ? 'desc' : 'asc'
+      direction: prevConfig.column === column && prevConfig.direction === 'asc' ? 'desc' : 'asc'
     }));
   };
 
   // Filter and sort players
   const filteredAndSortedPlayers = useMemo(() => {
-    // First, filter by search query
     let filtered = state.players.filter(player =>
       player.name.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
-    // Then sort
     if (sortConfig.column) {
-      filtered.sort((a, b) => {
-        let aValue: any;
-        let bValue: any;
+      filtered = filtered.sort((a, b) => {
+        let aValue: string | number;
+        let bValue: string | number;
 
         switch (sortConfig.column) {
           case 'name':
@@ -139,8 +173,10 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ open, onClose }) => {
             bValue = b.gamesPlayed;
             break;
           case 'amountDue':
-            aValue = calculatePlayerFee(a, a.paymentInfo?.isGuest || false);
-            bValue = calculatePlayerFee(b, b.paymentInfo?.isGuest || false);
+            const aIsGuest = a.paymentInfo?.isGuest || false;
+            const bIsGuest = b.paymentInfo?.isGuest || false;
+            aValue = calculatePlayerFee(a, aIsGuest);
+            bValue = calculatePlayerFee(b, bIsGuest);
             break;
           case 'status':
             aValue = a.paymentInfo?.hasPaid ? 1 : 0;
@@ -220,36 +256,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ open, onClose }) => {
     };
   }, [filteredAndSortedPlayers, calculatePlayerFee]);
 
-  // Calculate totals
-  const totals = useMemo(() => {
-    let totalOwed = 0;
-    let totalPaid = 0;
-    let paidCount = 0;
-    let unpaidCount = 0;
-
-    state.players.forEach(player => {
-      const isGuest = player.paymentInfo?.isGuest || false;
-      const fee = calculatePlayerFee(player, isGuest);
-      const hasPaid = player.paymentInfo?.hasPaid || false;
-
-      totalOwed += fee;
-      if (hasPaid) {
-        totalPaid += fee;
-        paidCount++;
-      } else {
-        unpaidCount++;
-      }
-    });
-
-    return {
-      totalOwed,
-      totalPaid,
-      totalUnpaid: totalOwed - totalPaid,
-      paidCount,
-      unpaidCount,
-      totalPlayers: state.players.length,
-    };
-  }, [state.players, calculatePlayerFee]);
+  const currencySymbol = getCurrencySymbol(currency);
 
   return (
     <Modal
@@ -264,21 +271,21 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ open, onClose }) => {
     >
       <Paper
         sx={{
-          width: '90%',
-          maxWidth: 1000,
-          maxHeight: '85vh',
+          width: '100%',
+          maxWidth: isMobile ? '95vw' : '900px',
+          maxHeight: '90vh',
           overflow: 'auto',
           p: 3,
-          bgcolor: 'background.paper',
           borderRadius: 2,
+          boxShadow: 24,
         }}
       >
         {/* Header */}
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <AttachMoneyIcon color="primary" />
-            <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
-              Payment Summary
+            <Typography variant="h5" component="h2" sx={{ fontWeight: 'bold' }}>
+              Payment Management
             </Typography>
           </Box>
           <IconButton onClick={onClose} size="small">
@@ -306,17 +313,53 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ open, onClose }) => {
                 </Select>
               </FormControl>
 
-              <FormControl size="small" sx={{ minWidth: 100 }}>
+              <FormControl size="small" sx={{ minWidth: 140 }}>
                 <InputLabel>Currency</InputLabel>
                 <Select
                   value={currency}
                   onChange={(e) => setCurrency(e.target.value)}
                   label="Currency"
                 >
-                  <MenuItem value="PHP">PHP (₱)</MenuItem>
-                  <MenuItem value="USD">USD ($)</MenuItem>
-                  <MenuItem value="EUR">EUR (€)</MenuItem>
-                  <MenuItem value="SGD">SGD (S$)</MenuItem>
+                  {/* Major International Currencies */}
+                  <MenuItem value="USD">USD ($) - US Dollar</MenuItem>
+                  <MenuItem value="EUR">EUR (€) - Euro</MenuItem>
+                  <MenuItem value="GBP">GBP (£) - British Pound</MenuItem>
+                  <MenuItem value="JPY">JPY (¥) - Japanese Yen</MenuItem>
+                  <MenuItem value="CNY">CNY (¥) - Chinese Yuan</MenuItem>
+                  <MenuItem value="CHF">CHF - Swiss Franc</MenuItem>
+                  
+                  {/* Asia-Pacific (Badminton Popular) */}
+                  <MenuItem value="PHP">PHP (₱) - Philippine Peso</MenuItem>
+                  <MenuItem value="SGD">SGD (S$) - Singapore Dollar</MenuItem>
+                  <MenuItem value="MYR">MYR (RM) - Malaysian Ringgit</MenuItem>
+                  <MenuItem value="IDR">IDR (Rp) - Indonesian Rupiah</MenuItem>
+                  <MenuItem value="THB">THB (฿) - Thai Baht</MenuItem>
+                  <MenuItem value="TWD">TWD (NT$) - Taiwan Dollar</MenuItem>
+                  <MenuItem value="VND">VND (₫) - Vietnamese Dong</MenuItem>
+                  <MenuItem value="HKD">HKD (HK$) - Hong Kong Dollar</MenuItem>
+                  <MenuItem value="INR">INR (₹) - Indian Rupee</MenuItem>
+                  <MenuItem value="KRW">KRW (₩) - Korean Won</MenuItem>
+                  
+                  {/* Americas & Oceania */}
+                  <MenuItem value="CAD">CAD (C$) - Canadian Dollar</MenuItem>
+                  <MenuItem value="AUD">AUD (A$) - Australian Dollar</MenuItem>
+                  <MenuItem value="NZD">NZD (NZ$) - New Zealand Dollar</MenuItem>
+                  <MenuItem value="BRL">BRL (R$) - Brazilian Real</MenuItem>
+                  
+                  {/* Europe */}
+                  <MenuItem value="PLN">PLN (zł) - Polish Zloty</MenuItem>
+                  <MenuItem value="DKK">DKK (kr) - Danish Krone</MenuItem>
+                  <MenuItem value="SEK">SEK (kr) - Swedish Krona</MenuItem>
+                  <MenuItem value="NOK">NOK (kr) - Norwegian Krone</MenuItem>
+                  <MenuItem value="CZK">CZK (Kč) - Czech Koruna</MenuItem>
+                  <MenuItem value="HUF">HUF (Ft) - Hungarian Forint</MenuItem>
+                  <MenuItem value="RUB">RUB (₽) - Russian Ruble</MenuItem>
+                  
+                  {/* Africa */}
+                  <MenuItem value="ZAR">ZAR (R) - South African Rand</MenuItem>
+                  <MenuItem value="KES">KES (KSh) - Kenyan Shilling</MenuItem>
+                  <MenuItem value="NGN">NGN (₦) - Nigerian Naira</MenuItem>
+                  <MenuItem value="EGP">EGP (E£) - Egyptian Pound</MenuItem>
                 </Select>
               </FormControl>
             </Box>
@@ -330,7 +373,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ open, onClose }) => {
                   size="small"
                   type="number"
                   InputProps={{
-                    startAdornment: <InputAdornment position="start">{currency === 'PHP' ? '₱' : currency === 'USD' ? '$' : currency === 'EUR' ? '€' : 'S$'}</InputAdornment>,
+                    startAdornment: <InputAdornment position="start">{currencySymbol}</InputAdornment>,
                   }}
                 />
               ) : (
@@ -342,7 +385,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ open, onClose }) => {
                     size="small"
                     type="number"
                     InputProps={{
-                      startAdornment: <InputAdornment position="start">{currency === 'PHP' ? '₱' : currency === 'USD' ? '$' : currency === 'EUR' ? '€' : 'S$'}</InputAdornment>,
+                      startAdornment: <InputAdornment position="start">{currencySymbol}</InputAdornment>,
                     }}
                   />
                   <TextField
@@ -352,7 +395,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ open, onClose }) => {
                     size="small"
                     type="number"
                     InputProps={{
-                      startAdornment: <InputAdornment position="start">{currency === 'PHP' ? '₱' : currency === 'USD' ? '$' : currency === 'EUR' ? '€' : 'S$'}</InputAdornment>,
+                      startAdornment: <InputAdornment position="start">{currencySymbol}</InputAdornment>,
                     }}
                   />
                 </>
@@ -365,7 +408,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ open, onClose }) => {
                 size="small"
                 type="number"
                 InputProps={{
-                  startAdornment: <InputAdornment position="start">{currency === 'PHP' ? '₱' : currency === 'USD' ? '$' : currency === 'EUR' ? '€' : 'S$'}</InputAdornment>,
+                  startAdornment: <InputAdornment position="start">{currencySymbol}</InputAdornment>,
                 }}
               />
             </Box>
@@ -402,7 +445,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ open, onClose }) => {
                   <Typography variant="caption">{paymentSummary.paidCount} players</Typography>
                 </Box>
                 <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
-                  {currency === 'PHP' ? '₱' : currency === 'USD' ? '$' : currency === 'EUR' ? '€' : 'S$'}{paymentSummary.totalPaid.toFixed(2)}
+                  {currencySymbol}{paymentSummary.totalPaid.toFixed(2)}
                 </Typography>
               </Box>
               
@@ -420,7 +463,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ open, onClose }) => {
                   <Typography variant="caption">{paymentSummary.unpaidCount} players</Typography>
                 </Box>
                 <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
-                  {currency === 'PHP' ? '₱' : currency === 'USD' ? '$' : currency === 'EUR' ? '€' : 'S$'}{paymentSummary.totalUnpaid.toFixed(2)}
+                  {currencySymbol}{paymentSummary.totalUnpaid.toFixed(2)}
                 </Typography>
               </Box>
               
@@ -438,7 +481,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ open, onClose }) => {
                   <Typography variant="caption">{paymentSummary.totalPlayers} players</Typography>
                 </Box>
                 <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
-                  {currency === 'PHP' ? '₱' : currency === 'USD' ? '$' : currency === 'EUR' ? '€' : 'S$'}{paymentSummary.totalOwed.toFixed(2)}
+                  {currencySymbol}{paymentSummary.totalOwed.toFixed(2)}
                 </Typography>
               </Box>
             </Stack>
@@ -455,7 +498,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ open, onClose }) => {
               }}>
                 <Typography variant="subtitle2">Total Paid</Typography>
                 <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
-                  {currency === 'PHP' ? '₱' : currency === 'USD' ? '$' : currency === 'EUR' ? '€' : 'S$'}{paymentSummary.totalPaid.toFixed(2)}
+                  {currencySymbol}{paymentSummary.totalPaid.toFixed(2)}
                 </Typography>
                 <Typography variant="caption">{paymentSummary.paidCount} players</Typography>
               </Box>
@@ -470,7 +513,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ open, onClose }) => {
               }}>
                 <Typography variant="subtitle2">Total Unpaid</Typography>
                 <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
-                  {currency === 'PHP' ? '₱' : currency === 'USD' ? '$' : currency === 'EUR' ? '€' : 'S$'}{paymentSummary.totalUnpaid.toFixed(2)}
+                  {currencySymbol}{paymentSummary.totalUnpaid.toFixed(2)}
                 </Typography>
                 <Typography variant="caption">{paymentSummary.unpaidCount} players</Typography>
               </Box>
@@ -485,7 +528,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ open, onClose }) => {
               }}>
                 <Typography variant="subtitle2">Total Expected</Typography>
                 <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
-                  {currency === 'PHP' ? '₱' : currency === 'USD' ? '$' : currency === 'EUR' ? '€' : 'S$'}{paymentSummary.totalOwed.toFixed(2)}
+                  {currencySymbol}{paymentSummary.totalOwed.toFixed(2)}
                 </Typography>
                 <Typography variant="caption">{paymentSummary.totalPlayers} players</Typography>
               </Box>
@@ -494,163 +537,52 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ open, onClose }) => {
         </Box>
 
         {/* Action Buttons */}
-        <Box sx={{ display: 'flex', gap: 1, mb: 2, flexWrap: 'wrap' }}>
+        <Box sx={{ display: 'flex', gap: 1, mb: 3, flexWrap: 'wrap' }}>
           <Button
             variant="contained"
             color="success"
-            onClick={handleMarkAllPaid}
             size="small"
-            disabled={paymentSummary.unpaidCount === 0}
-            fullWidth={isMobile}
+            onClick={handleMarkAllPaid}
+            disabled={paymentSummary.totalPlayers === 0}
           >
             Mark All Paid
           </Button>
           <Button
             variant="outlined"
             color="warning"
-            onClick={handleClearAllPayments}
             size="small"
+            onClick={handleClearAllPayments}
             disabled={paymentSummary.paidCount === 0}
-            fullWidth={isMobile}
           >
             Clear All Payments
           </Button>
         </Box>
 
-        {/* Search Bar */}
-        <Box sx={{ mb: 3 }}>
+        {/* Search */}
+        <Box sx={{ mb: 2 }}>
           <TextField
             placeholder="Search players..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             size="small"
-            fullWidth
+            fullWidth={isMobile}
+            sx={{ maxWidth: isMobile ? '100%' : 300 }}
             InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon sx={{ fontSize: '1rem', color: 'text.secondary' }} />
-                </InputAdornment>
-              ),
+              startAdornment: <SearchIcon sx={{ mr: 1, color: 'text.secondary' }} />,
               endAdornment: searchQuery && (
-                <InputAdornment position="end">
-                  <IconButton onClick={handleClearSearch} size="small">
-                    <ClearIcon sx={{ fontSize: '1rem' }} />
-                  </IconButton>
-                </InputAdornment>
+                <IconButton size="small" onClick={handleClearSearch}>
+                  <ClearIcon fontSize="small" />
+                </IconButton>
               ),
-            }}
-            sx={{
-              maxWidth: 400,
-              '& .MuiOutlinedInput-root': {
-                backgroundColor: 'background.default',
-              },
             }}
           />
-          {searchQuery && (
-            <Typography 
-              variant="caption" 
-              sx={{ 
-                color: 'text.secondary', 
-                fontSize: '0.7rem',
-                display: 'block',
-                mt: 0.5
-              }}
-            >
-              Showing {filteredAndSortedPlayers.length} of {state.players.length} players
-            </Typography>
-          )}
         </Box>
 
-        {/* Mobile Card Layout */}
-        {isMobile ? (
-          <Box sx={{ maxHeight: '400px', overflowY: 'auto' }}>
-            <Stack spacing={1}>
-              {filteredAndSortedPlayers.map((player) => {
-                const isGuest = player.paymentInfo?.isGuest || false;
-                const hasPaid = player.paymentInfo?.hasPaid || false;
-                const amountDue = calculatePlayerFee(player, isGuest);
-
-                return (
-                  <Card key={player.id} variant="outlined" sx={{ 
-                    bgcolor: hasPaid ? 'success.50' : 'warning.50',
-                    borderColor: hasPaid ? 'success.200' : 'warning.200'
-                  }}>
-                    <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
-                      {/* Player Name and Status Row */}
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <SportsIcon sx={{ fontSize: '1rem', color: 'primary.main' }} />
-                          <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
-                            {player.name}
-                          </Typography>
-                        </Box>
-                        <Chip
-                          icon={hasPaid ? <PaidIcon /> : <PendingIcon />}
-                          label={hasPaid ? 'Paid' : 'Pending'}
-                          color={hasPaid ? 'success' : 'warning'}
-                          size="small"
-                        />
-                      </Box>
-
-                      {/* Details Row */}
-                      <Grid container spacing={1} sx={{ mb: 1 }}>
-                        <Grid size={4}>
-                          <Typography variant="caption" color="text.secondary">Games</Typography>
-                          <Box>
-                            <Chip 
-                              label={player.gamesPlayed} 
-                              size="small" 
-                              color="primary" 
-                              variant="outlined"
-                            />
-                          </Box>
-                        </Grid>
-                        <Grid size={4}>
-                          <Typography variant="caption" color="text.secondary">Guest</Typography>
-                          <Box>
-                            <Switch
-                              checked={isGuest}
-                              onChange={(e) => dispatch(Action.togglePlayerGuest(player.id))}
-                              size="small"
-                            />
-                          </Box>
-                        </Grid>
-                        <Grid size={4}>
-                          <Typography variant="caption" color="text.secondary">Amount Due</Typography>
-                          <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
-                            {currency === 'PHP' ? '₱' : currency === 'USD' ? '$' : currency === 'EUR' ? '€' : 'S$'}{amountDue.toFixed(2)}
-                          </Typography>
-                        </Grid>
-                      </Grid>
-
-                      {/* Fee Breakdown (for per_game structure) */}
-                      {feeStructure === 'per_game' && (
-                        <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', mb: 1 }}>
-                          {currency === 'PHP' ? '₱' : currency === 'USD' ? '$' : currency === 'EUR' ? '€' : 'S$'}{parseFloat(courtFee)} + {player.gamesPlayed}×{currency === 'PHP' ? '₱' : currency === 'USD' ? '$' : currency === 'EUR' ? '€' : 'S$'}{parseFloat(perGameFee)}{isGuest ? ` + ${currency === 'PHP' ? '₱' : currency === 'USD' ? '$' : currency === 'EUR' ? '€' : 'S$'}${parseFloat(guestFee)}` : ''}
-                        </Typography>
-                      )}
-
-                      {/* Action Button */}
-                      <Button
-                        variant={hasPaid ? 'outlined' : 'contained'}
-                        color={hasPaid ? 'warning' : 'success'}
-                        size="small"
-                        onClick={() => handleTogglePayment(player.id)}
-                        fullWidth
-                      >
-                        {hasPaid ? 'Mark Unpaid' : 'Mark Paid'}
-                      </Button>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </Stack>
-          </Box>
-        ) : (
-          /* Desktop Table Layout */
-          <TableContainer component={Paper} variant="outlined">
-            <Table size="small">
-              <TableHead sx={{ bgcolor: 'grey.50' }}>
+        {/* Players Table */}
+        {filteredAndSortedPlayers.length > 0 && (
+          <TableContainer component={Paper} sx={{ maxHeight: 400 }}>
+            <Table stickyHeader size="small">
+              <TableHead>
                 <TableRow>
                   <TableCell>
                     <TableSortLabel
@@ -675,7 +607,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ open, onClose }) => {
                         }
                       }}
                     >
-                      Player
+                      Player Name
                       {sortConfig.column === 'name' && (
                         <Box component="span" sx={{ 
                           ml: 0.5, 
@@ -798,7 +730,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ open, onClose }) => {
                           fontSize: '0.7rem',
                           fontWeight: 'normal'
                         }}>
-                          ({sortConfig.direction === 'asc' ? 'Paid First' : 'Pending First'})
+                          ({sortConfig.direction === 'asc' ? 'Unpaid First' : 'Paid First'})
                         </Box>
                       )}
                     </TableSortLabel>
@@ -808,7 +740,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ open, onClose }) => {
                     color: 'text.secondary',
                     fontSize: '0.9rem'
                   }}>
-                    Action
+                    Actions
                   </TableCell>
                 </TableRow>
               </TableHead>
@@ -819,43 +751,48 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ open, onClose }) => {
                   const amountDue = calculatePlayerFee(player, isGuest);
 
                   return (
-                    <TableRow key={player.id}>
-                      <TableCell>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <SportsIcon sx={{ fontSize: '1rem', color: 'primary.main' }} />
-                          <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
-                            {player.name}
-                          </Typography>
-                        </Box>
+                    <TableRow
+                      key={player.id}
+                      sx={{
+                        '&:nth-of-type(odd)': {
+                          backgroundColor: theme.palette.action.hover,
+                        },
+                        '&:hover': {
+                          backgroundColor: theme.palette.action.selected,
+                        },
+                      }}
+                    >
+                      <TableCell component="th" scope="row">
+                        <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
+                          {player.name}
+                        </Typography>
                       </TableCell>
                       <TableCell align="center">
-                        <Chip 
-                          label={player.gamesPlayed} 
-                          size="small" 
-                          color="primary" 
+                        <Chip
+                          icon={<SportsIcon />}
+                          label={player.gamesPlayed}
+                          size="small"
+                          color="primary"
                           variant="outlined"
                         />
                       </TableCell>
                       <TableCell align="center">
-                        <FormControlLabel
-                          control={
-                            <Switch
-                              checked={isGuest}
-                              onChange={(e) => dispatch(Action.togglePlayerGuest(player.id))}
-                              size="small"
-                            />
-                          }
-                          label=""
-                          sx={{ margin: 0 }}
+                        <Switch
+                          checked={isGuest}
+                          onChange={(e) => {
+                            dispatch(Action.togglePlayerGuest(player.id));
+                          }}
+                          size="small"
+                          color="warning"
                         />
                       </TableCell>
                       <TableCell align="right">
-                        <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
-                          {currency === 'PHP' ? '₱' : currency === 'USD' ? '$' : currency === 'EUR' ? '€' : 'S$'}{amountDue.toFixed(2)}
+                        <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
+                          {currencySymbol}{amountDue.toFixed(2)}
                         </Typography>
                         {feeStructure === 'per_game' && (
                           <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary' }}>
-                            {currency === 'PHP' ? '₱' : currency === 'USD' ? '$' : currency === 'EUR' ? '€' : 'S$'}{parseFloat(courtFee)} + {player.gamesPlayed}×{currency === 'PHP' ? '₱' : currency === 'USD' ? '$' : currency === 'EUR' ? '€' : 'S$'}{parseFloat(perGameFee)}{isGuest ? ` + ${currency === 'PHP' ? '₱' : currency === 'USD' ? '$' : currency === 'EUR' ? '€' : 'S$'}${parseFloat(guestFee)}` : ''}
+                            {currencySymbol}{parseFloat(courtFee)} + {player.gamesPlayed}×{currencySymbol}{parseFloat(perGameFee)}{isGuest ? ` + ${currencySymbol}${parseFloat(guestFee)}` : ''}
                           </Typography>
                         )}
                       </TableCell>
