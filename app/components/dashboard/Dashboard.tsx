@@ -1,10 +1,12 @@
 import React, { useContext, useState, useCallback, useMemo, useEffect } from 'react';
-import { Typography, IconButton, Box, Divider, useTheme, useMediaQuery, Tabs, Tab, Chip  } from '@mui/material';
-import { ViewModule as AllIcon, Queue as QueueIcon, SportsTennis as CourtsIcon } from '@mui/icons-material';
+import { Typography, IconButton, Box, Divider, useTheme, useMediaQuery, Tabs, Tab, CircularProgress, Button   } from '@mui/material';
+import { ViewModule as AllIcon, Queue as QueueIcon, SportsTennis as CourtsIcon, ContentCopy as ContentCopyIcon, Close as CloseIcon, Visibility as VisibilityIcon } from '@mui/icons-material';
 import AddIcon from '@mui/icons-material/GroupAdd';
 import SettingsIcon from '@mui/icons-material/Settings';
 import AttachMoneyIcon from '@mui/icons-material/Payment';
 import ListIcon from '@mui/icons-material/List';
+import QrCodeIcon from '@mui/icons-material/QrCode';
+import { useWebSocket } from '../../lib/contexts/WebSocketContext';
 import { AppContext } from '../../BadmintonQueueUI';
 import CourtZone from '../CourtZone';
 import QueueZone from '../QueueZone';
@@ -23,6 +25,16 @@ type DashboardProps = {
 
 const Dashboard: React.FC<DashboardProps> = React.memo(({ onShowTutorial }) => {
   const { state } = useContext(AppContext);
+  const {
+    isHost,
+    sessionId,
+    viewerCount,
+    shareLink,
+    qrCodeUrl,
+    createSession,
+    endSession
+  } = useWebSocket();
+
   const theme = useTheme();
   const isPortraitMobile = useMediaQuery('(max-width: 768px) and (orientation: portrait) and (max-height: 900px)');
   const isVerySmallScreen = useMediaQuery('(max-width: 600px)');
@@ -37,6 +49,11 @@ const Dashboard: React.FC<DashboardProps> = React.memo(({ onShowTutorial }) => {
   const [mounted, setMounted] = useState(false);
   const [mobileActiveTab, setMobileActiveTab] = useState(0);
   const [showSmartHints, setShowSmartHints] = useState(false);
+
+  // Add sharing-related state
+  const [shareAnchorEl, setShareAnchorEl] = useState<null | HTMLElement>(null);
+  const [isCreatingSession, setIsCreatingSession] = useState(false);
+  const [copySuccess, setCopySuccess] = useState(false);
 
   // Memoized calculations
   const totalPlayers = useMemo(() => state.players.length, [state.players.length]);
@@ -87,6 +104,40 @@ const Dashboard: React.FC<DashboardProps> = React.memo(({ onShowTutorial }) => {
   const handleMobileTabChange = useCallback((event: React.SyntheticEvent, newValue: number) => {
     setMobileActiveTab(newValue);
   }, []);
+
+  const handleOpenShare = useCallback((event: React.MouseEvent<HTMLElement>) => {
+    setShareAnchorEl(event.currentTarget);
+  }, []);
+
+  const handleCloseShare = useCallback(() => {
+    setShareAnchorEl(null);
+  }, []);
+
+  const handleCopyLink = useCallback(async () => {
+    if (shareLink) {
+      try {
+        await navigator.clipboard.writeText(shareLink);
+        setCopySuccess(true);
+        // Auto-clear after 3 seconds
+        setTimeout(() => setCopySuccess(false), 3000);
+      } catch (error) {
+        // Fallback for older browsers
+        const textArea = document.createElement('textarea');
+        textArea.value = shareLink;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        setCopySuccess(true);
+        setTimeout(() => setCopySuccess(false), 3000);
+      }
+    }
+  }, [shareLink]);
+
+  const handleEndSession = useCallback(() => {
+    endSession();
+    handleCloseShare();
+  }, [endSession, handleCloseShare]);
 
   useEffect(() => {
     setMounted(true);
@@ -200,8 +251,8 @@ const Dashboard: React.FC<DashboardProps> = React.memo(({ onShowTutorial }) => {
         <IconButton onClick={handleOpenPlayerList} title="View Player List & Skills">
           <ListIcon />
         </IconButton>
-        <IconButton onClick={handleOpenPopover} title="Court Settings">
-          <CourtAddIcon />
+        <IconButton onClick={handleOpenShare} title="Share Live Session" disabled={isCreatingSession}>
+          {isCreatingSession ? <CircularProgress size={20} /> : <QrCodeIcon />}
         </IconButton>
         <IconButton onClick={handleOpenPayment} title="Payment Summary">
           <AttachMoneyIcon />
@@ -211,7 +262,7 @@ const Dashboard: React.FC<DashboardProps> = React.memo(({ onShowTutorial }) => {
         </IconButton>
       </Box>
     </Box>
-  ), [totalPlayers, headerSx, buttonGroupSx, mounted, handleOpenParser, handleOpenPlayerList, handleOpenPopover, handleOpenPayment, handleOpenSettings]);
+  ), [totalPlayers, headerSx, buttonGroupSx, mounted, handleOpenParser, handleOpenPlayerList, handleOpenPayment, handleOpenSettings, handleOpenShare, isCreatingSession]);
 
   // Memoized popover content
   const popoverContent = useMemo(() => (
@@ -236,6 +287,184 @@ const Dashboard: React.FC<DashboardProps> = React.memo(({ onShowTutorial }) => {
     popoverConfig, 
     popoverPaperSx
   ]);
+
+  const sharePopoverContent = useMemo(() => (
+    <Popover
+      open={Boolean(shareAnchorEl)}
+      anchorEl={shareAnchorEl}
+      onClose={handleCloseShare}
+      anchorOrigin={{
+        vertical: 'bottom',
+        horizontal: 'right',
+      }}
+      transformOrigin={{
+        vertical: 'top',
+        horizontal: 'right',
+      }}
+      slotProps={{
+        paper: {
+          sx: {
+            p: 3,
+            borderRadius: 3,
+            boxShadow: '0 12px 32px rgba(0,0,0,0.15)',
+            border: '1px solid rgba(0,0,0,0.08)',
+            minWidth: 320,
+            maxWidth: 400,
+          },
+        },
+      }}
+    >
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+        {/* Header */}
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Typography variant="h6" sx={{ fontSize: '1.1rem', fontWeight: 600 }}>
+            Share Live Session
+          </Typography>
+          <IconButton size="small" onClick={handleCloseShare}>
+            <CloseIcon />
+          </IconButton>
+        </Box>
+
+        {/* Show message when not sharing */}
+        {!isHost && !sessionId && (
+          <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', mb: 2 }}>
+            Click "Start Live Sharing" to generate a QR code and link that others can use to view your courts and queues in real-time.
+          </Typography>
+        )}
+
+        {/* Session Info - Always show when session exists */}
+        {sessionId && (
+          <Box sx={{ textAlign: 'center' }}>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+              Session ID
+            </Typography>
+            <Typography variant="h6" sx={{ fontFamily: 'monospace', color: 'primary.main' }}>
+              {sessionId}
+            </Typography>
+          </Box>
+        )}
+
+        {/* QR Code - Always show when session exists */}
+        {qrCodeUrl && (
+          <>
+            <Divider />
+            <Box sx={{ textAlign: 'center' }}>
+              <Typography variant="body2" sx={{ mb: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
+                <QrCodeIcon fontSize="small" />
+                Scan to view
+              </Typography>
+              <img 
+                src={qrCodeUrl} 
+                alt="QR Code" 
+                style={{ 
+                  width: 160, 
+                  height: 160, 
+                  border: '1px solid #e0e0e0',
+                  borderRadius: 8 
+                }} 
+              />
+            </Box>
+          </>
+        )}
+
+        {/* Share Link - Always show when session exists */}
+        {shareLink && (
+          <>
+            <Divider />
+            <Box>
+              <Typography variant="body2" sx={{ mb: 1 }}>
+                Share Link
+              </Typography>
+              <Box sx={{ display: 'flex', gap: 1 }}>
+                <Box
+                  sx={{
+                    flex: 1,
+                    p: 1,
+                    border: '1px solid #e0e0e0',
+                    borderRadius: 1,
+                    backgroundColor: '#f5f5f5',
+                    fontSize: '0.8rem',
+                    fontFamily: 'monospace',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {shareLink}
+                </Box>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  onClick={handleCopyLink}
+                  startIcon={<ContentCopyIcon />}
+                  sx={{ minWidth: 'auto', px: 1 }}
+                >
+                  Copy
+                </Button>
+              </Box>
+              
+              {/* Copy success message */}
+              {copySuccess && (
+                <Typography 
+                  variant="body2" 
+                  sx={{ 
+                    color: 'success.main', 
+                    textAlign: 'center', 
+                    fontSize: '0.8rem', 
+                    fontWeight: 500,
+                    mt: 1
+                  }}
+                >
+                  ✓ Link copied to clipboard!
+                </Typography>
+              )}
+            </Box>
+          </>
+        )}
+
+        {/* Viewer Count */}
+        {viewerCount > 0 && (
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
+            <VisibilityIcon color="primary" fontSize="small" />
+            <Typography variant="body2" color="primary">
+              {viewerCount} viewer{viewerCount !== 1 ? 's' : ''} connected
+            </Typography>
+          </Box>
+        )}
+
+        {/* Actions - Always show */}
+        <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
+          <Button variant="outlined" fullWidth onClick={handleCloseShare}>
+            Close
+          </Button>
+          <Button 
+            variant="contained" 
+            color={isHost ? 'error' : 'primary'}
+            fullWidth 
+            onClick={isHost ? handleEndSession : async () => {
+              setIsCreatingSession(true);
+              try {
+                await createSession();
+              } catch (error) {
+                console.error('Failed to create session:', error);
+              } finally {
+                setIsCreatingSession(false);
+              }
+            }}
+            disabled={isCreatingSession}
+          >
+            {isCreatingSession ? (
+              <CircularProgress size={20} />
+            ) : isHost ? (
+              'End Live Sharing'
+            ) : (
+              'Start Live Sharing'
+            )}
+          </Button>
+        </Box>
+      </Box>
+    </Popover>
+  ), [shareAnchorEl, handleCloseShare, sessionId, isHost, qrCodeUrl, shareLink, viewerCount, handleCopyLink, handleEndSession, isCreatingSession, createSession, copySuccess]);
 
   return (
   <Box sx={containerSx}>
@@ -394,6 +623,7 @@ const Dashboard: React.FC<DashboardProps> = React.memo(({ onShowTutorial }) => {
         </Typography>
       </Box>
       {popoverContent}
+      {sharePopoverContent}
     </Box>
 
     {/* Right Main Area */}

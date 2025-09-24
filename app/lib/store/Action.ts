@@ -1,5 +1,6 @@
 import { Player } from "../../components/types/Player";
 import { PlayerListSortConfig } from "../../components/types/Settings";
+import { RootState } from "./rootState";
 
 const ActionType = {
   SET_COURT_COUNT: "setCourtCount",
@@ -42,6 +43,7 @@ const ActionType = {
   TRANSFER_QUEUE_TO_SPECIFIC_COURT_FROM_SUBMENU:
     "transferQueueToSpecificCourtFromSubmenu",
   REMOVE_SPECIFIC_COURT: "removeSpecificCourt",
+  REPLACE_VIEWER_STATE: "replaceViewerState",
 } as const;
 
 // 🧠 Action creators
@@ -330,6 +332,13 @@ const Action = {
     return {
       type: ActionType.REMOVE_SPECIFIC_COURT,
       payload: { courtId },
+    };
+  },
+
+  replaceViewerState(newState: RootState) {
+    return {
+      type: ActionType.REPLACE_VIEWER_STATE,
+      payload: newState,
     };
   },
 };

@@ -17,6 +17,7 @@ import Dashboard from './components/dashboard/Dashboard';
 import MobileFooter from './components/MobileFooter';
 import { debouncedSave, isLocalStorageAvailable } from './lib/utils/localStorage';
 import DragTutorial from './components/DragTutorial';
+import { WebSocketProvider } from './lib/contexts/WebSocketContext';
 
 export const AppContext = React.createContext<{
 	state: RootState;
@@ -200,19 +201,21 @@ const AppContent: React.FC = () => {
 
 const BadmintonQueueUI: React.FC = () => {
 	return (
-		<ThemeProvider theme={theme}>
-			<SnackbarProvider 
-				maxSnack={5}  // Allow up to 5 snackbars simultaneously
-				dense={false}
-				preventDuplicate={true}  // Prevent duplicate messages
-				anchorOrigin={{
-					vertical: 'top',
-					horizontal: 'right',
-				}}
-			>
-				<AppContent />
-			</SnackbarProvider>
-		</ThemeProvider>
+		<WebSocketProvider>
+			<ThemeProvider theme={theme}>
+				<SnackbarProvider 
+					maxSnack={5}  // Allow up to 5 snackbars simultaneously
+					dense={false}
+					preventDuplicate={true}  // Prevent duplicate messages
+					anchorOrigin={{
+						vertical: 'top',
+						horizontal: 'right',
+					}}
+				>
+					<AppContent />
+				</SnackbarProvider>
+			</ThemeProvider>
+		</WebSocketProvider>
 	);
 }
 

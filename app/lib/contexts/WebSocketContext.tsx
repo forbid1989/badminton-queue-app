@@ -1,3 +1,5 @@
+'use client'
+
 import React, { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react';
 import { RootState } from '../store/rootState';
 
@@ -38,80 +40,23 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
   };
 
   const generateQRCode = async (url: string): Promise<string> => {
-    // Using QR Server API for simplicity - in production, consider using a library
-    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(url)}`;
-    return qrUrl;
+    // Using QR Server API - works in both dev and production
+    return `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(url)}`;
   };
 
-  const connectWebSocket = useCallback((sessionId: string, isHost: boolean) => {
-    // For demo purposes, using a mock WebSocket simulation
-    // In production, replace with actual WebSocket server URL
-    const ws = new WebSocket(`wss://your-websocket-server.com/session/${sessionId}`);
-    
-    ws.onopen = () => {
-      console.log('WebSocket connected');
-      ws.send(JSON.stringify({
-        type: isHost ? 'host_join' : 'viewer_join',
-        sessionId
-      }));
-    };
-
-    ws.onmessage = (event) => {
-      const message = JSON.parse(event.data);
-      
-      switch (message.type) {
-        case 'state_update':
-          if (isViewer && onStateUpdate) {
-            onStateUpdate(message.state);
-          }
-          break;
-        case 'viewer_count':
-          setViewerCount(message.count);
-          break;
-        case 'session_ended':
-          endSession();
-          break;
-      }
-    };
-
-    ws.onclose = () => {
-      console.log('WebSocket disconnected');
-      setSocket(null);
-    };
-
-    ws.onerror = (error) => {
-      console.error('WebSocket error:', error);
-    };
-
-    setSocket(ws);
-  }, [onStateUpdate]);
-
-  const createSession = useCallback(async (): Promise<string> => {
-    const newSessionId = generateSessionId();
-    const baseUrl = window.location.origin;
-    const link = `${baseUrl}/view/${newSessionId}`;
-    const qrCode = await generateQRCode(link);
-    
-    setSessionId(newSessionId);
-    setIsHost(true);
-    setShareLink(link);
-    setQrCodeUrl(qrCode);
-    
-    connectWebSocket(newSessionId, true);
-    
-    return newSessionId;
-  }, [connectWebSocket]);
-
-  const joinSession = useCallback((sessionId: string) => {
-    setSessionId(sessionId);
-    setIsViewer(true);
-    connectWebSocket(sessionId, false);
-  }, [connectWebSocket]);
-
   const endSession = useCallback(() => {
+    if (socket && isHost) {
+      socket.send(JSON.stringify({
+        type: 'host_disconnected',
+        sessionId,
+        timestamp: Date.now()
+      }));
+    }
+    
     if (socket) {
       socket.close();
     }
+    
     setSocket(null);
     setIsHost(false);
     setIsViewer(false);
@@ -119,16 +64,106 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
     setViewerCount(0);
     setShareLink(null);
     setQrCodeUrl(null);
-  }, [socket]);
+  }, [socket, isHost, sessionId]);
 
   const broadcastState = useCallback((state: RootState) => {
     if (socket && isHost && socket.readyState === WebSocket.OPEN) {
       socket.send(JSON.stringify({
         type: 'state_update',
-        state
+        state,
+        timestamp: Date.now()
       }));
     }
   }, [socket, isHost]);
+
+    const connectWebSocket = useCallback((sessionId: string, isHostConnection: boolean) => {
+    // Use a free WebSocket service that works with Vercel
+    // For production, consider using Vercel's serverless functions with Socket.IO
+    const wsUrl = `wss://socketsbay.com/wss/v2/1/${sessionId}/`;
+    
+    try {
+      const ws = new WebSocket(wsUrl);
+      
+      ws.onopen = () => {
+        console.log('WebSocket connected');
+        setSocket(ws);
+        
+        // Send initial message
+        ws.send(JSON.stringify({
+          type: isHostConnection ? 'host_join' : 'viewer_join',
+          sessionId,
+          timestamp: Date.now()
+        }));
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const message = JSON.parse(event.data);
+          
+          switch (message.type) {
+            case 'state_update':
+              if (!isHostConnection && onStateUpdate) {
+                onStateUpdate(message.state);
+              }
+              break;
+            case 'viewer_joined':
+              if (isHostConnection) {
+                setViewerCount(prev => prev + 1);
+              }
+              break;
+            case 'viewer_left':
+              if (isHostConnection) {
+                setViewerCount(prev => Math.max(0, prev - 1));
+              }
+              break;
+            case 'host_disconnected':
+              if (!isHostConnection) {
+                alert('Session ended by host');
+                endSession();
+              }
+              break;
+          }
+        } catch (error) {
+          console.error('Error parsing WebSocket message:', error);
+        }
+      };
+
+      ws.onclose = () => {
+        console.log('WebSocket disconnected');
+        setSocket(null);
+      };
+
+      ws.onerror = (error) => {
+        console.error('WebSocket error:', error);
+      };
+
+    } catch (error) {
+      console.error('Failed to connect WebSocket:', error);
+    }
+  }, [onStateUpdate, endSession]);
+
+    const createSession = useCallback(async (): Promise<string> => {
+        const newSessionId = generateSessionId();
+        const baseUrl = window.location.origin;
+        const link = `${baseUrl}/view/${newSessionId}`;
+        const qrCode = await generateQRCode(link);
+        
+        setSessionId(newSessionId);
+        setIsHost(true);
+        setShareLink(link);
+        setQrCodeUrl(qrCode);
+        setViewerCount(0);
+        
+        connectWebSocket(newSessionId, true);
+        
+        return newSessionId;
+    }, [connectWebSocket]);
+
+    const joinSession = useCallback((sessionId: string) => {
+        setSessionId(sessionId);
+        setIsViewer(true);
+        connectWebSocket(sessionId, false);
+    }, [connectWebSocket]);
 
   useEffect(() => {
     return () => {

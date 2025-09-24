@@ -9,6 +9,7 @@ import { clearLocalStorage } from "../utils/localStorage";
 import { generateMatchHistoryEntries } from "../utils/matchHistoryUtils";
 import { PlayerListSortConfig } from "../../components/types/Settings";
 import { MatchHistoryEntry } from "../../components/types/Player";
+import { RootState } from "./rootState";
 
 type Action =
   | { type: "setCourtCount"; payload: number }
@@ -93,7 +94,8 @@ type Action =
   | {
       type: "removeSpecificCourt";
       payload: { courtId: string };
-    };
+    }
+  | { type: "replaceViewerState"; payload: RootState };
 
 function logPartnershipWarnings(zoneId: string, players: Player[]): void {
   if (players.length < 2) {
@@ -3331,6 +3333,11 @@ export default function reducer(state: any, action: Action) {
         },
         undoableGames: updatedUndoGames,
       };
+    }
+
+    case ActionType.REPLACE_VIEWER_STATE: {
+      // For viewer mode, replace the entire state
+      return action.payload;
     }
 
     default:
