@@ -1,4 +1,3 @@
-// File: app/api/sse/[sessionId]/route.ts
 import { NextRequest, NextResponse } from "next/server";
 
 // In-memory store for session data (in production, consider Redis or a database)
@@ -32,9 +31,9 @@ function broadcastToSession(sessionId: string, data: any) {
 // GET handler - Sets up SSE connection for viewers
 export async function GET(
   request: NextRequest,
-  { params }: { params: { sessionId: string } }
+  context: { params: Promise<{ sessionId: string }> } // Updated for Next.js 15
 ) {
-  const { sessionId } = params;
+  const { sessionId } = await context.params; // Await the params in Next.js 15
 
   console.log(`📡 SSE connection request for session: ${sessionId}`);
 
@@ -142,9 +141,9 @@ export async function GET(
 // POST handler - Receives state updates from host
 export async function POST(
   request: NextRequest,
-  { params }: { params: { sessionId: string } }
+  context: { params: Promise<{ sessionId: string }> } // Updated for Next.js 15
 ) {
-  const { sessionId } = params;
+  const { sessionId } = await context.params; // Await the params in Next.js 15
 
   try {
     const body = await request.json();
