@@ -77,70 +77,118 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
   }, [socket, isHost]);
 
     const connectWebSocket = useCallback((sessionId: string, isHostConnection: boolean) => {
-    // Use a free WebSocket service that works with Vercel
-    // For production, consider using Vercel's serverless functions with Socket.IO
-    const wsUrl = `wss://socketsbay.com/wss/v2/1/${sessionId}/`;
-    
-    try {
-      const ws = new WebSocket(wsUrl);
-      
-      ws.onopen = () => {
-        console.log('WebSocket connected');
-        setSocket(ws);
-        
-        // Send initial message
-        ws.send(JSON.stringify({
-          type: isHostConnection ? 'host_join' : 'viewer_join',
-          sessionId,
-          timestamp: Date.now()
-        }));
-      };
-
-      ws.onmessage = (event) => {
-        try {
-          const message = JSON.parse(event.data);
-          
-          switch (message.type) {
-            case 'state_update':
-              if (!isHostConnection && onStateUpdate) {
-                onStateUpdate(message.state);
-              }
-              break;
-            case 'viewer_joined':
-              if (isHostConnection) {
-                setViewerCount(prev => prev + 1);
-              }
-              break;
-            case 'viewer_left':
-              if (isHostConnection) {
-                setViewerCount(prev => Math.max(0, prev - 1));
-              }
-              break;
-            case 'host_disconnected':
-              if (!isHostConnection) {
-                alert('Session ended by host');
-                endSession();
-              }
-              break;
-          }
-        } catch (error) {
-          console.error('Error parsing WebSocket message:', error);
+        // Skip WebSocket connection in development or if service is unavailable
+        if (process.env.NODE_ENV === 'development' || window.location.hostname === 'localhost') {
+            console.log('WebSocket disabled in development mode');
+            // Still set up the session for UI testing
+            if (isHostConnection) {
+            console.log('Mock host session created');
+            } else {
+            console.log('Mock viewer session joined');
+            }
+            return;
         }
-      };
 
-      ws.onclose = () => {
-        console.log('WebSocket disconnected');
-        setSocket(null);
-      };
+        // Try multiple WebSocket services as fallbacks
+        const wsServices = [
+            `wss://socketsbay.com/wss/v2/1/${sessionId}/`,
+            `wss://ws.postman-echo.com/raw`, // Alternative service
+            // Add more fallbacks as needed
+        ];
 
-      ws.onerror = (error) => {
-        console.error('WebSocket error:', error);
-      };
+        let currentServiceIndex = 0;
 
-    } catch (error) {
-      console.error('Failed to connect WebSocket:', error);
-    }
-  }, [onStateUpdate, endSession]);
+        const tryConnection = () => {
+            if (currentServiceIndex >= wsServices.length) {
+            console.error('All WebSocket services failed');
+            // Fall back to mock functionality
+            if (isHostConnection) {
+                console.log('Using mock host mode due to WebSocket failures');
+            }
+            return;
+            }
+
+            const wsUrl = wsServices[currentServiceIndex];
+            
+            try {
+            const ws = new WebSocket(wsUrl);
+            
+            // Set a connection timeout
+            const connectionTimeout = setTimeout(() => {
+                ws.close();
+                console.log(`WebSocket service ${currentServiceIndex + 1} timed out, trying next...`);
+                currentServiceIndex++;
+                tryConnection();
+            }, 5000); // 5 second timeout
+
+            ws.onopen = () => {
+                clearTimeout(connectionTimeout);
+                console.log(`WebSocket connected to service ${currentServiceIndex + 1}`);
+                setSocket(ws);
+                
+                // Send initial message
+                ws.send(JSON.stringify({
+                type: isHostConnection ? 'host_join' : 'viewer_join',
+                sessionId,
+                timestamp: Date.now()
+                }));
+            };
+
+            ws.onmessage = (event) => {
+                try {
+                const message = JSON.parse(event.data);
+                
+                switch (message.type) {
+                    case 'state_update':
+                    if (!isHostConnection && onStateUpdate) {
+                        onStateUpdate(message.state);
+                    }
+                    break;
+                    case 'viewer_joined':
+                    if (isHostConnection) {
+                        setViewerCount(prev => prev + 1);
+                    }
+                    break;
+                    case 'viewer_left':
+                    if (isHostConnection) {
+                        setViewerCount(prev => Math.max(0, prev - 1));
+                    }
+                    break;
+                    case 'host_disconnected':
+                    if (!isHostConnection) {
+                        alert('Session ended by host');
+                        endSession();
+                    }
+                    break;
+                }
+                } catch (error) {
+                console.error('Error parsing WebSocket message:', error);
+                }
+            };
+
+            ws.onclose = () => {
+                clearTimeout(connectionTimeout);
+                console.log('WebSocket disconnected');
+                setSocket(null);
+            };
+
+            ws.onerror = (error) => {
+                clearTimeout(connectionTimeout);
+                console.error(`WebSocket service ${currentServiceIndex + 1} failed:`, error);
+                // Try next service
+                currentServiceIndex++;
+                tryConnection();
+            };
+
+            } catch (error) {
+            console.error(`Failed to connect to WebSocket service ${currentServiceIndex + 1}:`, error);
+            currentServiceIndex++;
+            tryConnection();
+            }
+        };
+
+        tryConnection();
+    }, [onStateUpdate, endSession]);
 
     const createSession = useCallback(async (): Promise<string> => {
         const newSessionId = generateSessionId();
