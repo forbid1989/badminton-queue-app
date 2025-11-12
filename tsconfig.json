@@ -28,28 +28,11 @@
     ]
   },
   "include": [
-    "app/BadmintonQueueUI.tsx",
-    "app/components/CourtControlPanel.tsx",
-    "app/components/CourtZone.tsx",
-    "app/components/DataManagement.tsx",
-    "app/components/DroppableZone.tsx",
-    "app/components/MobileFooter.tsx",
-    "app/components/PDDTestComponent.tsx",
-    "app/components/PlayerCard.tsx",
-    "app/components/PlayerListZone.tsx",
-    "app/components/QueueZone.tsx",
-    "app/components/input",
-    "app/components/types",
-    "app/lib/utils/dragDropMonitor.ts",
-    "app/lib/utils/getTimeAgo.ts",
-    "app/lib/utils/localStorage.ts",
-    "app/lib/utils/matchHistoryUtils.ts",
-    "app/lib/utils/parsePlayerList.ts",
-    "app/theme.d.ts",
-    "app/theme.ts",
-    "src",
+    "next-env.d.ts",
+    "app/**/*",
+    "src/**/*",
     ".next/types/**/*.ts"
-    , "app/lib/hooks"  ],
+  ],
   "exclude": [
     "node_modules"
   ]
