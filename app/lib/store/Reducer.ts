@@ -150,7 +150,7 @@ export default function reducer(state: RootState, action: Action): RootState {
       return PlayerReducer.clearAllPlayers(state);
 
     case ActionType.CLEAR_ALL_DATA:
-      return PlayerReducer.clearAllData(state);
+      return PlayerReducer.clearAllData();
 
     case ActionType.REMOVE_PLAYER:
       return PlayerReducer.removePlayer(state, action.id);

@@ -113,7 +113,7 @@ export function markAllPlayersPaid(state: RootState): RootState {
   const updatedPlayers = state.players.map((player: Player) => ({
     ...player,
     paymentInfo: {
-      ...(player.paymentInfo || { isGuest: false }),
+      ...(player.paymentInfo || { hasPaid: false, isGuest: false }),
       hasPaid: true,
       paidAt: Date.now(),
     },
@@ -144,7 +144,7 @@ export function clearAllPayments(state: RootState): RootState {
   const updatedPlayers = state.players.map((player: Player) => ({
     ...player,
     paymentInfo: {
-      ...(player.paymentInfo || {}),
+      ...(player.paymentInfo || { hasPaid: false, isGuest: false }),
       hasPaid: false,
       paidAt: undefined,
     },
