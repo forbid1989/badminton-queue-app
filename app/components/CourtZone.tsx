@@ -1359,7 +1359,7 @@ const CourtItem = React.memo<{
                 mounted={mounted}
               />
               
-              {mounted && players.length > 0 && !undoData &&  (
+              {mounted && players.length >= 2 && !undoData &&  (
                 <Button
                   variant="contained"
                   size="small"

@@ -40,6 +40,11 @@ export function endGame(state: RootState, courtId: string): RootState {
       return state;
     }
 
+    if (playersOnCourt.length < 2) {
+      console.log("⛔ Cannot end game with less than 2 players on court", courtId);
+      return state;
+    }
+
     console.log(
       "🎮 Ending game on",
       courtId,

@@ -141,21 +141,27 @@ export const getMatchDescription = (
 ): string => {
   const { partner, opponents, matchType } = entry;
 
+  // Safety check for opponents array
+  if (!opponents || opponents.length === 0) {
+    return "Match data unavailable";
+  }
+
   switch (matchType) {
     case "1v1":
-      return `vs ${opponents[0].name}`;
+      return `vs ${opponents[0]?.name || "Unknown"}`;
     case "2v1":
       if (partner) {
-        return `${partner.name} & ${playerName} vs ${opponents[0].name}`;
+        return `${partner.name} & ${playerName} vs ${opponents[0]?.name || "Unknown"}`;
       } else {
-        return `${playerName} vs ${opponents.map((o) => o.name).join(" & ")}`;
+        return `${playerName} vs ${opponents.filter((o) => o).map((o) => o.name).join(" & ")}`;
       }
     case "2v2":
-      return `${partner?.name} & ${playerName} vs ${opponents
+      return `${partner?.name || "Unknown"} & ${playerName} vs ${opponents
+        .filter((o) => o)
         .map((o) => o.name)
         .join(" & ")}`;
     default:
-      return `with ${opponents.map((o) => o.name).join(", ")}`;
+      return `with ${opponents.filter((o) => o).map((o) => o.name).join(", ")}`;
   }
 };
 
