@@ -190,6 +190,7 @@ export function endGame(state: RootState, courtId: string): RootState {
     // Step 9: Rebuild zone mappings with validation
     let playersByCourt: Record<string, Player[]>;
     let playersByQueue: Record<string, Player[]>;
+    let finalPlayers: Player[];
 
     try {
       const rebuildResult = rebuildZoneMappings(
@@ -200,18 +201,20 @@ export function endGame(state: RootState, courtId: string): RootState {
 
       playersByCourt = rebuildResult.playersByCourt;
       playersByQueue = rebuildResult.playersByQueue;
+      finalPlayers = rebuildResult.updatedPlayers; // Use immutable updates
     } catch (error) {
       console.error("⛔ Failed to rebuild zone mappings:", error);
       // Use existing mappings as fallback
       playersByCourt = state.courts?.playersByCourt || {};
       playersByQueue = state.queue?.playersByQueue || {};
+      finalPlayers = updatedPlayers; // Fallback to pre-rebuild players
     }
 
     console.log("✅ Game ended successfully with enhanced match history");
 
     return {
       ...state,
-      players: updatedPlayers,
+      players: finalPlayers,
       courts: {
         ...state.courts,
         playersByCourt,
@@ -277,7 +280,7 @@ export function undoEndGame(state: RootState, courtId: string): RootState {
   });
 
   // Rebuild zone mappings
-  const { playersByCourt, playersByQueue } = rebuildZoneMappings(
+  const { playersByCourt, playersByQueue, updatedPlayers: finalPlayers } = rebuildZoneMappings(
     updatedPlayers,
     state.courts.count,
     Object.keys(state.queue.playersByQueue)
@@ -291,7 +294,7 @@ export function undoEndGame(state: RootState, courtId: string): RootState {
 
   return {
     ...state,
-    players: updatedPlayers,
+    players: finalPlayers,
     courts: {
       ...state.courts,
       playersByCourt,
@@ -333,7 +336,7 @@ export function setGamesPlayed(
   );
 
   // Rebuild using order fields
-  const { playersByCourt, playersByQueue } = rebuildZoneMappings(
+  const { playersByCourt, playersByQueue, updatedPlayers: finalPlayers } = rebuildZoneMappings(
     updatedPlayers,
     state.courts.count,
     Object.keys(state.queue.playersByQueue)
@@ -341,7 +344,7 @@ export function setGamesPlayed(
 
   return {
     ...state,
-    players: updatedPlayers,
+    players: finalPlayers,
     courts: {
       ...state.courts,
       playersByCourt,

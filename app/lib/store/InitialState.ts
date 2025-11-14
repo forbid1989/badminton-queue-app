@@ -114,6 +114,69 @@ function assignOrderFieldsFromZonePosition(
   });
 }
 
+// Helper function to validate player order fields and fix corruption
+function validatePlayerOrderFields(players: Player[]): Player[] {
+  console.log("🔍 Validating player order fields for corruption...");
+
+  let fixedCount = 0;
+  const validatedPlayers = players.map((player) => {
+    let needsFix = false;
+    let updatedPlayer = { ...player };
+
+    // Check if player has court status but null courtOrder
+    const courtId = player.status?.find((s) => s.startsWith("court-"));
+    if (courtId && player.courtOrder === null) {
+      console.warn(
+        `⚠️ Player ${player.name} in ${courtId} has null courtOrder - will be reassigned`
+      );
+      needsFix = true;
+      // Keep null for now - will be fixed by rebuildZoneMappings
+    }
+
+    // Check if player has queue status but null queueOrder
+    const queueId = player.status?.find((s) => s.startsWith("queue-"));
+    if (queueId && player.queueOrder === null) {
+      console.warn(
+        `⚠️ Player ${player.name} in ${queueId} has null queueOrder - will be reassigned`
+      );
+      needsFix = true;
+      // Keep null for now - will be fixed by rebuildZoneMappings
+    }
+
+    // Check if player has courtOrder but no court status (corruption)
+    if (!courtId && player.courtOrder !== null) {
+      console.warn(
+        `⚠️ Player ${player.name} has courtOrder ${player.courtOrder} but no court status - clearing`
+      );
+      updatedPlayer.courtOrder = null;
+      needsFix = true;
+    }
+
+    // Check if player has queueOrder but no queue status (corruption)
+    if (!queueId && player.queueOrder !== null) {
+      console.warn(
+        `⚠️ Player ${player.name} has queueOrder ${player.queueOrder} but no queue status - clearing`
+      );
+      updatedPlayer.queueOrder = null;
+      needsFix = true;
+    }
+
+    if (needsFix) {
+      fixedCount++;
+    }
+
+    return updatedPlayer;
+  });
+
+  if (fixedCount > 0) {
+    console.log(`✅ Fixed ${fixedCount} corrupted player order fields`);
+  } else {
+    console.log("✅ All player order fields are valid");
+  }
+
+  return validatedPlayers;
+}
+
 // Helper function to rebuild court mappings from players (existing logic)
 function generateCourtMappings(
   players: Player[],
@@ -211,22 +274,25 @@ const createInitialState = () => {
     initialQueueMappings
   );
 
+  // Validate and fix any corrupted order fields
+  const validatedPlayers = validatePlayerOrderFields(playersWithOrderFields);
+
   // Rebuild mappings with the newly assigned order fields
   const finalCourtMappings = generateCourtMappings(
-    playersWithOrderFields,
+    validatedPlayers,
     loadedState?.courts?.count || 2
   );
 
   const finalQueueMappings = generateQueueMappings(
-    playersWithOrderFields,
+    validatedPlayers,
     loadedState?.queue?.playersByQueue || { "queue-0": [] }
   );
 
   return {
     ...baseInitialState,
     ...(loadedState || {}),
-    // Use migrated players with order fields
-    players: playersWithOrderFields,
+    // Use validated players with order fields
+    players: validatedPlayers,
     // Always rebuild these from the players array with order fields
     courts: {
       ...baseInitialState.courts,

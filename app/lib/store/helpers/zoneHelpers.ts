@@ -56,6 +56,8 @@ export function clearOrderFromPlayer(player: Player, zone: string): Player {
 /**
  * Rebuilds zone mappings using order fields from player data
  * This ensures consistency between player status and zone assignments
+ *
+ * FIXED: No longer mutates input players array - returns updated players
  */
 export function rebuildZoneMappings(
   players: Player[],
@@ -64,9 +66,14 @@ export function rebuildZoneMappings(
 ): {
   playersByCourt: Record<string, Player[]>;
   playersByQueue: Record<string, Player[]>;
+  updatedPlayers: Player[];
 } {
   const playersByCourt: Record<string, Player[]> = {};
   const playersByQueue: Record<string, Player[]> = {};
+  const updatedPlayers: Player[] = [];
+
+  // Create a map to track player updates by ID
+  const playerUpdates = new Map<string, Player>();
 
   // Initialize empty arrays
   for (let i = 0; i < courtCount; i++) {
@@ -76,10 +83,12 @@ export function rebuildZoneMappings(
     playersByQueue[queueId] = [];
   });
 
-  // Populate mappings
+  // Populate mappings and build updated players array
   players.forEach((player) => {
     const courtId = player.status.find((s) => s.startsWith("court-"));
     const queueId = player.status.find((s) => s.startsWith("queue-"));
+
+    let updatedPlayer = player;
 
     // Add players to court even if courtOrder is null (assign order later)
     if (courtId && playersByCourt[courtId]) {
@@ -95,19 +104,14 @@ export function rebuildZoneMappings(
           nextOrder++;
         }
 
-        // Create updated player with assigned order
-        const updatedPlayer = { ...player, courtOrder: nextOrder };
-        playersByCourt[courtId].push(updatedPlayer);
-
-        // Update the original player in the players array (this will be reflected in the returned state)
-        player.courtOrder = nextOrder;
+        // Create updated player with assigned order (immutable update)
+        updatedPlayer = { ...player, courtOrder: nextOrder };
 
         console.log(
           `🔧 REBUILD: Auto-assigned courtOrder ${nextOrder} to ${player.name} in ${courtId}`
         );
-      } else {
-        playersByCourt[courtId].push(player);
       }
+      playersByCourt[courtId].push(updatedPlayer);
     }
 
     // Add players to queue even if queueOrder is null (assign order later)
@@ -124,20 +128,18 @@ export function rebuildZoneMappings(
           nextOrder++;
         }
 
-        // Create updated player with assigned order
-        const updatedPlayer = { ...player, queueOrder: nextOrder };
-        playersByQueue[queueId].push(updatedPlayer);
-
-        // Update the original player in the players array
-        player.queueOrder = nextOrder;
+        // Create updated player with assigned order (immutable update)
+        updatedPlayer = { ...updatedPlayer, queueOrder: nextOrder };
 
         console.log(
           `🔧 REBUILD: Auto-assigned queueOrder ${nextOrder} to ${player.name} in ${queueId}`
         );
-      } else {
-        playersByQueue[queueId].push(player);
       }
+      playersByQueue[queueId].push(updatedPlayer);
     }
+
+    // Store the updated player (may be same as original if no changes)
+    updatedPlayers.push(updatedPlayer);
   });
 
   // Sort by order fields
@@ -153,7 +155,7 @@ export function rebuildZoneMappings(
     );
   });
 
-  return { playersByCourt, playersByQueue };
+  return { playersByCourt, playersByQueue, updatedPlayers };
 }
 
 /**

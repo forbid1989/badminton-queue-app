@@ -184,7 +184,7 @@ export function movePlayerToPosition(
     p.id === playerId ? updatedPlayer : p
   );
 
-  const { playersByCourt, playersByQueue } = rebuildZoneMappings(
+  const { playersByCourt, playersByQueue, updatedPlayers: finalPlayers } = rebuildZoneMappings(
     updatedPlayers,
     state.courts.count,
     Object.keys(state.queue.playersByQueue)
@@ -195,12 +195,12 @@ export function movePlayerToPosition(
   );
 
   if (zone.startsWith("court-")) {
-    const courtPlayers = updatedPlayers.filter((p: Player) =>
+    const courtPlayers = finalPlayers.filter((p: Player) =>
       p.status.includes(zone as PlayerStatus)
     );
     logPartnershipWarnings(zone, courtPlayers);
   } else if (zone.startsWith("queue-")) {
-    const queuePlayers = updatedPlayers.filter((p: Player) =>
+    const queuePlayers = finalPlayers.filter((p: Player) =>
       p.status.includes(zone as PlayerStatus)
     );
     logPartnershipWarnings(zone, queuePlayers);
@@ -214,7 +214,7 @@ export function movePlayerToPosition(
 
   return {
     ...state,
-    players: updatedPlayers,
+    players: finalPlayers,
     courts: {
       ...state.courts,
       playersByCourt,
@@ -294,7 +294,7 @@ export function movePlayer(
       p.id === id ? updatedPlayer : p
     );
 
-    const { playersByCourt, playersByQueue } = rebuildZoneMappings(
+    const { playersByCourt, playersByQueue, updatedPlayers: finalPlayers } = rebuildZoneMappings(
       updatedPlayers,
       state.courts.count,
       Object.keys(state.queue.playersByQueue)
@@ -310,7 +310,7 @@ export function movePlayer(
 
     return {
       ...state,
-      players: updatedPlayers,
+      players: finalPlayers,
       courts: {
         ...state.courts,
         playersByCourt,
@@ -411,7 +411,7 @@ export function movePlayer(
     p.id === id ? updatedPlayer : p
   );
 
-  const { playersByCourt, playersByQueue } = rebuildZoneMappings(
+  const { playersByCourt, playersByQueue, updatedPlayers: finalPlayers } = rebuildZoneMappings(
     updatedPlayers,
     state.courts.count,
     Object.keys(state.queue.playersByQueue)
@@ -426,7 +426,7 @@ export function movePlayer(
   if (isToCourt || (isFromCourt && to.startsWith("court-"))) {
     const targetCourtId = isToCourt ? to : isFromCourt ? from : "";
     if (targetCourtId.startsWith("court-")) {
-      const courtPlayers = updatedPlayers.filter((p: Player) =>
+      const courtPlayers = finalPlayers.filter((p: Player) =>
         p.status.includes(targetCourtId as PlayerStatus)
       );
       logPartnershipWarnings(targetCourtId, courtPlayers);
@@ -436,7 +436,7 @@ export function movePlayer(
   if (isToQueue || (isFromQueue && to.startsWith("queue-"))) {
     const targetQueueId = isToQueue ? to : isFromQueue ? from : "";
     if (targetQueueId.startsWith("queue-")) {
-      const queuePlayers = updatedPlayers.filter((p: Player) =>
+      const queuePlayers = finalPlayers.filter((p: Player) =>
         p.status.includes(targetQueueId as PlayerStatus)
       );
       logPartnershipWarnings(targetQueueId, queuePlayers);
@@ -451,7 +451,7 @@ export function movePlayer(
 
   return {
     ...state,
-    players: updatedPlayers,
+    players: finalPlayers,
     courts: {
       ...state.courts,
       playersByCourt,
@@ -492,7 +492,7 @@ export function quickMovePlayer(
       p.id === id ? updatedPlayer : p
     );
 
-    const { playersByCourt, playersByQueue } = rebuildZoneMappings(
+    const { playersByCourt, playersByQueue, updatedPlayers: finalPlayers } = rebuildZoneMappings(
       updatedPlayers,
       state.courts.count,
       Object.keys(state.queue.playersByQueue)
@@ -504,7 +504,7 @@ export function quickMovePlayer(
 
     return {
       ...state,
-      players: updatedPlayers,
+      players: finalPlayers,
       courts: {
         ...state.courts,
         playersByCourt,
@@ -654,7 +654,7 @@ export function quickMovePlayer(
     p.id === id ? updatedPlayer : p
   );
 
-  const { playersByCourt, playersByQueue } = rebuildZoneMappings(
+  const { playersByCourt, playersByQueue, updatedPlayers: finalPlayers } = rebuildZoneMappings(
     updatedPlayers,
     state.courts.count,
     Object.keys(state.queue.playersByQueue)
@@ -662,7 +662,7 @@ export function quickMovePlayer(
 
   const tempState = {
     ...state,
-    players: updatedPlayers,
+    players: finalPlayers,
     queue: {
       ...state.queue,
       playersByQueue,
@@ -683,12 +683,12 @@ export function quickMovePlayer(
   );
 
   if (isToCourt) {
-    const courtPlayers = updatedPlayers.filter((p: Player) =>
+    const courtPlayers = finalPlayers.filter((p: Player) =>
       p.status.includes(to as PlayerStatus)
     );
     logPartnershipWarnings(to, courtPlayers);
   } else if (isToQueue) {
-    const queuePlayers = updatedPlayers.filter((p: Player) =>
+    const queuePlayers = finalPlayers.filter((p: Player) =>
       p.status.includes(to as PlayerStatus)
     );
     logPartnershipWarnings(to, queuePlayers);
@@ -702,7 +702,7 @@ export function quickMovePlayer(
 
   return {
     ...state,
-    players: updatedPlayers,
+    players: finalPlayers,
     courts: {
       ...state.courts,
       playersByCourt,
@@ -768,7 +768,7 @@ export function swapPlayers(
     return p;
   });
 
-  const { playersByCourt, playersByQueue } = rebuildZoneMappings(
+  const { playersByCourt, playersByQueue, updatedPlayers: finalPlayers } = rebuildZoneMappings(
     updatedPlayers,
     state.courts.count,
     Object.keys(state.queue.playersByQueue)
@@ -778,7 +778,7 @@ export function swapPlayers(
 
   return {
     ...state,
-    players: updatedPlayers,
+    players: finalPlayers,
     courts: {
       ...state.courts,
       playersByCourt,
@@ -912,7 +912,7 @@ export function swapPlayersCrossZone(
     return p;
   });
 
-  const { playersByCourt, playersByQueue } = rebuildZoneMappings(
+  const { playersByCourt, playersByQueue, updatedPlayers: finalPlayers } = rebuildZoneMappings(
     updatedPlayers,
     state.courts.count,
     Object.keys(state.queue.playersByQueue)
@@ -922,7 +922,7 @@ export function swapPlayersCrossZone(
 
   return {
     ...state,
-    players: updatedPlayers,
+    players: finalPlayers,
     courts: {
       ...state.courts,
       playersByCourt,
@@ -1024,7 +1024,7 @@ export function replacePlayer(
     return p;
   });
 
-  const { playersByCourt, playersByQueue } = rebuildZoneMappings(
+  const { playersByCourt, playersByQueue, updatedPlayers: finalPlayers } = rebuildZoneMappings(
     updatedPlayers,
     state.courts.count,
     Object.keys(state.queue.playersByQueue)
@@ -1034,7 +1034,7 @@ export function replacePlayer(
 
   return {
     ...state,
-    players: updatedPlayers,
+    players: finalPlayers,
     courts: {
       ...state.courts,
       playersByCourt,

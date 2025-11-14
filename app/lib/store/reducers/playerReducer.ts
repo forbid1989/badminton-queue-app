@@ -119,7 +119,7 @@ export function removePlayer(state: RootState, id: string): RootState {
   );
 
   // Rebuild using order fields
-  const { playersByCourt, playersByQueue } = rebuildZoneMappings(
+  const { playersByCourt, playersByQueue, updatedPlayers: finalPlayers } = rebuildZoneMappings(
     updatedPlayers,
     state.courts.count,
     Object.keys(state.queue.playersByQueue)
@@ -127,7 +127,7 @@ export function removePlayer(state: RootState, id: string): RootState {
 
   return {
     ...state,
-    players: updatedPlayers,
+    players: finalPlayers,
     courts: {
       ...state.courts,
       playersByCourt,
@@ -148,7 +148,7 @@ export function updatePlayerName(
     p.id === id ? { ...p, name: newName } : p
   );
 
-  const { playersByCourt, playersByQueue } = rebuildZoneMappings(
+  const { playersByCourt, playersByQueue, updatedPlayers: finalPlayers } = rebuildZoneMappings(
     updatedPlayers,
     state.courts.count,
     Object.keys(state.queue.playersByQueue)
@@ -156,7 +156,7 @@ export function updatePlayerName(
 
   return {
     ...state,
-    players: updatedPlayers,
+    players: finalPlayers,
     courts: {
       ...state.courts,
       playersByCourt,
@@ -180,7 +180,7 @@ export function updatePlayerSkillLevel(
   );
 
   // Rebuild zone mappings
-  const { playersByCourt, playersByQueue } = rebuildZoneMappings(
+  const { playersByCourt, playersByQueue, updatedPlayers: finalPlayers } = rebuildZoneMappings(
     updatedPlayers,
     state.courts.count,
     Object.keys(state.queue.playersByQueue)
@@ -188,7 +188,7 @@ export function updatePlayerSkillLevel(
 
   return {
     ...state,
-    players: updatedPlayers,
+    players: finalPlayers,
     courts: {
       ...state.courts,
       playersByCourt,
