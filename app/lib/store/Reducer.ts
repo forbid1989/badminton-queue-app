@@ -96,6 +96,10 @@ type Action =
   | {
       type: "removeSpecificCourt";
       payload: { courtId: string };
+    }
+  | {
+      type: "updateCourtDisplayNumber";
+      payload: { courtId: string; displayNumber: number };
     };
 
 /**
@@ -117,6 +121,13 @@ export default function reducer(state: RootState, action: Action): RootState {
 
     case ActionType.REMOVE_SPECIFIC_COURT:
       return CourtReducer.removeSpecificCourt(state, action.payload.courtId);
+
+    case ActionType.UPDATE_COURT_DISPLAY_NUMBER:
+      return CourtReducer.updateCourtDisplayNumber(
+        state,
+        action.payload.courtId,
+        action.payload.displayNumber
+      );
 
     // Queue-related actions
     case ActionType.CREATE_QUEUE:

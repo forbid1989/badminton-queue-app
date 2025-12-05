@@ -1,6 +1,6 @@
 import React, { useContext, useState, useEffect, useMemo, useCallback } from 'react';
 import Grid from '@mui/material/Grid';
-import { Button , Typography, Box, IconButton, Chip, useMediaQuery, Popover, Modal, Paper, FormControl, InputLabel, Select, MenuItem   } from '@mui/material';
+import { Button , Typography, Box, IconButton, Chip, useMediaQuery, Popover, Modal, Paper, FormControl, InputLabel, Select, MenuItem, TextField   } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
@@ -10,6 +10,8 @@ import CloseIcon from '@mui/icons-material/Close';
 import QueueIcon from '@mui/icons-material/Queue';
 import TransferWithinAStationIcon from '@mui/icons-material/TransferWithinAStation';
 import WarningIcon from '@mui/icons-material/Warning';
+import EditIcon from '@mui/icons-material/Edit';
+import CheckIcon from '@mui/icons-material/Check';
 import { Player } from './types/Player';
 import DroppableZone from './DroppableZone';
 import PlayerCard from './PlayerCard';
@@ -20,6 +22,13 @@ import SportsTennisIcon from '@mui/icons-material/SportsTennis';
 
 type CourtZoneProps = {
   courtCount: number;
+};
+
+// Helper function to get court display name from state or default
+const getCourtDisplayName = (courtId: string, courtDisplayNumbers?: Record<string, number>): string => {
+  const courtIndex = parseInt(courtId.split('-')[1]);
+  const displayNumber = courtDisplayNumbers?.[courtId] || (courtIndex + 1);
+  return `Court ${displayNumber}`;
 };
 
 // Helper function to determine match format and organize players
@@ -192,6 +201,13 @@ const CourtItem = React.memo<{
   onCloseTransferQueue: (courtId: string) => void;
   onQueueSelection: (courtId: string, queueId: string) => void;
   onConfirmTransfer: (courtId: string) => void;
+  editNumberAnchorEl: Record<string, HTMLElement | null>;
+  editNumberValue: Record<string, string>;
+  editNumberError: Record<string, string>;
+  onOpenEditNumber: (courtId: string, event: React.MouseEvent<HTMLElement>) => void;
+  onCloseEditNumber: (courtId: string) => void;
+  onEditNumberChange: (courtId: string, value: string) => void;
+  onConfirmEditNumber: (courtId: string) => void;
 }>(({ 
   courtId, 
   players, 
@@ -220,6 +236,13 @@ const CourtItem = React.memo<{
   onCloseTransferQueue,
   onQueueSelection,
   onConfirmTransfer,
+  editNumberAnchorEl,
+  editNumberValue,
+  editNumberError,
+  onOpenEditNumber,
+  onCloseEditNumber,
+  onEditNumberChange,
+  onConfirmEditNumber,
 }) => { 
   
   const {dispatch } = useContext(AppContext);
@@ -383,12 +406,12 @@ const CourtItem = React.memo<{
                   gap: 0.5,
                 }}
               >
-                <SportsTennisIcon 
-                  sx={{ 
+                <SportsTennisIcon
+                  sx={{
                     fontSize: '0.9rem',
                     color: 'white',
                     filter: 'drop-shadow(1px 1px 2px rgba(0,0,0,0.7))',
-                  }} 
+                  }}
                 />
                 {courtName}
               </Typography>
@@ -436,16 +459,16 @@ const CourtItem = React.memo<{
                       }}
                     >
                       {/* Modal Header */}
-                      <Box sx={{ 
-                        px: 2, 
-                        py: 1.5, 
+                      <Box sx={{
+                        px: 2,
+                        py: 1.5,
                         backgroundColor: '#1e293b',
                         color: 'white',
-                        display: 'flex', 
-                        justifyContent: 'space-between', 
+                        display: 'flex',
+                        justifyContent: 'space-between',
                         alignItems: 'center'
                       }}>
-                        <Typography variant="subtitle2" sx={{ 
+                        <Typography variant="subtitle2" sx={{
                           fontSize: '0.85rem',
                           fontWeight: 600,
                           display: 'flex',
@@ -455,9 +478,9 @@ const CourtItem = React.memo<{
                           <SettingsIcon sx={{ fontSize: '1rem' }} />
                           {courtName}
                         </Typography>
-                        <IconButton 
+                        <IconButton
                           onClick={() => onCloseCourtMenu(courtId)}
-                          sx={{ 
+                          sx={{
                             color: 'white',
                             padding: '4px',
                             '&:hover': {
@@ -472,6 +495,51 @@ const CourtItem = React.memo<{
 
                       {/* Modal Content */}
                       <Box sx={{ p: 3 }}>
+
+                        {/* Edit Court Number Section */}
+                        <Box sx={{ mb: 3 }}>
+                          <Typography
+                            variant="caption"
+                            sx={{
+                              color: 'text.secondary',
+                              fontSize: '0.75rem',
+                              fontWeight: 600,
+                              mb: 1,
+                              display: 'block'
+                            }}
+                          >
+                            COURT NUMBER
+                          </Typography>
+                          <TextField
+                            value={editNumberValue[courtId] !== undefined ? editNumberValue[courtId] : (state.courts.courtDisplayNumbers?.[courtId] || (parseInt(courtId.split('-')[1]) + 1))}
+                            onChange={(e) => onEditNumberChange(courtId, e.target.value)}
+                            onBlur={() => onConfirmEditNumber(courtId)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                onConfirmEditNumber(courtId);
+                                e.currentTarget.blur();
+                              }
+                            }}
+                            error={Boolean(editNumberError[courtId])}
+                            helperText={editNumberError[courtId]}
+                            type="number"
+                            placeholder="Enter court number"
+                            size="small"
+                            fullWidth
+                            variant="outlined"
+                            inputProps={{ min: 1 }}
+                            slotProps={{
+                              input: {
+                                sx: { fontSize: '0.8rem' }
+                              }
+                            }}
+                            sx={{
+                              '& .MuiOutlinedInput-root': {
+                                borderRadius: 2,
+                              }
+                            }}
+                          />
+                        </Box>
 
                         <Box sx={{ mb: 3 }}>
                           <Button
@@ -553,8 +621,7 @@ const CourtItem = React.memo<{
                                   {Array.from({ length: courtCount }, (_, i) => `court-${i}`)
                                     .filter(id => id !== courtId)
                                     .map((targetCourtId) => {
-                                      const courtNumber = parseInt(targetCourtId.split('-')[1]) + 1;
-                                      const targetCourtName = `Court ${courtNumber}`;
+                                      const targetCourtName = getCourtDisplayName(targetCourtId, state.courts.courtDisplayNumbers);
                                       return (
                                         <MenuItem
                                           key={targetCourtId}
@@ -911,26 +978,71 @@ const CourtItem = React.memo<{
                     }}
                   >
                     {/* Header */}
-                    <Box sx={{ 
-                      px: 2, 
-                      py: 1.5, 
+                    <Box sx={{
+                      px: 2,
+                      py: 1.5,
                       backgroundColor: '#1e293b',
-                      color: 'white'
+                      color: 'white',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 1
                     }}>
-                      <Typography variant="subtitle2" sx={{ 
+                      <SettingsIcon sx={{ fontSize: '1rem' }} />
+                      <Typography variant="subtitle2" sx={{
                         fontSize: '0.85rem',
-                        fontWeight: 600,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 1
+                        fontWeight: 600
                       }}>
-                        <SettingsIcon sx={{ fontSize: '1rem' }} />
                         {courtName}
                       </Typography>
                     </Box>
 
                     {/* Content */}
                     <Box sx={{ p: 2 }}>
+
+                      {/* Edit Court Number Section */}
+                      <Box sx={{ mb: 2 }}>
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            color: 'text.secondary',
+                            fontSize: '0.75rem',
+                            fontWeight: 600,
+                            mb: 1,
+                            display: 'block'
+                          }}
+                        >
+                          COURT NUMBER
+                        </Typography>
+                        <TextField
+                          value={editNumberValue[courtId] !== undefined ? editNumberValue[courtId] : (state.courts.courtDisplayNumbers?.[courtId] || (parseInt(courtId.split('-')[1]) + 1))}
+                          onChange={(e) => onEditNumberChange(courtId, e.target.value)}
+                          onBlur={() => onConfirmEditNumber(courtId)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              onConfirmEditNumber(courtId);
+                              e.currentTarget.blur();
+                            }
+                          }}
+                          error={Boolean(editNumberError[courtId])}
+                          helperText={editNumberError[courtId]}
+                          type="number"
+                          placeholder="Enter court number"
+                          size="small"
+                          fullWidth
+                          variant="outlined"
+                          inputProps={{ min: 1 }}
+                          slotProps={{
+                            input: {
+                              sx: { fontSize: '0.8rem' }
+                            }
+                          }}
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              borderRadius: 2,
+                            }
+                          }}
+                        />
+                      </Box>
 
                       <Box sx={{ mb: 3 }}>
                           <Button
@@ -1012,8 +1124,7 @@ const CourtItem = React.memo<{
                                   {Array.from({ length: courtCount }, (_, i) => `court-${i}`)
                                     .filter(id => id !== courtId)
                                     .map((targetCourtId) => {
-                                      const courtNumber = parseInt(targetCourtId.split('-')[1]) + 1;
-                                      const targetCourtName = `Court ${courtNumber}`;
+                                      const targetCourtName = getCourtDisplayName(targetCourtId, state.courts.courtDisplayNumbers);
                                       return (
                                         <MenuItem
                                           key={targetCourtId}
@@ -1482,6 +1593,9 @@ const CourtZone: React.FC<CourtZoneProps> = ({ courtCount }) => {
   const [selectedTargetCourt, setSelectedTargetCourt] = useState<Record<string, string>>({});
   const [transferQueueAnchorEl, setTransferQueueAnchorEl] = useState<Record<string, HTMLElement | null>>({});
   const [selectedQueueId, setSelectedQueueId] = useState<Record<string, string>>({});
+  const [editNumberAnchorEl, setEditNumberAnchorEl] = useState<Record<string, HTMLElement | null>>({});
+  const [editNumberValue, setEditNumberValue] = useState<Record<string, string>>({});
+  const [editNumberError, setEditNumberError] = useState<Record<string, string>>({});
 
   useEffect(() => {
     setMounted(true);
@@ -1530,13 +1644,21 @@ const CourtZone: React.FC<CourtZoneProps> = ({ courtCount }) => {
       ...prev,
       [courtId]: event.currentTarget
     }));
-
   }, []);
 
   const handleCloseCourtMenu = useCallback((courtId: string) => {
     setCourtMenuAnchorEl(prev => ({
       ...prev,
       [courtId]: null
+    }));
+    // Clear the edit number value for this court
+    setEditNumberValue(prev => ({
+      ...prev,
+      [courtId]: undefined
+    }));
+    setEditNumberError(prev => ({
+      ...prev,
+      [courtId]: ''
     }));
   }, []);
 
@@ -1627,6 +1749,82 @@ const CourtZone: React.FC<CourtZoneProps> = ({ courtCount }) => {
     }
   }, [selectedQueueId, dispatch, handleCloseTransferQueue, handleCloseCourtMenu]);
 
+  const handleOpenEditNumber = useCallback((courtId: string, event: React.MouseEvent<HTMLElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const currentDisplayNumber = state.courts.courtDisplayNumbers?.[courtId] || (parseInt(courtId.split('-')[1]) + 1);
+    setEditNumberValue(prev => ({ ...prev, [courtId]: currentDisplayNumber.toString() }));
+    setEditNumberError(prev => ({ ...prev, [courtId]: '' }));
+    setEditNumberAnchorEl(prev => ({ ...prev, [courtId]: event.currentTarget }));
+  }, [state.courts.courtDisplayNumbers]);
+
+  const handleCloseEditNumber = useCallback((courtId: string) => {
+    setEditNumberAnchorEl(prev => ({ ...prev, [courtId]: null }));
+    setEditNumberError(prev => ({ ...prev, [courtId]: '' }));
+  }, []);
+
+  const handleEditNumberChange = useCallback((courtId: string, value: string) => {
+    setEditNumberValue(prev => ({ ...prev, [courtId]: value }));
+
+    // Real-time validation for duplicates
+    const numValue = parseInt(value, 10);
+    if (value && !isNaN(numValue) && numValue > 0) {
+      const existingDisplayNumbers = state.courts.courtDisplayNumbers || {};
+      const isDuplicate = Object.entries(existingDisplayNumbers).some(
+        ([id, num]) => id !== courtId && num === numValue
+      );
+
+      if (isDuplicate) {
+        setEditNumberError(prev => ({ ...prev, [courtId]: `Court ${numValue} already exists` }));
+      } else {
+        setEditNumberError(prev => ({ ...prev, [courtId]: '' }));
+      }
+    } else {
+      setEditNumberError(prev => ({ ...prev, [courtId]: '' }));
+    }
+  }, [state.courts.courtDisplayNumbers]);
+
+  const handleConfirmEditNumber = useCallback((courtId: string) => {
+    const value = editNumberValue[courtId];
+
+    // If no value in state, use the current display number (user didn't edit)
+    if (value === undefined) {
+      return; // Nothing to save
+    }
+
+    const numValue = parseInt(value, 10);
+
+    // Validation
+    if (!value || isNaN(numValue) || numValue <= 0) {
+      setEditNumberError(prev => ({ ...prev, [courtId]: 'Please enter a positive number' }));
+      return;
+    }
+
+    // Check if value actually changed
+    const currentDisplayNumber = state.courts.courtDisplayNumbers?.[courtId] || (parseInt(courtId.split('-')[1]) + 1);
+    if (numValue === currentDisplayNumber) {
+      // No change, just clear and return
+      setEditNumberValue(prev => ({ ...prev, [courtId]: undefined }));
+      return;
+    }
+
+    // Check for duplicates
+    const existingDisplayNumbers = state.courts.courtDisplayNumbers || {};
+    const isDuplicate = Object.entries(existingDisplayNumbers).some(
+      ([id, num]) => id !== courtId && num === numValue
+    );
+
+    if (isDuplicate) {
+      setEditNumberError(prev => ({ ...prev, [courtId]: `Court ${numValue} already exists` }));
+      return;
+    }
+
+    // Dispatch update
+    dispatch(Action.updateCourtDisplayNumber(courtId, numValue));
+    setEditNumberValue(prev => ({ ...prev, [courtId]: undefined }));
+    setEditNumberError(prev => ({ ...prev, [courtId]: '' }));
+  }, [editNumberValue, state.courts.courtDisplayNumbers, dispatch]);
+
   // Memoized court items
   const courtItems = useMemo(() => 
     courtData.map(({ courtId, players, index, undoData }) => (
@@ -1635,7 +1833,7 @@ const CourtZone: React.FC<CourtZoneProps> = ({ courtCount }) => {
         courtId={courtId}
         index={index}
         players={players}
-        courtName={`Court ${parseInt(courtId.split('-')[1]) + 1}`}
+        courtName={getCourtDisplayName(courtId, state.courts.courtDisplayNumbers)}
         onEndGame={handleEndGame}
         onUndoGame={handleUndoGame}
         canRemove={canRemoveCourts}
@@ -1660,6 +1858,13 @@ const CourtZone: React.FC<CourtZoneProps> = ({ courtCount }) => {
         onCloseTransferQueue={handleCloseTransferQueue}
         onQueueSelection={handleQueueSelection}
         onConfirmTransfer={handleConfirmTransfer}
+        editNumberAnchorEl={editNumberAnchorEl}
+        editNumberValue={editNumberValue}
+        editNumberError={editNumberError}
+        onOpenEditNumber={handleOpenEditNumber}
+        onCloseEditNumber={handleCloseEditNumber}
+        onEditNumberChange={handleEditNumberChange}
+        onConfirmEditNumber={handleConfirmEditNumber}
       />
     )), 
     [
@@ -1687,7 +1892,13 @@ const CourtZone: React.FC<CourtZoneProps> = ({ courtCount }) => {
       handleCloseTransferQueue,
       handleQueueSelection,
       handleConfirmTransfer,
-      
+      editNumberAnchorEl,
+      editNumberValue,
+      editNumberError,
+      handleOpenEditNumber,
+      handleCloseEditNumber,
+      handleEditNumberChange,
+      handleConfirmEditNumber,
     ]
   );
 

@@ -41,6 +41,7 @@ export type RootState = {
   courts: {
     count: number;
     playersByCourt: Record<string, Player[]>;
+    courtDisplayNumbers?: Record<string, number>; // Custom display numbers for courts (e.g., court-0 -> 2, court-1 -> 8)
   };
 
   // ⏳ Players in queue

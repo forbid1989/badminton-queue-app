@@ -42,6 +42,7 @@ const ActionType = {
   TRANSFER_QUEUE_TO_SPECIFIC_COURT_FROM_SUBMENU:
     "transferQueueToSpecificCourtFromSubmenu",
   REMOVE_SPECIFIC_COURT: "removeSpecificCourt",
+  UPDATE_COURT_DISPLAY_NUMBER: "updateCourtDisplayNumber",
 } as const;
 
 // 🧠 Action creators
@@ -330,6 +331,13 @@ const Action = {
     return {
       type: ActionType.REMOVE_SPECIFIC_COURT,
       payload: { courtId },
+    };
+  },
+
+  updateCourtDisplayNumber(courtId: string, displayNumber: number) {
+    return {
+      type: ActionType.UPDATE_COURT_DISPLAY_NUMBER,
+      payload: { courtId, displayNumber },
     };
   },
 };

@@ -11,6 +11,7 @@ interface PersistedState {
   players: Player[];
   courts: {
     count: number;
+    courtDisplayNumbers?: Record<string, number>; // Custom court display numbers
   };
   queue: {
     count: number;
@@ -38,6 +39,7 @@ export const saveToLocalStorage = (state: RootState): void => {
       players: state.players,
       courts: {
         count: state.courts.count,
+        courtDisplayNumbers: state.courts.courtDisplayNumbers,
       },
       queue: {
         count: state.queue.count,
@@ -135,6 +137,7 @@ export const loadFromLocalStorage = (): Partial<RootState> | null => {
       courts: {
         count: persistedState.courts?.count || 2,
         playersByCourt: {}, // Will be rebuilt by InitialState
+        courtDisplayNumbers: persistedState.courts?.courtDisplayNumbers,
       },
       queue: {
         count: persistedState.queue?.count || 1,

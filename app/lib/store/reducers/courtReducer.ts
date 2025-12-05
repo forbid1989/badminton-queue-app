@@ -57,12 +57,29 @@ export function setCourtCount(state: RootState, newCount: number): RootState {
     existingQueueIds
   );
 
+  // Handle court display numbers
+  const existingDisplayNumbers = state.courts.courtDisplayNumbers || {};
+  const updatedDisplayNumbers: Record<string, number> = {};
+
+  // Keep existing display numbers for courts that still exist
+  for (let i = 0; i < newCount; i++) {
+    const courtId = `court-${i}`;
+    if (existingDisplayNumbers[courtId] !== undefined) {
+      // Keep existing custom number
+      updatedDisplayNumbers[courtId] = existingDisplayNumbers[courtId];
+    } else {
+      // New court: assign default sequential number (1-based)
+      updatedDisplayNumbers[courtId] = i + 1;
+    }
+  }
+
   return {
     ...state,
     courts: {
       ...state.courts,
       count: newCount,
       playersByCourt,
+      courtDisplayNumbers: updatedDisplayNumbers,
     },
     queue: {
       ...state.queue,
@@ -455,6 +472,26 @@ export function removeSpecificCourt(
   const playersOnDeletedCourt = state.courts.playersByCourt[courtId] || [];
   const expectedRemovedPlayers = playersOnDeletedCourt.length;
 
+  // Handle court display numbers - shift them for remaining courts
+  const existingDisplayNumbers = state.courts.courtDisplayNumbers || {};
+  const updatedDisplayNumbers: Record<string, number> = {};
+
+  for (let i = 0; i < newCourtCount; i++) {
+    const newCourtId = `court-${i}`;
+    let displayNumber: number;
+
+    if (i < courtIndex) {
+      // Courts before deleted court: keep their display numbers
+      displayNumber = existingDisplayNumbers[newCourtId] || (i + 1);
+    } else {
+      // Courts after deleted court: get display number from next court
+      const oldCourtId = `court-${i + 1}`;
+      displayNumber = existingDisplayNumbers[oldCourtId] || (i + 2);
+    }
+
+    updatedDisplayNumbers[newCourtId] = displayNumber;
+  }
+
   console.log(`✅ Court deletion summary:
     - Removed court: ${courtId} (index ${courtIndex})
     - Players moved to waiting: ${expectedRemovedPlayers}
@@ -469,11 +506,67 @@ export function removeSpecificCourt(
     courts: {
       count: newCourtCount,
       playersByCourt,
+      courtDisplayNumbers: updatedDisplayNumbers,
     },
     queue: {
       ...state.queue,
       playersByQueue,
     },
     undoableGames: updatedUndoGames,
+  };
+}
+
+export function updateCourtDisplayNumber(
+  state: RootState,
+  courtId: string,
+  displayNumber: number
+): RootState {
+  console.log(
+    `🔢 REDUCER: UPDATE_COURT_DISPLAY_NUMBER action received:`,
+    { courtId, displayNumber }
+  );
+
+  // Validation: Check if court exists
+  const courtIndex = parseInt(courtId.split("-")[1]);
+  if (courtIndex >= state.courts.count || courtIndex < 0) {
+    console.warn(`⚠️ REDUCER: Court ${courtId} does not exist`);
+    return state;
+  }
+
+  // Validation: Check if display number is valid (positive integer)
+  if (!Number.isInteger(displayNumber) || displayNumber <= 0) {
+    console.warn(
+      `⚠️ REDUCER: Invalid display number ${displayNumber} (must be positive integer)`
+    );
+    return state;
+  }
+
+  // Validation: Check for duplicate display numbers
+  const existingDisplayNumbers = state.courts.courtDisplayNumbers || {};
+  const isDuplicate = Object.entries(existingDisplayNumbers).some(
+    ([id, num]) => id !== courtId && num === displayNumber
+  );
+
+  if (isDuplicate) {
+    console.warn(
+      `⚠️ REDUCER: Display number ${displayNumber} is already in use by another court`
+    );
+    return state;
+  }
+
+  // Update display number
+  const updatedDisplayNumbers = {
+    ...existingDisplayNumbers,
+    [courtId]: displayNumber,
+  };
+
+  console.log(`✅ Court ${courtId} display number updated to ${displayNumber}`);
+
+  return {
+    ...state,
+    courts: {
+      ...state.courts,
+      courtDisplayNumbers: updatedDisplayNumbers,
+    },
   };
 }
