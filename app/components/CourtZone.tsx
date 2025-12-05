@@ -1652,10 +1652,11 @@ const CourtZone: React.FC<CourtZoneProps> = ({ courtCount }) => {
       [courtId]: null
     }));
     // Clear the edit number value for this court
-    setEditNumberValue(prev => ({
-      ...prev,
-      [courtId]: undefined
-    }));
+    setEditNumberValue(prev => {
+      const newState = { ...prev };
+      delete newState[courtId];
+      return newState;
+    });
     setEditNumberError(prev => ({
       ...prev,
       [courtId]: ''
@@ -1804,7 +1805,11 @@ const CourtZone: React.FC<CourtZoneProps> = ({ courtCount }) => {
     const currentDisplayNumber = state.courts.courtDisplayNumbers?.[courtId] || (parseInt(courtId.split('-')[1]) + 1);
     if (numValue === currentDisplayNumber) {
       // No change, just clear and return
-      setEditNumberValue(prev => ({ ...prev, [courtId]: undefined }));
+      setEditNumberValue(prev => {
+        const newState = { ...prev };
+        delete newState[courtId];
+        return newState;
+      });
       return;
     }
 
@@ -1821,7 +1826,11 @@ const CourtZone: React.FC<CourtZoneProps> = ({ courtCount }) => {
 
     // Dispatch update
     dispatch(Action.updateCourtDisplayNumber(courtId, numValue));
-    setEditNumberValue(prev => ({ ...prev, [courtId]: undefined }));
+    setEditNumberValue(prev => {
+      const newState = { ...prev };
+      delete newState[courtId];
+      return newState;
+    });
     setEditNumberError(prev => ({ ...prev, [courtId]: '' }));
   }, [editNumberValue, state.courts.courtDisplayNumbers, dispatch]);
 
