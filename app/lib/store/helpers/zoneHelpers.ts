@@ -111,7 +111,8 @@ export function rebuildZoneMappings(
           `🔧 REBUILD: Auto-assigned courtOrder ${nextOrder} to ${player.name} in ${courtId}`
         );
       }
-      playersByCourt[courtId].push(updatedPlayer);
+      // Create a fresh copy for the court array to prevent shared references
+      playersByCourt[courtId].push({ ...updatedPlayer });
     }
 
     // Add players to queue even if queueOrder is null (assign order later)
@@ -135,11 +136,12 @@ export function rebuildZoneMappings(
           `🔧 REBUILD: Auto-assigned queueOrder ${nextOrder} to ${player.name} in ${queueId}`
         );
       }
-      playersByQueue[queueId].push(updatedPlayer);
+      // Create a fresh copy for the queue array to prevent shared references
+      playersByQueue[queueId].push({ ...updatedPlayer });
     }
 
-    // Store the updated player (may be same as original if no changes)
-    updatedPlayers.push(updatedPlayer);
+    // Store the updated player with a fresh copy to prevent shared references
+    updatedPlayers.push({ ...updatedPlayer });
   });
 
   // Sort by order fields

@@ -102,26 +102,79 @@ export const loadFromLocalStorage = (): Partial<RootState> | null => {
               `Migrating match history for player ${player.name} from old format`
             );
 
-            // Convert old format to new format
-            player.matchHistory = player.matchHistory.map((oldEntry: any) => ({
-              ...oldEntry,
-              partner: oldEntry.partner
-                ? {
-                    id: "unknown", // Can't recover old IDs
-                    name: oldEntry.partner, // Remove 'as string' cast
-                    skillLevel: "C" as SkillLevel, // Default skill level
-                  }
-                : undefined,
-              opponents: oldEntry.opponents.map((opponentName: any) => ({
-                id: "unknown", // Can't recover old IDs
-                name: opponentName, // Remove 'as string' cast
-                skillLevel: "C" as SkillLevel, // Default skill level
-              })),
-            }));
+            // Convert old format to new format using immutable update
+            const migratedHistory = player.matchHistory.map(
+              (oldEntry: any) => ({
+                ...oldEntry,
+                partner: oldEntry.partner
+                  ? {
+                      id: "unknown", // Can't recover old IDs
+                      name: oldEntry.partner,
+                      skillLevel: "C" as SkillLevel, // Default skill level
+                    }
+                  : undefined,
+                opponents: oldEntry.opponents.map((opponentName: any) => ({
+                  id: "unknown", // Can't recover old IDs
+                  name: opponentName,
+                  skillLevel: "C" as SkillLevel, // Default skill level
+                })),
+              })
+            );
+
+            // Return new player object with migrated history (immutable)
+            return { ...player, matchHistory: migratedHistory };
           }
         }
         return player;
       });
+    }
+
+    // 🆕 Validate player IDs and names to detect/fix corruption
+    if (persistedState.players) {
+      const seenIds = new Set<string>();
+      const seenNames = new Map<string, string>(); // name -> id
+
+      persistedState.players = persistedState.players.filter((player) => {
+        // Check for duplicate IDs
+        if (seenIds.has(player.id)) {
+          console.warn(
+            `⚠️ Duplicate player ID detected: ${player.id} (${player.name}) - removing duplicate`
+          );
+          return false;
+        }
+        seenIds.add(player.id);
+
+        // Check for name/ID mismatches (potential corruption)
+        if (seenNames.has(player.name)) {
+          const existingId = seenNames.get(player.name);
+          if (existingId !== player.id) {
+            console.warn(
+              `⚠️ Name collision detected: "${player.name}" has two IDs: ${existingId} and ${player.id}`
+            );
+            // Keep the one with more match history (more likely to be correct)
+            const existingPlayer = persistedState.players.find(
+              (p) => p.id === existingId
+            );
+            if (
+              existingPlayer &&
+              (existingPlayer.matchHistory?.length || 0) >
+                (player.matchHistory?.length || 0)
+            ) {
+              console.warn(
+                `⚠️ Removing ${player.name} (${player.id}) - keeping version with more history`
+              );
+              return false; // Remove this one, keep existing
+            }
+          }
+        }
+        seenNames.set(player.name, player.id);
+
+        return true;
+      });
+
+      console.log(
+        `✅ Player validation complete: ${persistedState.players.length} valid players loaded`
+      );
     }
 
     // Validate the structure
