@@ -19,9 +19,10 @@ import PaymentModal from '../input/PaymentModal';
 
 type DashboardProps = {
   onShowTutorial?: () => void;
+  onOpenFeedback?: () => void;
 };
 
-const Dashboard: React.FC<DashboardProps> = React.memo(({ onShowTutorial }) => {
+const Dashboard: React.FC<DashboardProps> = React.memo(({ onShowTutorial, onOpenFeedback }) => {
   const { state } = useContext(AppContext);
   const theme = useTheme();
   const isPortraitMobile = useMediaQuery('(max-width: 768px) and (orientation: portrait) and (max-height: 900px)');
@@ -379,17 +380,24 @@ const Dashboard: React.FC<DashboardProps> = React.memo(({ onShowTutorial }) => {
           <Typography
             component="a"
             href="mailto:carlmeyrickcheng@gmail.com"
+            onClick={(e: React.MouseEvent) => {
+              if (onOpenFeedback) {
+                e.preventDefault();
+                onOpenFeedback();
+              }
+            }}
             sx={{
               color: 'primary.main',
               textDecoration: 'none',
               fontSize: '0.65rem',
               fontWeight: 500,
+              cursor: 'pointer',
               '&:hover': {
                 textDecoration: 'underline',
               }
             }}
           >
-            Contact
+            Feedback
           </Typography>
         </Typography>
       </Box>

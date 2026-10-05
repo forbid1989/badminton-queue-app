@@ -4,7 +4,8 @@ import React, { useReducer, useEffect, useState } from 'react';
 import { ThemeProvider, CssBaseline, Box, AppBar, Toolbar, Typography } from '@mui/material';
 import { SportsMma, Handshake, Close } from '@mui/icons-material';
 import { SnackbarProvider, useSnackbar, VariantType, closeSnackbar  } from 'notistack';
-import { IconButton } from '@mui/material';
+import { IconButton, Tooltip } from '@mui/material';
+import NewspaperIcon from '@mui/icons-material/Newspaper';
 import theme from './theme';
 import QueueMaestroLogo from './components/QueueMaestroLogo';
 import { Analytics } from '@vercel/analytics/react';
@@ -17,6 +18,8 @@ import Dashboard from './components/dashboard/Dashboard';
 import MobileFooter from './components/MobileFooter';
 import { debouncedSave, isLocalStorageAvailable } from './lib/utils/localStorage';
 import DragTutorial from './components/DragTutorial';
+import FeedbackModal from './components/FeedbackModal';
+import AnnouncementDialog from './components/AnnouncementDialog';
 
 export const AppContext = React.createContext<{
 	state: RootState;
@@ -39,6 +42,8 @@ const AppContent: React.FC = () => {
 	const [state, dispatch] = useReducer(reducer, InitialState);
 	const { enqueueSnackbar } = useSnackbar();
 	const [showDragTutorial, setShowDragTutorial] = useState(false);
+	const [showFeedback, setShowFeedback] = useState(false);
+	const [showAnnouncement, setShowAnnouncement] = useState(false);
 
 	const showPartnershipSnackbar = (message: string) => {
 		enqueueSnackbar(message, {
@@ -148,6 +153,38 @@ const AppContent: React.FC = () => {
 		localStorage.setItem('dragTutorialSeen', 'true');
 	};
 
+	// Temporary announcement: show once, never during a live session or the tutorial
+	const hasSessionActivity =
+		(Object.values(state.courts.playersByCourt || {}) as Player[][]).some(c => c.length > 0) ||
+		(Object.values(state.queue.playersByQueue || {}) as Player[][]).some(q => q.length > 0);
+
+	useEffect(() => {
+		let seen = false;
+		try {
+			seen = localStorage.getItem('announcement2026Seen') === 'true';
+		} catch {
+			return;
+		}
+		if (seen || hasSessionActivity || showDragTutorial) return;
+
+		const timer = setTimeout(() => setShowAnnouncement(true), 3000);
+		return () => clearTimeout(timer);
+	}, [hasSessionActivity, showDragTutorial]);
+
+	const handleAnnouncementClose = () => {
+		setShowAnnouncement(false);
+		try {
+			localStorage.setItem('announcement2026Seen', 'true');
+		} catch {
+			// storage unavailable: the message may show again next visit
+		}
+	};
+
+	const handleAnnouncementFeedback = () => {
+		handleAnnouncementClose();
+		setShowFeedback(true);
+	};
+
 	return (
 		<SnackbarContext.Provider value={{ showPartnershipSnackbar, showOppositionSnackbar }}>
 			<CssBaseline />
@@ -175,6 +212,23 @@ const AppContent: React.FC = () => {
 								Queue Maestro
 							</Typography>
 						</Box>
+						<Tooltip title="What's new: share your feedback">
+							<IconButton
+								color="inherit"
+								aria-label="What's new"
+								onClick={() => setShowAnnouncement(true)}
+								sx={{
+									'@keyframes newsPulse': {
+										'0%': { boxShadow: '0 0 0 0 rgba(255, 255, 255, 0.6)' },
+										'70%': { boxShadow: '0 0 0 10px rgba(255, 255, 255, 0)' },
+										'100%': { boxShadow: '0 0 0 0 rgba(255, 255, 255, 0)' },
+									},
+									animation: 'newsPulse 2s infinite',
+								}}
+							>
+								<NewspaperIcon />
+							</IconButton>
+						</Tooltip>
 					</Toolbar>
 				</AppBar>
 				<Box sx={{ 
@@ -184,14 +238,23 @@ const AppContent: React.FC = () => {
 					width: '100vw',       // 👈 makes it full viewport width
 					boxSizing: 'border-box', // 👈 ensures padding doesn't exceed 100vw
 				}}>
-					<Dashboard onShowTutorial={() => setShowDragTutorial(true)} />
+					<Dashboard
+						onShowTutorial={() => setShowDragTutorial(true)}
+						onOpenFeedback={() => setShowFeedback(true)}
+					/>
 					<MobileFooter />
 				</Box>
 				<Analytics />
 				<SpeedInsights />
 				<DragTutorial 
 					open={showDragTutorial} 
-					onClose={handleTutorialClose} 
+					onClose={handleTutorialClose}
+				/>
+				<FeedbackModal open={showFeedback} onClose={() => setShowFeedback(false)} />
+				<AnnouncementDialog
+					open={showAnnouncement}
+					onClose={handleAnnouncementClose}
+					onGiveFeedback={handleAnnouncementFeedback}
 				/>
 			</AppContext.Provider>
 		</SnackbarContext.Provider>
