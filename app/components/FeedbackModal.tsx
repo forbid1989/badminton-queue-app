@@ -8,7 +8,13 @@ import {
   TextField,
   MenuItem,
   Checkbox,
+  Radio,
+  RadioGroup,
+  FormControl,
   FormControlLabel,
+  FormGroup,
+  FormLabel,
+  FormHelperText,
   Typography,
   Box,
 } from '@mui/material';
@@ -20,19 +26,50 @@ interface FeedbackModalProps {
   onClose: () => void;
 }
 
-const CATEGORIES = [
-  { value: 'feature', label: 'Feature idea' },
-  { value: 'bug', label: 'Bug / problem' },
-  { value: 'pricing', label: 'Pricing feedback' },
+const ROLES = [
+  { value: 'organizer', label: 'Queue master / organizer' },
+  { value: 'player', label: 'Player' },
+  { value: 'owner', label: 'Group owner or decision-maker' },
   { value: 'other', label: 'Other' },
 ];
 
-const MIN_LENGTH = 10;
-const MAX_LENGTH = 2000;
+const FEATURES = [
+  { value: 'auto_queue', label: 'Auto-queueing' },
+  { value: 'leaderboard', label: 'Leaderboards' },
+  { value: 'mmr', label: 'MMR / skill rankings' },
+  { value: 'win_stats', label: 'Win/loss stats and win rate' },
+  { value: 'live_session', label: 'Live session view (players see the queue and their turn on their phone)' },
+  { value: 'match_history', label: 'Player match history (your own and other players’)' },
+  { value: 'match_request', label: 'Match requests (players request a game with specific people)' },
+  { value: 'other', label: 'Other' },
+];
+
+const WOULD_PAY = [
+  { value: 'yes', label: 'Yes' },
+  { value: 'maybe', label: 'Maybe' },
+  { value: 'no', label: 'No' },
+];
+
+const PRICES = [
+  { value: 'under_100', label: 'Under ₱100' },
+  { value: '100', label: '₱100' },
+  { value: '150', label: '₱150' },
+  { value: '250', label: '₱250' },
+  { value: '400', label: '₱400' },
+  { value: 'over_400', label: 'More than ₱400' },
+];
+
+const MAX_FEATURES = 3;
+const MIN_MESSAGE = 10;
+const MAX_MESSAGE = 2000;
 
 const FeedbackModal: React.FC<FeedbackModalProps> = ({ open, onClose }) => {
   const { enqueueSnackbar } = useSnackbar();
-  const [category, setCategory] = useState('feature');
+  const [role, setRole] = useState('');
+  const [features, setFeatures] = useState<string[]>([]);
+  const [featureOther, setFeatureOther] = useState('');
+  const [wouldPay, setWouldPay] = useState('');
+  const [priceChoice, setPriceChoice] = useState('');
   const [message, setMessage] = useState('');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -41,16 +78,40 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ open, onClose }) => {
   const [submitting, setSubmitting] = useState(false);
 
   const trimmed = message.trim();
-  const canSubmit = trimmed.length >= MIN_LENGTH && !submitting;
-  const tooShort = trimmed.length > 0 && trimmed.length < MIN_LENGTH;
+  const tooShort = trimmed.length > 0 && trimmed.length < MIN_MESSAGE;
+  const showPrice = wouldPay === 'yes' || wouldPay === 'maybe';
+  const atFeatureLimit = features.length >= MAX_FEATURES;
+
+  const canSubmit =
+    !!role &&
+    features.length >= 1 &&
+    !!wouldPay &&
+    (!showPrice || !!priceChoice) &&
+    !tooShort &&
+    !submitting;
 
   const reset = () => {
-    setCategory('feature');
+    setRole('');
+    setFeatures([]);
+    setFeatureOther('');
+    setWouldPay('');
+    setPriceChoice('');
     setMessage('');
     setName('');
     setEmail('');
     setIsAnonymous(false);
     setWebsite('');
+  };
+
+  const toggleFeature = (value: string) => {
+    setFeatures((prev) =>
+      prev.includes(value) ? prev.filter((f) => f !== value) : [...prev, value]
+    );
+  };
+
+  const handleWouldPayChange = (value: string) => {
+    setWouldPay(value);
+    if (value === 'no') setPriceChoice('');
   };
 
   const handleSubmit = async () => {
@@ -68,12 +129,19 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ open, onClose }) => {
       return;
     }
 
+    const cleanEmail = email.trim();
+
     setSubmitting(true);
     const { error } = await supabase.from('feedback').insert({
-      category,
-      message: trimmed,
+      role,
+      top_features: features,
+      feature_other: features.includes('other') ? featureOther.trim() || null : null,
+      would_pay: wouldPay,
+      price_choice: showPrice ? priceChoice : null,
+      message: trimmed || null,
       name: name.trim() || null,
-      email: email.trim() || null,
+      email: cleanEmail || null,
+      wants_early_access: cleanEmail.length > 0,
       is_anonymous: isAnonymous,
     });
     setSubmitting(false);
@@ -89,63 +157,114 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ open, onClose }) => {
   };
 
   return (
-    <Dialog open={open} onClose={submitting ? undefined : onClose} fullWidth maxWidth="sm">
+    <Dialog open={open} onClose={submitting ? undefined : onClose} fullWidth maxWidth="sm" scroll="paper">
       <DialogTitle>Share your feedback</DialogTitle>
-      <DialogContent>
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
-          <TextField
-            select
-            label="Category"
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            size="small"
-          >
-            {CATEGORIES.map((c) => (
-              <MenuItem key={c.value} value={c.value}>
-                {c.label}
-              </MenuItem>
-            ))}
-          </TextField>
+      <DialogContent dividers>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+          <FormControl required>
+            <FormLabel>What is your role in your badminton group?</FormLabel>
+            <RadioGroup value={role} onChange={(e) => setRole(e.target.value)}>
+              {ROLES.map((r) => (
+                <FormControlLabel key={r.value} value={r.value} control={<Radio size="small" />} label={r.label} />
+              ))}
+            </RadioGroup>
+          </FormControl>
+
+          <FormControl required>
+            <FormLabel>Which would be most valuable to your group? (pick up to {MAX_FEATURES})</FormLabel>
+            <FormGroup>
+              {FEATURES.map((f) => {
+                const checked = features.includes(f.value);
+                return (
+                  <FormControlLabel
+                    key={f.value}
+                    control={
+                      <Checkbox
+                        size="small"
+                        checked={checked}
+                        disabled={!checked && atFeatureLimit}
+                        onChange={() => toggleFeature(f.value)}
+                      />
+                    }
+                    label={f.label}
+                  />
+                );
+              })}
+            </FormGroup>
+            {atFeatureLimit && <FormHelperText>You can pick up to {MAX_FEATURES}.</FormHelperText>}
+            {features.includes('other') && (
+              <TextField
+                label="What else?"
+                value={featureOther}
+                onChange={(e) => setFeatureOther(e.target.value.slice(0, 200))}
+                size="small"
+                sx={{ mt: 1 }}
+              />
+            )}
+          </FormControl>
+
+          <FormControl required>
+            <FormLabel>Would your group consider a paid plan for these features?</FormLabel>
+            <RadioGroup row value={wouldPay} onChange={(e) => handleWouldPayChange(e.target.value)}>
+              {WOULD_PAY.map((w) => (
+                <FormControlLabel key={w.value} value={w.value} control={<Radio size="small" />} label={w.label} />
+              ))}
+            </RadioGroup>
+          </FormControl>
+
+          {showPrice && (
+            <TextField
+              select
+              required
+              label="Monthly price per group that feels reasonable"
+              value={priceChoice}
+              onChange={(e) => setPriceChoice(e.target.value)}
+              size="small"
+            >
+              {PRICES.map((p) => (
+                <MenuItem key={p.value} value={p.value}>
+                  {p.label}
+                </MenuItem>
+              ))}
+            </TextField>
+          )}
 
           <TextField
-            label="Your message"
-            placeholder="Features you'd like, problems you found, or what you'd pay for them"
+            label="Comments, ideas or bugs (optional)"
             value={message}
-            onChange={(e) => setMessage(e.target.value.slice(0, MAX_LENGTH))}
+            onChange={(e) => setMessage(e.target.value.slice(0, MAX_MESSAGE))}
             multiline
-            minRows={4}
-            required
+            minRows={3}
             error={tooShort}
             helperText={
               tooShort
-                ? `Please write at least ${MIN_LENGTH} characters (${MIN_LENGTH - trimmed.length} more to go)`
-                : `${trimmed.length}/${MAX_LENGTH}`
+                ? `Please write at least ${MIN_MESSAGE} characters (${MIN_MESSAGE - trimmed.length} more to go), or leave this empty`
+                : trimmed.length > 0
+                ? `${trimmed.length}/${MAX_MESSAGE}`
+                : ' '
             }
           />
 
-          <TextField
-            label="Name (optional)"
-            value={name}
-            onChange={(e) => setName(e.target.value.slice(0, 100))}
-            size="small"
-          />
-          <TextField
-            label="Email (optional)"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value.slice(0, 200))}
-            size="small"
-          />
-
-          <FormControlLabel
-            control={
-              <Checkbox
-                checked={isAnonymous}
-                onChange={(e) => setIsAnonymous(e.target.checked)}
-              />
-            }
-            label="Keep me anonymous"
-          />
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <TextField
+              label="Name (optional)"
+              value={name}
+              onChange={(e) => setName(e.target.value.slice(0, 100))}
+              size="small"
+            />
+            <TextField
+              label="Email for early access (optional)"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value.slice(0, 200))}
+              size="small"
+              helperText="Add your email to be notified when paid features launch."
+            />
+            <FormControlLabel
+              control={<Checkbox checked={isAnonymous} onChange={(e) => setIsAnonymous(e.target.checked)} />}
+              label="Keep me anonymous"
+            />
+          </Box>
 
           {/* Honeypot field: hidden from people, visible to bots */}
           <input
@@ -164,7 +283,7 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ open, onClose }) => {
           </Typography>
         </Box>
       </DialogContent>
-      <DialogActions sx={{ px: 3, pb: 2 }}>
+      <DialogActions sx={{ px: 3, py: 2 }}>
         <Button onClick={onClose} disabled={submitting}>
           Cancel
         </Button>

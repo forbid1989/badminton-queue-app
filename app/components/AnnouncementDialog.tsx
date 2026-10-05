@@ -18,26 +18,17 @@ interface AnnouncementDialogProps {
 const AnnouncementDialog: React.FC<AnnouncementDialogProps> = ({ open, onClose, onGiveFeedback }) => {
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
-      <DialogTitle>Thank you for a great first year! 🏸</DialogTitle>
+      <DialogTitle>Queue Maestro is turning 1! 🏸</DialogTitle>
       <DialogContent>
         <Typography sx={{ mb: 2 }}>
-          Queue Maestro launched last year, and I&apos;m grateful to everyone who has used it to run their games.
+          Thank you to everyone who has used the app to run their games this past year.
         </Typography>
         <Typography sx={{ mb: 2 }}>
-          I&apos;m planning to take the app further with features like leaderboards, MMR rankings, auto-queueing and
-          win rates, and I&apos;d like your help shaping the roadmap. Please tell me which features you&apos;d like and
-          any feedback you have.
-        </Typography>
-        <Typography sx={{ mb: 2 }}>
-          Building these takes time and will incur server costs, so I&apos;m planning an optional paid tier. I&apos;m
-          asking the community to help me price it so it stays affordable for every group. If you have a price in
-          mind, include it in your feedback.
-        </Typography>
-        <Typography sx={{ mb: 2 }}>
-          To send feedback, click <strong>Feedback</strong> at the bottom of the player list, or press the button below.
+          I&apos;m exploring advanced features for groups, such as leaderboards, rankings, auto-queueing and win
+          records. These may become an optional paid plan, and I&apos;d like your input before I build anything.
         </Typography>
         <Typography sx={{ fontWeight: 600, mb: 2 }}>
-          The core features of the app, everything you use today, will always remain free.
+          The current core queue features will remain free.
         </Typography>
         <Typography>
           Thank you,
