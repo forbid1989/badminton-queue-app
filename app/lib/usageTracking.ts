@@ -8,6 +8,8 @@ const QUEUE_KEY = 'qm_usage_queue';
 const LAST_OPEN_KEY = 'qm_last_open_day';
 const MAX_QUEUED = 50;
 const APP_VERSION = '1';
+// The usage_events table rejects events older than 30 days; stay a day inside that limit
+const MAX_EVENT_AGE_MS = 29 * 24 * 60 * 60 * 1000;
 
 type UsageEvent = {
   device_id: string;
@@ -19,6 +21,10 @@ type UsageEvent = {
   app_version: string;
 };
 
+// Queue entries carry a local-only id so sent events can be removed by identity.
+// The id is never sent to the server.
+type QueuedEvent = UsageEvent & { qid: string };
+
 const safeGet = (key: string): string | null => {
   try {
     return localStorage.getItem(key);
@@ -27,11 +33,12 @@ const safeGet = (key: string): string | null => {
   }
 };
 
-const safeSet = (key: string, value: string): void => {
+const safeSet = (key: string, value: string): boolean => {
   try {
     localStorage.setItem(key, value);
+    return true;
   } catch {
-    // storage unavailable: skip silently
+    return false; // storage unavailable or full
   }
 };
 
@@ -44,20 +51,26 @@ const getDeviceId = (): string | null => {
   return id;
 };
 
-const readQueue = (): UsageEvent[] => {
+const isFresh = (e: QueuedEvent): boolean => {
+  const t = Date.parse(e.occurred_at);
+  return !isNaN(t) && Date.now() - t <= MAX_EVENT_AGE_MS;
+};
+
+// Reads the queue, dropping malformed entries and events too old for the server to accept
+const readQueue = (): QueuedEvent[] => {
   try {
     const raw = safeGet(QUEUE_KEY);
     const parsed = raw ? JSON.parse(raw) : [];
-    return Array.isArray(parsed) ? parsed : [];
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((e) => e && typeof e.qid === 'string' && isFresh(e));
   } catch {
     return [];
   }
 };
 
-const writeQueue = (events: UsageEvent[]): void => {
+const writeQueue = (events: QueuedEvent[]): boolean =>
   // Cap the queue so offline use can never grow storage without bound; drop the oldest
   safeSet(QUEUE_KEY, JSON.stringify(events.slice(-MAX_QUEUED)));
-};
 
 let flushing = false;
 
@@ -70,13 +83,14 @@ const flushQueue = async (): Promise<void> => {
 
   flushing = true;
   try {
-    const { error, status } = await supabase.from('usage_events').insert(pending);
-    // Success, or a 4xx rejection (e.g. an event too old for the table's constraints):
-    // either way retrying the same batch won't help, so drop it. Network failures
-    // (status 0) and 5xx errors keep the events queued for the next attempt.
+    const payload: UsageEvent[] = pending.map(({ qid: _qid, ...event }) => event);
+    const { error, status } = await supabase.from('usage_events').insert(payload);
+    // Success, or a 4xx rejection: either way retrying the same batch won't help, so drop it.
+    // Network failures (status 0) and 5xx errors keep the events queued for the next attempt.
     if (!error || (status >= 400 && status < 500)) {
-      // Keep anything queued while the request was in flight
-      writeQueue(readQueue().slice(pending.length));
+      const sent = new Set(pending.map((e) => e.qid));
+      // Remove exactly the events that were sent, keeping anything queued meanwhile
+      writeQueue(readQueue().filter((e) => !sent.has(e.qid)));
     }
   } catch {
     // offline or blocked: events stay queued for next time
@@ -85,9 +99,11 @@ const flushQueue = async (): Promise<void> => {
   }
 };
 
-const enqueue = (event: UsageEvent): void => {
-  writeQueue([...readQueue(), event]);
-  void flushQueue();
+// Returns false if the event could not be stored
+const enqueue = (event: UsageEvent): boolean => {
+  const saved = writeQueue([...readQueue(), { ...event, qid: crypto.randomUUID() }]);
+  if (saved) void flushQueue();
+  return saved;
 };
 
 const today = (): string => new Date().toISOString().slice(0, 10);
@@ -99,13 +115,14 @@ export const trackAppOpen = (): void => {
     if (!deviceId) return;
 
     if (safeGet(LAST_OPEN_KEY) !== today()) {
-      safeSet(LAST_OPEN_KEY, today());
-      enqueue({
+      const saved = enqueue({
         device_id: deviceId,
         event: 'app_open',
         occurred_at: new Date().toISOString(),
         app_version: APP_VERSION,
       });
+      // Only mark today as done once the event is safely stored; otherwise retry next load
+      if (saved) safeSet(LAST_OPEN_KEY, today());
     } else {
       void flushQueue(); // send anything left over from an earlier offline session
     }

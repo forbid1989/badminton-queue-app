@@ -18,6 +18,13 @@ alter table public.feedback
   add column if not exists wants_early_access boolean not null default false;
 
 alter table public.feedback
+  drop constraint if exists feedback_role_check,
+  drop constraint if exists feedback_would_pay_check,
+  drop constraint if exists feedback_price_choice_check,
+  drop constraint if exists feedback_top_features_check,
+  drop constraint if exists feedback_feature_other_check;
+
+alter table public.feedback
   add constraint feedback_category_check
     check (category is null or category in ('feature','bug','pricing','other')),
   add constraint feedback_message_check

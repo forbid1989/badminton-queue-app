@@ -7,6 +7,10 @@ alter table public.feedback
   add column if not exists sessions_per_week text;
 
 alter table public.feedback
+  drop constraint if exists feedback_sports_check,
+  drop constraint if exists feedback_sessions_per_week_check;
+
+alter table public.feedback
   add constraint feedback_sports_check
     check (
       cardinality(sports) <= 5
@@ -38,6 +42,8 @@ create index if not exists usage_events_device_day_idx
 alter table public.usage_events enable row level security;
 
 grant insert on public.usage_events to anon;
+
+drop policy if exists "anyone can insert usage events" on public.usage_events;
 
 create policy "anyone can insert usage events"
   on public.usage_events for insert to anon

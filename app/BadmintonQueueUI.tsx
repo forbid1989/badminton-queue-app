@@ -49,13 +49,26 @@ const AppContent: React.FC = () => {
 	stateRef.current = state;
 
 	const dispatch = useCallback((action: any) => {
-		rawDispatch(action);
+		const current = stateRef.current;
+
+		// The reducer returns the same state object when the game can't end (invalid or
+		// empty court, fewer than 2 players), so only count a game when the state changes.
+		let gameEnded = false;
 		if (action?.type === ActionType.END_GAME) {
-			const s = stateRef.current;
+			try {
+				gameEnded = reducer(current, action) !== current;
+			} catch {
+				gameEnded = false;
+			}
+		}
+
+		rawDispatch(action);
+
+		if (gameEnded) {
 			trackGameCompleted({
-				players: s.players.length,
-				courts: Object.keys(s.courts.playersByCourt || {}).length,
-				queues: Object.keys(s.queue.playersByQueue || {}).length,
+				players: current.players.length,
+				courts: Object.keys(current.courts.playersByCourt || {}).length,
+				queues: Object.keys(current.queue.playersByQueue || {}).length,
 			});
 		}
 	}, []);
