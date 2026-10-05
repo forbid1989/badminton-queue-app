@@ -30,6 +30,10 @@ const AnnouncementDialog: React.FC<AnnouncementDialogProps> = ({ open, onClose, 
         <Typography sx={{ fontWeight: 600, mb: 2 }}>
           The current core queue features will remain free.
         </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          Queue Maestro records anonymous usage counts, such as the number of players and games in a session, to
+          help me improve the app. No names or personal details are collected.
+        </Typography>
         <Typography>
           Thank you,
           <br />

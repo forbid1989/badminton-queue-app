@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useReducer, useEffect, useState } from 'react';
+import React, { useReducer, useEffect, useState, useCallback, useRef } from 'react';
 import { ThemeProvider, CssBaseline, Box, AppBar, Toolbar, Typography } from '@mui/material';
 import { SportsMma, Handshake, Close } from '@mui/icons-material';
 import { SnackbarProvider, useSnackbar, VariantType, closeSnackbar  } from 'notistack';
@@ -20,6 +20,8 @@ import { debouncedSave, isLocalStorageAvailable } from './lib/utils/localStorage
 import DragTutorial from './components/DragTutorial';
 import FeedbackModal from './components/FeedbackModal';
 import AnnouncementDialog from './components/AnnouncementDialog';
+import { ActionType } from './lib/store/Action';
+import { trackAppOpen, trackGameCompleted, startUsageSync } from './lib/usageTracking';
 
 export const AppContext = React.createContext<{
 	state: RootState;
@@ -39,8 +41,30 @@ export const SnackbarContext = React.createContext<{
 
 // Inner component that uses the snackbar hook
 const AppContent: React.FC = () => {
-	const [state, dispatch] = useReducer(reducer, InitialState);
+	const [state, rawDispatch] = useReducer(reducer, InitialState);
 	const { enqueueSnackbar } = useSnackbar();
+
+	// Anonymous usage tracking: observes actions and never changes them or the game state
+	const stateRef = useRef(state);
+	stateRef.current = state;
+
+	const dispatch = useCallback((action: any) => {
+		rawDispatch(action);
+		if (action?.type === ActionType.END_GAME) {
+			const s = stateRef.current;
+			trackGameCompleted({
+				players: s.players.length,
+				courts: Object.keys(s.courts.playersByCourt || {}).length,
+				queues: Object.keys(s.queue.playersByQueue || {}).length,
+			});
+		}
+	}, []);
+
+	useEffect(() => {
+		trackAppOpen();
+		return startUsageSync();
+	}, []);
+
 	const [showDragTutorial, setShowDragTutorial] = useState(false);
 	const [showFeedback, setShowFeedback] = useState(false);
 	const [showAnnouncement, setShowAnnouncement] = useState(false);

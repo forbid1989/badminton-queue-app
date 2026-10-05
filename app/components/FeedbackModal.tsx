@@ -33,6 +33,21 @@ const ROLES = [
   { value: 'other', label: 'Other' },
 ];
 
+const SPORTS = [
+  { value: 'badminton', label: 'Badminton' },
+  { value: 'pickleball', label: 'Pickleball' },
+  { value: 'tennis', label: 'Tennis' },
+  { value: 'table_tennis', label: 'Table tennis' },
+  { value: 'other', label: 'Other' },
+];
+
+const SESSIONS_PER_WEEK = [
+  { value: 'less_than_1', label: 'Less than once a week' },
+  { value: '1', label: 'Once a week' },
+  { value: '2_3', label: '2-3 times a week' },
+  { value: '4_plus', label: '4 or more times a week' },
+];
+
 const FEATURES = [
   { value: 'auto_queue', label: 'Auto-queueing' },
   { value: 'leaderboard', label: 'Leaderboards' },
@@ -66,6 +81,8 @@ const MAX_MESSAGE = 2000;
 const FeedbackModal: React.FC<FeedbackModalProps> = ({ open, onClose }) => {
   const { enqueueSnackbar } = useSnackbar();
   const [role, setRole] = useState('');
+  const [sports, setSports] = useState<string[]>([]);
+  const [sessionsPerWeek, setSessionsPerWeek] = useState('');
   const [features, setFeatures] = useState<string[]>([]);
   const [featureOther, setFeatureOther] = useState('');
   const [wouldPay, setWouldPay] = useState('');
@@ -84,6 +101,7 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ open, onClose }) => {
 
   const canSubmit =
     !!role &&
+    sports.length >= 1 &&
     features.length >= 1 &&
     !!wouldPay &&
     (!showPrice || !!priceChoice) &&
@@ -92,6 +110,8 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ open, onClose }) => {
 
   const reset = () => {
     setRole('');
+    setSports([]);
+    setSessionsPerWeek('');
     setFeatures([]);
     setFeatureOther('');
     setWouldPay('');
@@ -101,6 +121,12 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ open, onClose }) => {
     setEmail('');
     setIsAnonymous(false);
     setWebsite('');
+  };
+
+  const toggleSport = (value: string) => {
+    setSports((prev) =>
+      prev.includes(value) ? prev.filter((s) => s !== value) : [...prev, value]
+    );
   };
 
   const toggleFeature = (value: string) => {
@@ -129,11 +155,21 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ open, onClose }) => {
       return;
     }
 
+    // The form keeps what was typed so nothing is lost while offline
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      enqueueSnackbar("You're offline. Please try again when you're connected.", { variant: 'warning' });
+      return;
+    }
+
     const cleanEmail = email.trim();
 
     setSubmitting(true);
-    const { error } = await supabase.from('feedback').insert({
+    let error: unknown = null;
+    try {
+      ({ error } = await supabase.from('feedback').insert({
       role,
+      sports,
+      sessions_per_week: sessionsPerWeek || null,
       top_features: features,
       feature_other: features.includes('other') ? featureOther.trim() || null : null,
       would_pay: wouldPay,
@@ -143,11 +179,14 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ open, onClose }) => {
       email: cleanEmail || null,
       wants_early_access: cleanEmail.length > 0,
       is_anonymous: isAnonymous,
-    });
+      }));
+    } catch (e) {
+      error = e;
+    }
     setSubmitting(false);
 
     if (error) {
-      enqueueSnackbar('Could not send feedback. Please try again.', { variant: 'error' });
+      enqueueSnackbar('Could not send feedback. Please check your connection and try again.', { variant: 'error' });
       return;
     }
 
@@ -166,6 +205,30 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ open, onClose }) => {
             <RadioGroup value={role} onChange={(e) => setRole(e.target.value)}>
               {ROLES.map((r) => (
                 <FormControlLabel key={r.value} value={r.value} control={<Radio size="small" />} label={r.label} />
+              ))}
+            </RadioGroup>
+          </FormControl>
+
+          <FormControl required>
+            <FormLabel>What sport do you use Queue Maestro for?</FormLabel>
+            <FormGroup>
+              {SPORTS.map((s) => (
+                <FormControlLabel
+                  key={s.value}
+                  control={
+                    <Checkbox size="small" checked={sports.includes(s.value)} onChange={() => toggleSport(s.value)} />
+                  }
+                  label={s.label}
+                />
+              ))}
+            </FormGroup>
+          </FormControl>
+
+          <FormControl>
+            <FormLabel>How often does your group play? (optional)</FormLabel>
+            <RadioGroup value={sessionsPerWeek} onChange={(e) => setSessionsPerWeek(e.target.value)}>
+              {SESSIONS_PER_WEEK.map((s) => (
+                <FormControlLabel key={s.value} value={s.value} control={<Radio size="small" />} label={s.label} />
               ))}
             </RadioGroup>
           </FormControl>
