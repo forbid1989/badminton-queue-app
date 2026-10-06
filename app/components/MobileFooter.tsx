@@ -10,6 +10,8 @@ import GroupAddIcon from '@mui/icons-material/GroupAdd';
 import ListIcon from '@mui/icons-material/List';
 import AttachMoneyIcon from '@mui/icons-material/Payment';
 import SettingsIcon from '@mui/icons-material/Settings';
+import RateReviewIcon from '@mui/icons-material/RateReview';
+import { FEEDBACK_CAMPAIGN_ACTIVE } from '../lib/feedbackPrompt';
 import { AppContext } from '../BadmintonQueueUI';
 import PlayerParserForm from './input/PlayerParserForm';
 import PlayerListModal from './input/PlayerListModal';
@@ -53,7 +55,11 @@ const tabs = [
   }
 ];
 
-const MobileFooter: React.FC = () => {
+interface MobileFooterProps {
+  onOpenFeedback?: () => void;
+}
+
+const MobileFooter: React.FC<MobileFooterProps> = ({ onOpenFeedback }) => {
   const { state } = useContext(AppContext);
   const isMobile = useMediaQuery('(max-width: 768px)');
   
@@ -107,6 +113,9 @@ const MobileFooter: React.FC = () => {
       case 'settings':
         handleOpenSettings();
         break;
+      case 'feedback':
+        onOpenFeedback?.();
+        break;
       default:
         break;
     }
@@ -134,7 +143,19 @@ const MobileFooter: React.FC = () => {
           px: 1,
         }}
       >
-        {tabs.map((tab) => (
+        {[
+          ...tabs,
+          ...(FEEDBACK_CAMPAIGN_ACTIVE && onOpenFeedback
+            ? [
+                {
+                  value: 'feedback',
+                  icon: <RateReviewIcon />,
+                  description: 'Send Feedback',
+                  action: 'feedback',
+                },
+              ]
+            : []),
+        ].map((tab) => (
           <Tooltip key={tab.value} title={tab.description} placement="top">
             <IconButton
               onClick={(event) => handleTabClick(tab.action, event)}

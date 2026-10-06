@@ -1,5 +1,7 @@
 import React, { useContext, useState, useCallback, useMemo, useEffect } from 'react';
-import { Typography, IconButton, Box, Divider, useTheme, useMediaQuery, Tabs, Tab, Chip  } from '@mui/material';
+import { Typography, IconButton, Box, Divider, useTheme, useMediaQuery, Tabs, Tab, Chip, Button } from '@mui/material';
+import RateReviewIcon from '@mui/icons-material/RateReview';
+import { FEEDBACK_CAMPAIGN_ACTIVE } from '../../lib/feedbackPrompt';
 import { ViewModule as AllIcon, Queue as QueueIcon, SportsTennis as CourtsIcon } from '@mui/icons-material';
 import AddIcon from '@mui/icons-material/GroupAdd';
 import SettingsIcon from '@mui/icons-material/Settings';
@@ -342,9 +344,21 @@ const Dashboard: React.FC<DashboardProps> = React.memo(({ onShowTutorial, onOpen
           Data management & clear options are in <SettingsIcon sx={{ fontSize: '0.8rem' }} /> Settings
         </Typography>
 
+        {FEEDBACK_CAMPAIGN_ACTIVE && onOpenFeedback && (
+          <Button
+            size="small"
+            variant="outlined"
+            startIcon={<RateReviewIcon fontSize="small" />}
+            onClick={onOpenFeedback}
+            sx={{ mt: 1, textTransform: 'none', fontWeight: 600 }}
+          >
+            Send feedback
+          </Button>
+        )}
+
         {/* Developer Credits */}
-        <Typography 
-          variant="caption" 
+        <Typography
+          variant="caption"
           sx={{ 
             fontSize: '0.65rem', 
             color: 'text.secondary',

@@ -20,6 +20,7 @@ import {
 } from '@mui/material';
 import { useSnackbar } from 'notistack';
 import { supabase } from '../lib/supabase';
+import { recordFeedbackSubmitted } from '../lib/feedbackPrompt';
 
 interface FeedbackModalProps {
   open: boolean;
@@ -217,6 +218,7 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ open, onClose }) => {
       return;
     }
 
+    recordFeedbackSubmitted();
     enqueueSnackbar('Thank you! Your feedback was sent.', { variant: 'success' });
     reset();
     onClose();
@@ -226,6 +228,10 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ open, onClose }) => {
     <Dialog open={open} onClose={submitting ? undefined : onClose} fullWidth maxWidth="sm" scroll="paper">
       <DialogTitle>Share your feedback</DialogTitle>
       <DialogContent dividers>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          Help shape Queue Maestro and its optional paid plan. Your answers tell me which features to build and what
+          would be affordable for your group. The current core queue features will remain free.
+        </Typography>
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
           <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
             About your group

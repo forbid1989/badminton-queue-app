@@ -4,8 +4,8 @@ import React, { useReducer, useEffect, useState, useCallback, useRef } from 'rea
 import { ThemeProvider, CssBaseline, Box, AppBar, Toolbar, Typography } from '@mui/material';
 import { SportsMma, Handshake, Close } from '@mui/icons-material';
 import { SnackbarProvider, useSnackbar, VariantType, closeSnackbar  } from 'notistack';
-import { IconButton, Tooltip } from '@mui/material';
-import NewspaperIcon from '@mui/icons-material/Newspaper';
+import { IconButton, Button } from '@mui/material';
+import RateReviewIcon from '@mui/icons-material/RateReview';
 import theme from './theme';
 import QueueMaestroLogo from './components/QueueMaestroLogo';
 import { Analytics } from '@vercel/analytics/react';
@@ -20,6 +20,13 @@ import { debouncedSave, isLocalStorageAvailable } from './lib/utils/localStorage
 import DragTutorial from './components/DragTutorial';
 import FeedbackModal from './components/FeedbackModal';
 import AnnouncementDialog from './components/AnnouncementDialog';
+import FeedbackPromptCard from './components/FeedbackPromptCard';
+import {
+	FEEDBACK_CAMPAIGN_ACTIVE,
+	readPromptState,
+	recordPromptDismissed,
+	shouldShowFeedbackPrompt,
+} from './lib/feedbackPrompt';
 import { ActionType } from './lib/store/Action';
 import { trackAppOpen, trackGameCompleted, startUsageSync } from './lib/usageTracking';
 
@@ -43,6 +50,7 @@ export const SnackbarContext = React.createContext<{
 const AppContent: React.FC = () => {
 	const [state, rawDispatch] = useReducer(reducer, InitialState);
 	const { enqueueSnackbar } = useSnackbar();
+	const [gamesEndedThisSession, setGamesEndedThisSession] = useState(0);
 
 	// Anonymous usage tracking: observes actions and never changes them or the game state
 	const stateRef = useRef(state);
@@ -70,6 +78,7 @@ const AppContent: React.FC = () => {
 				courts: Object.keys(current.courts.playersByCourt || {}).length,
 				queues: Object.keys(current.queue.playersByQueue || {}).length,
 			});
+			setGamesEndedThisSession((n) => n + 1);
 		}
 	}, []);
 
@@ -81,6 +90,8 @@ const AppContent: React.FC = () => {
 	const [showDragTutorial, setShowDragTutorial] = useState(false);
 	const [showFeedback, setShowFeedback] = useState(false);
 	const [showAnnouncement, setShowAnnouncement] = useState(false);
+	const [showFeedbackPrompt, setShowFeedbackPrompt] = useState(false);
+	const promptShownThisSession = useRef(false);
 
 	const showPartnershipSnackbar = (message: string) => {
 		enqueueSnackbar(message, {
@@ -222,6 +233,39 @@ const AppContent: React.FC = () => {
 		setShowFeedback(true);
 	};
 
+	// Gentle feedback prompt for engaged users: after a couple of completed games, never while
+	// a dialog is open, and at most once per page load (see lib/feedbackPrompt for the rules)
+	useEffect(() => {
+		if (showFeedback || showAnnouncement || showDragTutorial || showFeedbackPrompt) return;
+		if (
+			!shouldShowFeedbackPrompt({
+				campaignActive: FEEDBACK_CAMPAIGN_ACTIVE,
+				state: readPromptState(),
+				gamesEndedThisSession,
+				shownThisSession: promptShownThisSession.current,
+				now: Date.now(),
+			})
+		) {
+			return;
+		}
+
+		const timer = setTimeout(() => {
+			promptShownThisSession.current = true;
+			setShowFeedbackPrompt(true);
+		}, 1500);
+		return () => clearTimeout(timer);
+	}, [gamesEndedThisSession, showFeedback, showAnnouncement, showDragTutorial, showFeedbackPrompt]);
+
+	const handlePromptLater = useCallback(() => {
+		recordPromptDismissed();
+		setShowFeedbackPrompt(false);
+	}, []);
+
+	const handlePromptShare = useCallback(() => {
+		setShowFeedbackPrompt(false);
+		setShowFeedback(true);
+	}, []);
+
 	return (
 		<SnackbarContext.Provider value={{ showPartnershipSnackbar, showOppositionSnackbar }}>
 			<CssBaseline />
@@ -249,23 +293,37 @@ const AppContent: React.FC = () => {
 								Queue Maestro
 							</Typography>
 						</Box>
-						<Tooltip title="What's new: share your feedback">
-							<IconButton
+						{FEEDBACK_CAMPAIGN_ACTIVE && (
+							<Button
 								color="inherit"
-								aria-label="What's new"
-								onClick={() => setShowAnnouncement(true)}
+								variant="outlined"
+								size="small"
+								aria-label="Share feedback"
+								onClick={() => setShowFeedback(true)}
+								startIcon={<RateReviewIcon />}
 								sx={{
-									'@keyframes newsPulse': {
+									textTransform: 'none',
+									fontWeight: 600,
+									borderColor: 'rgba(255, 255, 255, 0.5)',
+									minWidth: 0,
+									// icon-only on very narrow screens so the title never overflows
+									'& .MuiButton-startIcon': { mr: { xs: 0, sm: 0 }, ml: 0 },
+									'& .feedback-label': {
+										display: 'none',
+										ml: 1,
+										'@media (min-width:360px)': { display: 'inline' },
+									},
+									'@keyframes feedbackPulse': {
 										'0%': { boxShadow: '0 0 0 0 rgba(255, 255, 255, 0.6)' },
 										'70%': { boxShadow: '0 0 0 10px rgba(255, 255, 255, 0)' },
 										'100%': { boxShadow: '0 0 0 0 rgba(255, 255, 255, 0)' },
 									},
-									animation: 'newsPulse 2s infinite',
+									animation: 'feedbackPulse 2s infinite',
 								}}
 							>
-								<NewspaperIcon />
-							</IconButton>
-						</Tooltip>
+								<span className="feedback-label">Feedback</span>
+							</Button>
+						)}
 					</Toolbar>
 				</AppBar>
 				<Box sx={{ 
@@ -279,7 +337,7 @@ const AppContent: React.FC = () => {
 						onShowTutorial={() => setShowDragTutorial(true)}
 						onOpenFeedback={() => setShowFeedback(true)}
 					/>
-					<MobileFooter />
+					<MobileFooter onOpenFeedback={() => setShowFeedback(true)} />
 				</Box>
 				<Analytics />
 				<SpeedInsights />
@@ -288,6 +346,11 @@ const AppContent: React.FC = () => {
 					onClose={handleTutorialClose}
 				/>
 				<FeedbackModal open={showFeedback} onClose={() => setShowFeedback(false)} />
+				<FeedbackPromptCard
+					open={showFeedbackPrompt}
+					onShare={handlePromptShare}
+					onLater={handlePromptLater}
+				/>
 				<AnnouncementDialog
 					open={showAnnouncement}
 					onClose={handleAnnouncementClose}
