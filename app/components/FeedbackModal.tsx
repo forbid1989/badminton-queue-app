@@ -41,12 +41,28 @@ const SPORTS = [
   { value: 'other', label: 'Other' },
 ];
 
-const SESSIONS_PER_WEEK = [
-  { value: 'less_than_1', label: 'Less than once a week' },
-  { value: '1', label: 'Once a week' },
-  { value: '2_3', label: '2-3 times a week' },
-  { value: '4_plus', label: '4 or more times a week' },
+const REGIONS = [
+  { value: 'metro_manila', label: 'Metro Manila' },
+  { value: 'luzon_other', label: 'Luzon (outside Metro Manila)' },
+  { value: 'visayas', label: 'Visayas' },
+  { value: 'mindanao', label: 'Mindanao' },
+  { value: 'other', label: 'Outside the Philippines' },
 ];
+
+const GROUP_TYPES = [
+  { value: 'students', label: 'Mostly students' },
+  { value: 'working_adults', label: 'Mostly working adults' },
+  { value: 'mixed', label: 'Mixed' },
+];
+
+const PLAYERS_PER_SESSION = [
+  { value: 'lt_10', label: 'Under 10' },
+  { value: '10_19', label: '10-19' },
+  { value: '20_29', label: '20-29' },
+  { value: '30_plus', label: '30 or more' },
+];
+
+const SURVEY_VERSION = 2;
 
 const FEATURES = [
   { value: 'auto_queue', label: 'Auto-queueing' },
@@ -56,6 +72,7 @@ const FEATURES = [
   { value: 'live_session', label: 'Live session view (players see the queue and their turn on their phone)' },
   { value: 'match_history', label: 'Player match history (your own and other players’)' },
   { value: 'match_request', label: 'Match requests (players request a game with specific people)' },
+  { value: 'running_cost', label: 'Running cost and budget alerts for players' },
   { value: 'other', label: 'Other' },
 ];
 
@@ -66,12 +83,13 @@ const WOULD_PAY = [
 ];
 
 const PRICES = [
-  { value: 'under_100', label: 'Under ₱100' },
-  { value: '100', label: '₱100' },
-  { value: '150', label: '₱150' },
-  { value: '250', label: '₱250' },
-  { value: '400', label: '₱400' },
-  { value: 'over_400', label: 'More than ₱400' },
+  { value: 'lt_100', label: 'Under ₱100' },
+  { value: '100_199', label: '₱100-199' },
+  { value: '200_299', label: '₱200-299' },
+  { value: '300_499', label: '₱300-499' },
+  { value: '500_749', label: '₱500-749' },
+  { value: '750_999', label: '₱750-999' },
+  { value: '1000_plus', label: '₱1,000 or more' },
 ];
 
 const MAX_FEATURES = 3;
@@ -82,7 +100,9 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ open, onClose }) => {
   const { enqueueSnackbar } = useSnackbar();
   const [role, setRole] = useState('');
   const [sports, setSports] = useState<string[]>([]);
-  const [sessionsPerWeek, setSessionsPerWeek] = useState('');
+  const [region, setRegion] = useState('');
+  const [groupType, setGroupType] = useState('');
+  const [playersPerSession, setPlayersPerSession] = useState('');
   const [features, setFeatures] = useState<string[]>([]);
   const [featureOther, setFeatureOther] = useState('');
   const [wouldPay, setWouldPay] = useState('');
@@ -102,6 +122,8 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ open, onClose }) => {
   const canSubmit =
     !!role &&
     sports.length >= 1 &&
+    !!region &&
+    !!groupType &&
     features.length >= 1 &&
     !!wouldPay &&
     (!showPrice || !!priceChoice) &&
@@ -111,7 +133,9 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ open, onClose }) => {
   const reset = () => {
     setRole('');
     setSports([]);
-    setSessionsPerWeek('');
+    setRegion('');
+    setGroupType('');
+    setPlayersPerSession('');
     setFeatures([]);
     setFeatureOther('');
     setWouldPay('');
@@ -168,8 +192,11 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ open, onClose }) => {
     try {
       ({ error } = await supabase.from('feedback').insert({
       role,
+      survey_version: SURVEY_VERSION,
       sports,
-      sessions_per_week: sessionsPerWeek || null,
+      region,
+      group_type: groupType,
+      players_per_session: playersPerSession || null,
       top_features: features,
       feature_other: features.includes('other') ? featureOther.trim() || null : null,
       would_pay: wouldPay,
@@ -200,6 +227,10 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ open, onClose }) => {
       <DialogTitle>Share your feedback</DialogTitle>
       <DialogContent dividers>
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+          <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+            About your group
+          </Typography>
+
           <FormControl required>
             <FormLabel>What is your role in your badminton group?</FormLabel>
             <RadioGroup value={role} onChange={(e) => setRole(e.target.value)}>
@@ -224,14 +255,53 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ open, onClose }) => {
             </FormGroup>
           </FormControl>
 
-          <FormControl>
-            <FormLabel>How often does your group play? (optional)</FormLabel>
-            <RadioGroup value={sessionsPerWeek} onChange={(e) => setSessionsPerWeek(e.target.value)}>
-              {SESSIONS_PER_WEEK.map((s) => (
-                <FormControlLabel key={s.value} value={s.value} control={<Radio size="small" />} label={s.label} />
-              ))}
-            </RadioGroup>
-          </FormControl>
+          <TextField
+            select
+            required
+            label="Where is your group based?"
+            value={region}
+            onChange={(e) => setRegion(e.target.value)}
+            size="small"
+          >
+            {REGIONS.map((r) => (
+              <MenuItem key={r.value} value={r.value}>
+                {r.label}
+              </MenuItem>
+            ))}
+          </TextField>
+
+          <TextField
+            select
+            required
+            label="Who mostly plays in your group?"
+            value={groupType}
+            onChange={(e) => setGroupType(e.target.value)}
+            size="small"
+          >
+            {GROUP_TYPES.map((g) => (
+              <MenuItem key={g.value} value={g.value}>
+                {g.label}
+              </MenuItem>
+            ))}
+          </TextField>
+
+          <TextField
+            select
+            label="Players per session (optional)"
+            value={playersPerSession}
+            onChange={(e) => setPlayersPerSession(e.target.value)}
+            size="small"
+          >
+            {PLAYERS_PER_SESSION.map((p) => (
+              <MenuItem key={p.value} value={p.value}>
+                {p.label}
+              </MenuItem>
+            ))}
+          </TextField>
+
+          <Typography variant="subtitle2" sx={{ fontWeight: 700, mt: 1 }}>
+            About the app
+          </Typography>
 
           <FormControl required>
             <FormLabel>Which would be most valuable to your group? (pick up to {MAX_FEATURES})</FormLabel>
@@ -279,7 +349,7 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ open, onClose }) => {
             <TextField
               select
               required
-              label="Monthly price per group that feels reasonable"
+              label="Monthly price that feels reasonable for your whole group (all branches)"
               value={priceChoice}
               onChange={(e) => setPriceChoice(e.target.value)}
               size="small"
