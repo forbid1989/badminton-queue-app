@@ -4,24 +4,25 @@ import { Paper, Typography, Button, Box, Fade, useMediaQuery } from '@mui/materi
 interface FeedbackPromptCardProps {
   open: boolean;
   onShare: () => void;
-  onLater: () => void; // also called when the card times out
+  onLater: () => void; // the user pressed "Later"
+  onTimeout: () => void; // the card hid itself without any interaction
 }
 
 const AUTO_HIDE_MS = 12000;
 
 // Small non-modal prompt. It is deliberately not part of the notistack queue so it can never
 // push out or be dismissed with live game warnings, and it never covers the courts for long.
-const FeedbackPromptCard: React.FC<FeedbackPromptCardProps> = ({ open, onShare, onLater }) => {
+const FeedbackPromptCard: React.FC<FeedbackPromptCardProps> = ({ open, onShare, onLater, onTimeout }) => {
   const isMobile = useMediaQuery('(max-width: 768px)');
 
   // The parent re-renders constantly during play; keep the latest callback in a ref so the
   // auto-hide timer only depends on `open` and is never reset by those re-renders.
-  const onLaterRef = useRef(onLater);
-  onLaterRef.current = onLater;
+  const onTimeoutRef = useRef(onTimeout);
+  onTimeoutRef.current = onTimeout;
 
   useEffect(() => {
     if (!open) return;
-    const timer = setTimeout(() => onLaterRef.current(), AUTO_HIDE_MS);
+    const timer = setTimeout(() => onTimeoutRef.current(), AUTO_HIDE_MS);
     return () => clearTimeout(timer);
   }, [open]);
 

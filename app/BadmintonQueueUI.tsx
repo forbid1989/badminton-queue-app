@@ -23,8 +23,11 @@ import AnnouncementDialog from './components/AnnouncementDialog';
 import FeedbackPromptCard from './components/FeedbackPromptCard';
 import {
 	FEEDBACK_CAMPAIGN_ACTIVE,
+	MIN_GAMES_BEFORE_PROMPT,
 	readPromptState,
 	recordPromptDismissed,
+	recordPromptOpened,
+	recordPromptTimedOut,
 	shouldShowFeedbackPrompt,
 } from './lib/feedbackPrompt';
 import { ActionType } from './lib/store/Action';
@@ -78,7 +81,8 @@ const AppContent: React.FC = () => {
 				courts: Object.keys(current.courts.playersByCourt || {}).length,
 				queues: Object.keys(current.queue.playersByQueue || {}).length,
 			});
-			setGamesEndedThisSession((n) => n + 1);
+			// Capped at the prompt threshold so later games don't trigger extra state updates
+			setGamesEndedThisSession((n) => Math.min(n + 1, MIN_GAMES_BEFORE_PROMPT));
 		}
 	}, []);
 
@@ -213,11 +217,11 @@ const AppContent: React.FC = () => {
 		} catch {
 			return;
 		}
-		if (seen || hasSessionActivity || showDragTutorial) return;
+		if (seen || hasSessionActivity || showDragTutorial || showFeedbackPrompt) return;
 
 		const timer = setTimeout(() => setShowAnnouncement(true), 3000);
 		return () => clearTimeout(timer);
-	}, [hasSessionActivity, showDragTutorial]);
+	}, [hasSessionActivity, showDragTutorial, showFeedbackPrompt]);
 
 	const handleAnnouncementClose = () => {
 		setShowAnnouncement(false);
@@ -261,7 +265,14 @@ const AppContent: React.FC = () => {
 		setShowFeedbackPrompt(false);
 	}, []);
 
+	const handlePromptTimeout = useCallback(() => {
+		recordPromptTimedOut();
+		setShowFeedbackPrompt(false);
+	}, []);
+
 	const handlePromptShare = useCallback(() => {
+		// Opening the form counts as engagement even if they cancel, so don't re-prompt right away
+		recordPromptOpened();
 		setShowFeedbackPrompt(false);
 		setShowFeedback(true);
 	}, []);
@@ -307,7 +318,7 @@ const AppContent: React.FC = () => {
 									borderColor: 'rgba(255, 255, 255, 0.5)',
 									minWidth: 0,
 									// icon-only on very narrow screens so the title never overflows
-									'& .MuiButton-startIcon': { mr: { xs: 0, sm: 0 }, ml: 0 },
+									'& .MuiButton-startIcon': { mr: 0, ml: 0 },
 									'& .feedback-label': {
 										display: 'none',
 										ml: 1,
@@ -319,6 +330,7 @@ const AppContent: React.FC = () => {
 										'100%': { boxShadow: '0 0 0 0 rgba(255, 255, 255, 0)' },
 									},
 									animation: 'feedbackPulse 2s infinite',
+									'@media (prefers-reduced-motion: reduce)': { animation: 'none' },
 								}}
 							>
 								<span className="feedback-label">Feedback</span>
@@ -350,6 +362,7 @@ const AppContent: React.FC = () => {
 					open={showFeedbackPrompt}
 					onShare={handlePromptShare}
 					onLater={handlePromptLater}
+					onTimeout={handlePromptTimeout}
 				/>
 				<AnnouncementDialog
 					open={showAnnouncement}
