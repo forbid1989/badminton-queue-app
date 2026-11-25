@@ -72,13 +72,19 @@ Runs ESLint to check for code quality issues.
 4. **Track Games**: End games to automatically update player statistics
 5. **Manage Payments**: Track player payments with flexible fee structures
 
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
 ## License
 
-This project is private and proprietary.
+Queue Maestro is **free to use** at [queuemaestrosports.app](https://queuemaestrosports.app).
+
+The source code is public as a portfolio project, for viewing and evaluation.
+© 2026 Carl Meyrick Cheng. All rights reserved. Please ask before reusing,
+redistributing or deploying the code.
+
+## Contributing
+
+Pull requests are welcome. By submitting one, you agree that your contribution
+may be used, modified and distributed as part of Queue Maestro under the
+owner's terms.
 
 ## Contact
 
