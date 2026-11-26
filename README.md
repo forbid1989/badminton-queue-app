@@ -64,6 +64,14 @@ Starts the production server (requires `npm run build` first).
 ### `npm run lint`
 Runs ESLint to check for code quality issues.
 
+### `npm run test:e2e`
+Runs the Playwright end-to-end tests (desktop Chrome and an iPhone viewport). Install the
+browsers once with `npx playwright install chromium webkit`. Stop `npm run dev` first, because
+the tests start their own dev server and both would share the `.next` folder.
+
+Use `npm run test:e2e:ui` to watch and debug tests. They also run in GitHub Actions on pull
+requests and pushes to `main`.
+
 ## Usage
 
 1. **Add Players**: Use the player parser to quickly add multiple players at once
