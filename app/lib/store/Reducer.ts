@@ -11,6 +11,7 @@ import * as GameReducer from "./reducers/gameReducer";
 import * as PaymentReducer from "./reducers/paymentReducer";
 import * as SettingsReducer from "./reducers/settingsReducer";
 import * as MovementReducer from "./reducers/movementReducer";
+import { withdrawUndoForRelocatedPlayers } from "./helpers/gameHelpers";
 
 // Action type definition
 type Action =
@@ -102,11 +103,18 @@ type Action =
       payload: { courtId: string; displayNumber: number };
     };
 
-/**
- * Main reducer that delegates to specialized sub-reducers
- * Each case delegates to the appropriate sub-reducer for that domain
- */
 export default function reducer(state: RootState, action: Action): RootState {
+  const nextState = delegate(state, action);
+
+  // Checked here because many different actions can put a player on a court.
+  // An unchanged state is returned as is: usage tracking relies on that.
+  return nextState === state ? state : withdrawUndoForRelocatedPlayers(nextState);
+}
+
+/**
+ * Delegates each action to the sub-reducer for that domain
+ */
+function delegate(state: RootState, action: Action): RootState {
   switch (action.type) {
     // Court-related actions
     case ActionType.SET_COURT_COUNT:

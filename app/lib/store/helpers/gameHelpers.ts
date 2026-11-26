@@ -21,6 +21,9 @@ export function clearUndoDataForChangedCourts(
     const currentPlayers = newPlayersByCourt[courtId] || [];
     const currentPlayerIds = currentPlayers.map((p) => p.id).sort();
 
+    // An ended court that is still empty has not changed
+    if (currentPlayers.length === 0) return;
+
     // Check if composition changed
     const compositionChanged =
       originalPlayerIds.length !== currentPlayerIds.length ||
@@ -35,6 +38,25 @@ export function clearUndoDataForChangedCourts(
   });
 
   return updatedUndoGames;
+}
+
+/**
+ * Withdraws Undo for any game whose players have since been placed on another court,
+ * so that undoing it cannot pull them out of the game they are in now
+ */
+export function withdrawUndoForRelocatedPlayers(state: RootState): RootState {
+  const entries = Object.entries(state.undoableGames) as [string, UndoGameData][];
+
+  const stillValid = entries.filter(([courtId, undoData]) =>
+    undoData.playersData.every(({ id }) => {
+      const player = state.players.find((p) => p.id === id);
+      return !player?.status.some((s) => s.startsWith("court-") && s !== courtId);
+    })
+  );
+
+  if (stillValid.length === entries.length) return state;
+
+  return { ...state, undoableGames: Object.fromEntries(stillValid) };
 }
 
 /**

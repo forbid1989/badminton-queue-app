@@ -129,13 +129,11 @@ export const loadFromLocalStorage = (): Partial<RootState> | null => {
       });
     }
 
-    // 🆕 Validate player IDs and names to detect/fix corruption
+    // Remove records that repeat an ID. Names are not unique: different players can share one.
     if (persistedState.players) {
       const seenIds = new Set<string>();
-      const seenNames = new Map<string, string>(); // name -> id
 
       persistedState.players = persistedState.players.filter((player) => {
-        // Check for duplicate IDs
         if (seenIds.has(player.id)) {
           console.warn(
             `⚠️ Duplicate player ID detected: ${player.id} (${player.name}) - removing duplicate`
@@ -143,32 +141,6 @@ export const loadFromLocalStorage = (): Partial<RootState> | null => {
           return false;
         }
         seenIds.add(player.id);
-
-        // Check for name/ID mismatches (potential corruption)
-        if (seenNames.has(player.name)) {
-          const existingId = seenNames.get(player.name);
-          if (existingId !== player.id) {
-            console.warn(
-              `⚠️ Name collision detected: "${player.name}" has two IDs: ${existingId} and ${player.id}`
-            );
-            // Keep the one with more match history (more likely to be correct)
-            const existingPlayer = persistedState.players.find(
-              (p) => p.id === existingId
-            );
-            if (
-              existingPlayer &&
-              (existingPlayer.matchHistory?.length || 0) >
-                (player.matchHistory?.length || 0)
-            ) {
-              console.warn(
-                `⚠️ Removing ${player.name} (${player.id}) - keeping version with more history`
-              );
-              return false; // Remove this one, keep existing
-            }
-          }
-        }
-        seenNames.set(player.name, player.id);
-
         return true;
       });
 

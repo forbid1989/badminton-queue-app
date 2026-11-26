@@ -263,15 +263,17 @@ export function undoEndGame(state: RootState, courtId: string): RootState {
 
     console.log(
       `⏪ ${player.name}: games ${player.gamesPlayed} → ${playerUndoData.previousGamesPlayed}, ` +
-        `status ${JSON.stringify(player.status)} → ${JSON.stringify(
-          playerUndoData.previousStatus
-        )}`
+        `returning to ${courtId}`
     );
+
+    // Queues may have been joined, left or renumbered since the game ended, so keep the
+    // player's current queue. Use the current court ID, which shifts if a court is deleted.
+    const currentQueues = player.status.filter((s) => s.startsWith("queue-"));
 
     return {
       ...player,
       gamesPlayed: playerUndoData.previousGamesPlayed,
-      status: playerUndoData.previousStatus,
+      status: [courtId as PlayerStatus, ...currentQueues],
       timeEntered: playerUndoData.previousTimeEntered,
       matchHistory: updatedMatchHistory,
       courtOrder: playerUndoData.courtOrder,

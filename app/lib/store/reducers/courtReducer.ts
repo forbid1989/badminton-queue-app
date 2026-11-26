@@ -73,8 +73,16 @@ export function setCourtCount(state: RootState, newCount: number): RootState {
     }
   }
 
+  // A removed court's Undo must not reappear if a court is added back later
+  const remainingUndoGames = Object.fromEntries(
+    Object.entries(state.undoableGames).filter(([courtId]) =>
+      newCourtIds.includes(courtId)
+    )
+  ) as RootState["undoableGames"];
+
   return {
     ...state,
+    undoableGames: remainingUndoGames,
     courts: {
       ...state.courts,
       count: newCount,
